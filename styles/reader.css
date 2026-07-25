@@ -447,12 +447,57 @@
    Tables
    ============================================================ */
 
-.tablewrap {
+/* Tables compare values across columns, so on a narrow screen they scroll
+   rather than reflowing into stacked cards. The fades below are the affordance
+   for that: without them a clipped column reads as broken content.
+
+   They live on this outer box rather than on the scroller, because a
+   pseudo-element of a scroll container scrolls away with its content. The
+   [data-edge] value comes from the scroll handler in render.js, so a fade only
+   appears on a side that actually has more content. */
+.tablebox {
+  position: relative;
   margin: var(--s-6) 0 !important;
-  overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface-1);
+  overflow: hidden;
+}
+
+.tablebox::before,
+.tablebox::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+  z-index: 1;
+}
+
+.tablebox::before {
+  left: 0;
+  /* Fading to the panel surface rather than laying a shadow over the text: the
+     content dissolving into the edge is what says "there is more this way". */
+  background: linear-gradient(to right, var(--surface-1) 18%, transparent);
+}
+
+.tablebox::after {
+  right: 0;
+  background: linear-gradient(to left, var(--surface-1) 18%, transparent);
+}
+
+.tablebox[data-edge="start"]::before,
+.tablebox[data-edge="both"]::before,
+.tablebox[data-edge="end"]::after,
+.tablebox[data-edge="both"]::after {
+  opacity: 1;
+}
+
+.tablewrap {
+  overflow-x: auto;
 }
 
 .tablewrap table {

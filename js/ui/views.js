@@ -172,7 +172,9 @@
       dots +
       "</div>" +
       '<div class="pathrail__label" data-rail-label>' +
-      "<b>Eight phases, in a deliberate order</b>" +
+      "<b>" +
+      U.words(C.phases.length, true) +
+      " phases, in a deliberate order</b>" +
       "Hover a phase to see what it covers." +
       "</div></div>"
     );
@@ -194,7 +196,9 @@
       " labs</div>" +
       "<h1>Become an <em>AI application engineer.</em><br>Properly.</h1>" +
       '<div class="hero__lede">A structured, opinionated path from “I can call an LLM API” ' +
-      "to “I can ship an AI system and prove it works.” Eight phases, " +
+      "to “I can ship an AI system and prove it works.” " +
+      U.words(C.phases.length, true) +
+      " phases, " +
       "hands-on labs in every chapter, and the parts nobody teaches — " +
       "evaluation, cost, and security.</div>" +
       '<div class="hero__cta">' +
@@ -277,7 +281,9 @@
     var path = el("section", "lsection");
     path.innerHTML =
       '<div class="lsection__head"><div class="u-eyebrow">The path</div>' +
-      "<h2>Eight phases, in a deliberate order</h2>" +
+      "<h2>" +
+      U.words(C.phases.length, true) +
+      " phases, in a deliberate order</h2>" +
       "<p>Each phase builds on the last and ends with a project. You can jump " +
       "anywhere, but the sequence exists for a reason.</p></div>";
     var pp = el("div", "pathpreview");
@@ -921,7 +927,7 @@
       "<h2>" +
       plan.totalWeeks +
       " weeks at " +
-      profile.hoursPerWeek +
+      plan.hoursPerWeek +
       " h/week</h2>" +
       "<p>" +
       Math.round(plan.readingMinutes / 60) +
@@ -953,14 +959,15 @@
     var next = nextChapter();
     var acts = el("div", "u-row u-wrap");
     if (next) {
-      var go = el("a", "btn btn--primary");
+      var go = el("a", "btn btn--primary btn--wrap");
       go.href = "#/chapter/" + next.id;
       var m = plan.byId[next.id];
       go.innerHTML =
         Icons.get("play", 15) +
-        " Continue · " +
+        "<span> Continue · " +
         esc(next.title.slice(0, 34)) +
-        (m ? " (" + MODE_LABEL[m.mode].l.toLowerCase() + ")" : "");
+        (m ? " (" + MODE_LABEL[m.mode].l.toLowerCase() + ")" : "") +
+        "</span>";
       acts.appendChild(go);
     }
     var edit = el("button", "btn btn--outline");
@@ -1237,7 +1244,9 @@
     } else {
       var doneCard = el("div", "resume");
       doneCard.innerHTML =
-        '<div class="u-eyebrow">Complete</div><h3>All 41 chapters done</h3>' +
+        '<div class="u-eyebrow">Complete</div><h3>All ' +
+        C.chapters.length +
+        " chapters done</h3>" +
         "<p>Now do the projects — the deployed one especially. Nothing on this " +
         "roadmap teaches as much as real users doing unexpected things.</p>" +
         '<a class="btn btn--primary" href="#/projects">' +
@@ -1640,7 +1649,9 @@
     var head = el("div", "page-head");
     head.innerHTML =
       '<div class="u-eyebrow">Build</div><h1>Projects</h1>' +
-      "<p>Six projects, ordered by difficulty. Do at least three — the " +
+      "<p>" +
+      U.words(C.projects.length, true) +
+      " projects, ordered by difficulty. Do at least three — the " +
       "eval harness and the deployed one especially. Tick milestones as you go; " +
       "each is worth " +
       Store.XP.task +
@@ -2010,7 +2021,7 @@
           " · " +
           U.plural((prof.skills || []).length, "skill") +
           " claimed · " +
-          prof.hoursPerWeek +
+          Store.plan().hoursPerWeek +
           " h/week. Drives which chapters are marked skim."
         : "Not set. Without it, every chapter is treated as new material.") +
       "</div></div>";

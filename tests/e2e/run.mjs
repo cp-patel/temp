@@ -403,15 +403,31 @@ async function main() {
   mp.on("console", (m) => {
     if (m.type() === "error") errors.push(`mobile console: ${m.text()}`);
   });
+  /* A profile is set, not skipped. Skipping onboarding leaves #/plan showing its
+     empty state, so the real plan — the widest content in the app, and the only
+     place a chapter title ends up inside a button label — was never measured.
+     That is how a 71px overflow on #/plan shipped past this check. */
+  await mp.goto(BASE, { waitUntil: "networkidle" });
+  await mp.evaluate(() =>
+    Store.setProfile({
+      track: "backend",
+      goal: "job",
+      hoursPerWeek: 10,
+      skills: ["apis", "reliability", "caching", "databases"],
+    })
+  );
   for (const r of [
     "",
+    "#/dashboard",
     "#/plan",
     "#/roadmap",
+    "#/library",
+    "#/review",
+    "#/projects",
     "#/chapter/rag-architecture",
     "#/labs",
   ]) {
     await mp.goto(BASE + r, { waitUntil: "networkidle" });
-    await mp.evaluate(() => Store.skipOnboarding());
     await mp.waitForTimeout(350);
     const ov = await mp.evaluate(
       () =>
@@ -420,8 +436,20 @@ async function main() {
     );
     check(`mobile ${r || "/"} no h-overflow`, ov <= 2, `${ov}px`);
   }
+  /* A table that scrolls must say so. On a phone the third column is clipped;
+     without an edge fade that reads as broken content rather than as "swipe". */
+  await mp.goto(BASE + "#/chapter/tokens", { waitUntil: "networkidle" });
+  await mp.waitForTimeout(700);
+  const edges = await mp.evaluate(() =>
+    [...document.querySelectorAll(".tablebox")].map((e) => e.dataset.edge)
+  );
+  check(
+    "scrollable tables show an edge fade on mobile",
+    edges.length > 0 && edges.every((e) => e === "end" || e === "both"),
+    edges.join(",")
+  );
+
   await mp.goto(BASE + "#/roadmap", { waitUntil: "networkidle" });
-  await mp.evaluate(() => Store.skipOnboarding());
   await mp.waitForTimeout(300);
   await mp.locator(".topbar__menu").click();
   await mp.waitForTimeout(350);

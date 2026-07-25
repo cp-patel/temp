@@ -274,6 +274,20 @@ hr {
     opacity var(--dur-fast) var(--ease);
 }
 
+/* For buttons whose label is content rather than a fixed verb — "Continue ·
+   <chapter title>" is 444px wide, which overflowed a 390px viewport while
+   .btn's nowrap held it on one line. */
+.btn--wrap {
+  white-space: normal;
+  text-align: left;
+  max-width: 100%;
+}
+
+.btn--wrap svg {
+  align-self: flex-start;
+  margin-top: 0.2em;
+}
+
 .btn:hover {
   border-color: var(--line-strong);
   transform: translateY(-1px);

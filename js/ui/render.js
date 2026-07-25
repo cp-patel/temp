@@ -157,6 +157,16 @@
   }
 
   function tableBlock(b) {
+    /* Two elements: an outer box that owns the border, the radius and the edge
+       fades, and an inner scroller. The fades can't live on the scroller itself
+       — a pseudo-element of a scroll container scrolls with its content, and the
+       background-attachment trick is painted over by the table's own cells.
+
+       These tables compare values across columns, so they scroll rather than
+       reflow into stacked cards; that keeps them useful on a phone, but a
+       clipped column with no affordance reads as broken content rather than as
+       "there is more this way". */
+    var box = el("div", "tablebox");
     var wrap = el("div", "tablewrap");
     var html = "<table><thead><tr>";
     b.head.forEach(function (h) {
@@ -172,7 +182,25 @@
     });
     html += "</tbody></table>";
     wrap.innerHTML = html;
-    return wrap;
+    box.appendChild(wrap);
+
+    /* Which fades to show. The listener is on the scroller, so it is collected
+       with the element on navigation — nothing to clean up. */
+    function edges() {
+      var slack = wrap.scrollWidth - wrap.clientWidth;
+      if (slack < 4) {
+        box.dataset.edge = "none";
+        return;
+      }
+      var atStart = wrap.scrollLeft < 4;
+      var atEnd = wrap.scrollLeft > slack - 4;
+      box.dataset.edge = atStart ? "end" : atEnd ? "start" : "both";
+    }
+    wrap.addEventListener("scroll", edges, { passive: true });
+    // Widths aren't known until layout; check on the next frame and on resize.
+    requestAnimationFrame(edges);
+    if (global.ResizeObserver) new global.ResizeObserver(edges).observe(wrap);
+    return box;
   }
 
   function stepsBlock(b) {

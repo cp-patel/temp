@@ -109,6 +109,28 @@ describe("scheduling", () => {
     assert.ok(fast.totalWeeks < slow.totalWeeks);
   });
 
+  /* A profile written by an older version, or restored from a hand-edited
+     export, can carry a missing or non-numeric hoursPerWeek. The plan must
+     resolve it and report what it used — the plan view prints
+     plan.hoursPerWeek, and printing the raw profile field rendered
+     "31 weeks at undefined h/week". */
+  test("reports the hours per week it actually scheduled", () => {
+    assert.equal(C.planFor(BACKEND).hoursPerWeek, 10);
+    for (const bad of [undefined, null, "", "ten", 0, -4, NaN]) {
+      const plan = C.planFor({ ...BACKEND, hoursPerWeek: bad });
+      assert.ok(
+        Number.isFinite(plan.hoursPerWeek) && plan.hoursPerWeek > 0,
+        `hoursPerWeek=${String(bad)} produced ${plan.hoursPerWeek}`
+      );
+      assert.ok(plan.totalWeeks > 0);
+    }
+    // A numeric string is a legitimate value, not a fallback case.
+    assert.equal(
+      C.planFor({ ...BACKEND, hoursPerWeek: "20" }).hoursPerWeek,
+      20
+    );
+  });
+
   test("no week is scheduled far beyond its budget", () => {
     for (const hours of [3, 5, 10, 20]) {
       const plan = C.planFor({ ...BACKEND, hoursPerWeek: hours });

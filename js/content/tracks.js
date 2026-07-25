@@ -396,7 +396,14 @@
 
     /* --- fill weeks. A project larger than one week's budget is split across
            consecutive weeks rather than distorting a single one. --- */
-    var perWeek = (profile.hoursPerWeek || 5) * 60;
+    /* A profile written by an older version of the app — or one restored from a
+       hand-edited export — can carry a missing or non-numeric hoursPerWeek.
+       Resolve it once, here, and return it on the plan, so the number the views
+       print is always the number the schedule was built from. Printing
+       profile.hoursPerWeek directly rendered "undefined h/week". */
+    var hoursPerWeek = parseFloat(profile.hoursPerWeek);
+    if (!isFinite(hoursPerWeek) || hoursPerWeek <= 0) hoursPerWeek = 5;
+    var perWeek = hoursPerWeek * 60;
     var weeks = [];
     var cur = { n: 1, minutes: 0, items: [], projects: [] };
 
@@ -462,6 +469,7 @@
       }, {}),
       weeks: weeks,
       counts: counts,
+      hoursPerWeek: hoursPerWeek,
       readingMinutes: readingMinutes,
       projectMinutes: projectMinutes,
       totalMinutes: totalMinutes,
