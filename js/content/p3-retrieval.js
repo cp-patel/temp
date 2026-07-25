@@ -31,6 +31,14 @@
 
         { t: "h", text: "Distance metrics" },
         {
+          t: "p",
+          text: "This phase is where AI engineering stops resembling prompt work and starts resembling search engineering — and search engineering is where most RAG systems are lost. Retrieval quality caps answer quality absolutely: no prompt can recover information the retriever never fetched.",
+        },
+        {
+          t: "p",
+          text: "Everything starts with a number that says how similar two vectors are. Three metrics are in common use and, for the embeddings you'll actually encounter, two of them are the same thing.",
+        },
+        {
           t: "table",
           head: ["Metric", "Formula", "When"],
           rows: [
@@ -59,6 +67,10 @@
         },
 
         { t: "h", text: "What embeddings encode — and what they don't" },
+        {
+          t: "p",
+          text: "Knowing how to compare vectors is not the same as knowing what they contain, and this is where intuition misleads people. Embeddings are excellent at topic and terrible at some things that look like topic.",
+        },
         {
           t: "compare",
           left: {
@@ -89,6 +101,10 @@
           text: "'The API supports batch requests' and 'The API does not support batch requests' have cosine similarity above 0.9. Vector search cannot reliably distinguish them, so a question about what is *not* supported may retrieve the exact opposite. Mitigate with hybrid search, a reranker (cross-encoders handle negation far better), and by requiring the model to quote the supporting sentence.",
         },
 
+        {
+          t: "p",
+          text: 'That negation failure deserves emphasis because it is not an edge case. Retrieval that cannot distinguish "supports batch requests" from "does not support batch requests" will confidently ground an answer in a document that says the opposite of what the user needs — and the generation step has no way to notice.',
+        },
         { t: "h", text: "Choosing an embedding model" },
         {
           t: "list",
@@ -108,6 +124,10 @@
         },
 
         { t: "h", text: "Implementation notes that matter" },
+        {
+          t: "p",
+          text: "Model chosen, the remaining decisions are unglamorous and each one is a bug people hit once. Prefixes, batching and caching are the three that matter.",
+        },
         {
           t: "code",
           lang: "python",
@@ -147,6 +167,10 @@ def embed_query_cached(q: str) -> tuple:
         },
 
         { t: "h", text: "The three-way choice you're actually making" },
+        {
+          t: "p",
+          text: "Which brings us to the thing this whole chapter has been circling. Dense embeddings are one retrieval strategy, not the retrieval strategy, and choosing between the three is the subject of **Hybrid Search & Reranking** two chapters from here.",
+        },
         {
           t: "flow",
           nodes: [
@@ -276,6 +300,10 @@ def embed_query_cached(q: str) -> tuple:
 
         { t: "h", text: "The strategies, worst to best" },
         {
+          t: "p",
+          text: 'Chunking is the highest-leverage decision in a RAG pipeline and the one teams spend least time on. It is also the most commonly cargo-culted: "500 tokens with 50 overlap" is repeated everywhere and is rarely the right answer for a specific corpus.',
+        },
+        {
           t: "table",
           head: ["Strategy", "How", "Verdict"],
           rows: [
@@ -319,6 +347,10 @@ def embed_query_cached(q: str) -> tuple:
         },
 
         { t: "h", text: "Sizing, with reasons" },
+        {
+          t: "p",
+          text: "Strategy settled, size is the next question, and it has a real answer rather than a folk one. Work back from what the chunk has to contain to be self-sufficient.",
+        },
         {
           t: "table",
           head: ["Content", "Chunk size", "Overlap", "Split on"],
@@ -369,6 +401,10 @@ def embed_query_cached(q: str) -> tuple:
           text: "Splitting a file every 50 lines cuts functions in half, separates a signature from its body, and orphans class methods from their class. Use an AST parser (tree-sitter handles most languages) and chunk at function or class boundaries, attaching the file path and imports as metadata. This one change transforms code retrieval quality.",
         },
 
+        {
+          t: "p",
+          text: "Notice the shape of both tables: every good option is one that respects the document's own structure, and every bad one imposes a structure the document doesn't have. That is the whole principle — chunk along the seams the author already put there.",
+        },
         { t: "h", text: "Contextual enrichment: the highest-impact upgrade" },
         {
           t: "p",
@@ -418,6 +454,10 @@ def enrich(document: str, chunk: str) -> str:
         { t: "h", text: "Metadata: the free precision win" },
         {
           t: "p",
+          text: "Enrichment fixes what a chunk means. Metadata fixes which chunks are even eligible, and it is the cheapest precision improvement available because it doesn't involve the model at all.",
+        },
+        {
+          t: "p",
           text: "Every chunk should carry metadata, both for filtering and for citation. Filtering before vector search shrinks the candidate space and improves both precision and speed.",
         },
         {
@@ -457,6 +497,10 @@ def enrich(document: str, chunk: str) -> str:
         },
 
         { t: "h", text: "Document parsing: the step before chunking" },
+        {
+          t: "p",
+          text: "All of the above assumes you have clean text to chunk. Frequently you don't, and the quality of what comes out of a PDF sets a ceiling on everything downstream.",
+        },
         {
           t: "list",
           items: [
@@ -596,6 +640,10 @@ def enrich(document: str, chunk: str) -> str:
         { t: "h", text: "HNSW — the default" },
         {
           t: "p",
+          text: "Two index families cover essentially all production use, and the choice between them is a memory-versus-latency trade rather than a quality one. Both are approximate: you are trading a small amount of recall for orders of magnitude of speed, and the tuning knobs control exactly how much.",
+        },
+        {
+          t: "p",
           text: "Hierarchical Navigable Small World builds a layered proximity graph. Upper layers are sparse and let you traverse long distances quickly; lower layers are dense and refine locally. Search descends greedily from the top.",
         },
         {
@@ -626,6 +674,10 @@ def enrich(document: str, chunk: str) -> str:
           text: "It's adjustable per query without rebuilding the index. Raise it when recall matters (a user-facing search), lower it when latency matters (an autocomplete path). Measure recall@k against an exact brute-force search on a sample of a few thousand vectors — that's the only way to know what you're actually losing.",
         },
 
+        {
+          t: "p",
+          text: "The row worth remembering is `ef_search`, because it is the only parameter you can change without rebuilding. Recall is tunable at query time, which means you can trade latency for quality per request rather than per deployment.",
+        },
         { t: "h", text: "IVF — when memory is the constraint" },
         {
           t: "p",
@@ -674,6 +726,10 @@ def enrich(document: str, chunk: str) -> str:
 
         { t: "h", text: "Postgres + pgvector versus a specialist store" },
         {
+          t: "p",
+          text: "Index chosen, the bigger question is where it lives — and this is where teams over-engineer most reliably. A dedicated vector database is a new datastore to operate, back up, and keep consistent with the system of record.",
+        },
+        {
           t: "compare",
           left: {
             title: "Postgres + pgvector",
@@ -703,6 +759,10 @@ def enrich(document: str, chunk: str) -> str:
           kind: "pro",
           title: "The honest default",
           text: "Start with Postgres and pgvector. You almost certainly already run Postgres, transactional consistency between chunks and their metadata is genuinely valuable, and SQL pre-filtering is better than what most specialist stores offer. Migrate when you have a measured problem — usually past 5–10M vectors or when you need sustained high QPS. 'We might scale' is not a measured problem.",
+        },
+        {
+          t: "p",
+          text: "Two details in the query below are the ones that matter in practice: the filter runs inside the same statement rather than after the search, and the small chunk you matched on is not the text you hand to the model. Both are awkward with a bolt-on vector store and trivial in a relational database.",
         },
         {
           t: "code",
@@ -754,6 +814,10 @@ LIMIT 20;`,
         },
 
         { t: "h", text: "Operational realities" },
+        {
+          t: "p",
+          text: "Whichever you pick, a few facts about running one of these in production only become obvious after they've hurt. These are the ones worth knowing in advance.",
+        },
         {
           t: "list",
           items: [
@@ -885,6 +949,10 @@ LIMIT 20;`,
         "Size candidate sets against a latency budget",
       ],
       body: [
+        {
+          t: "p",
+          text: "This is the chapter that turns a demo RAG system into a working one, and it is largely about giving up on a single retriever. The two chapters before this each described a retrieval method with a specific blind spot. The fix is not a better method — it is running both and combining them.",
+        },
         { t: "h", text: "Why dense retrieval alone underperforms" },
         {
           t: "p",
@@ -930,6 +998,10 @@ LIMIT 20;`,
         { t: "h", text: "Reciprocal Rank Fusion" },
         {
           t: "p",
+          text: "So you run both retrievers. That leaves the question of how to merge two ranked lists whose scores mean entirely different things, and the standard answer is deliberately simple.",
+        },
+        {
+          t: "p",
           text: "The problem with combining two ranked lists is that their scores aren't comparable — BM25 returns unbounded relevance scores, cosine returns -1 to 1. RRF sidesteps normalisation entirely by using only **rank position**.",
         },
         {
@@ -968,6 +1040,10 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
         },
 
         { t: "h", text: "Reranking: precision where it counts" },
+        {
+          t: "p",
+          text: "Fusion gets the right documents into your candidate set. It does not put them at the top, and for a generation step that only reads the first five, ordering is what matters.",
+        },
         {
           t: "p",
           text: "A **cross-encoder** reads the query and a candidate document *together* and outputs a relevance score. Because it can attend across both, it handles negation, numeric qualifiers, and subtle intent that bi-encoders miss. It's also far too slow to run over a whole corpus — hence the two-stage design.",
@@ -1016,6 +1092,10 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
 
         { t: "h", text: "Sizing against a latency budget" },
         {
+          t: "p",
+          text: "Rerankers are the most expensive stage in the pipeline, so the number of candidates you send is a direct latency decision. Work back from the budget you set in **Cost & Latency Engineering**.",
+        },
+        {
           t: "table",
           head: [
             "Candidates reranked",
@@ -1043,6 +1123,10 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
           text: "Actual latency depends on the reranker, batch size, hardware, and document length. The shape holds though: gains flatten well before 100 candidates while latency keeps climbing linearly. Find your own knee point on your own eval set rather than adopting someone else's number.",
         },
 
+        {
+          t: "p",
+          text: "One last lever, and it acts on the query rather than the corpus. Everything so far has assumed the user's question is a good search query. In multi-turn conversation it very often isn't.",
+        },
         { t: "h", text: "Query transformation, when it earns its place" },
         {
           t: "list",
@@ -1189,6 +1273,14 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
 
         { t: "h", text: "Ingestion" },
         {
+          t: "p",
+          text: "Time to assemble the pieces. The last four chapters each covered one component; this one is the system they belong to, and the first thing to notice is that it isn't one pipeline but two — with different failure modes, different latency budgets, and different people paged when they break.",
+        },
+        {
+          t: "p",
+          text: "Ingestion runs offline, which makes it forgiving of slowness and unforgiving of mistakes: an error here is baked into every answer until you reindex.",
+        },
+        {
           t: "steps",
           items: [
             {
@@ -1234,6 +1326,10 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
 
         { t: "h", text: "Query" },
         {
+          t: "p",
+          text: "The query path is the opposite — every millisecond is user-visible, and every stage is one you can skip when the budget is tight. Read this against the latency table from **Hybrid Search & Reranking**.",
+        },
+        {
           t: "code",
           lang: "python",
           caption: "The whole query path",
@@ -1275,6 +1371,10 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
 
         { t: "h", text: "The generation prompt" },
         {
+          t: "p",
+          text: "Retrieval hands the model a set of chunks. What you say around them decides whether the model treats them as the source of truth or as suggestions, and this prompt is where grounding is either enforced or quietly optional.",
+        },
+        {
           t: "code",
           lang: "text",
           caption: "A grounding contract, not a suggestion",
@@ -1310,6 +1410,10 @@ Question: What is the webhook limit on the free plan?`,
 
         { t: "h", text: "Citations that mean something" },
         {
+          t: "p",
+          text: "Grounding the answer is half of trustworthiness. The other half is letting the user check it, and most citation implementations are decorative — a link that doesn't point at the span the sentence came from can't be verified, which makes it worse than none.",
+        },
+        {
           t: "list",
           items: [
             "**Verify every citation** against the supplied chunk IDs. A fabricated citation is worse than none, because it manufactures false confidence.",
@@ -1319,6 +1423,10 @@ Question: What is the webhook limit on the free plan?`,
           ],
         },
 
+        {
+          t: "p",
+          text: 'Finally, the judgement call. RAG is the default answer to "make the model use our data", and for a large class of questions it is structurally incapable of being right.',
+        },
         { t: "h", text: "When RAG is the wrong tool" },
         {
           t: "table",
@@ -1479,6 +1587,14 @@ Question: What is the webhook limit on the free plan?`,
 
         { t: "h", text: "Query-side patterns" },
         {
+          t: "p",
+          text: "Read this chapter as a menu rather than a checklist. Each technique fixes a named failure, and each costs latency, money, or both — so the right move is to diagnose first with the previous chapter's procedure and then pick the one technique that addresses what you actually found.",
+        },
+        {
+          t: "p",
+          text: "The cheapest interventions act on the query before retrieval runs, because they don't change your index or your pipeline shape.",
+        },
+        {
           t: "table",
           head: ["Pattern", "Fixes", "Cost"],
           rows: [
@@ -1566,6 +1682,10 @@ async def decompose_retrieve(query: str, tenant: str):
         { t: "h", text: "Agentic RAG" },
         {
           t: "p",
+          text: "The patterns above all keep the pipeline fixed and vary the query. The next step is to stop fixing the pipeline — let the model decide how many searches to run and when it has enough.",
+        },
+        {
+          t: "p",
           text: "Instead of a fixed retrieve-then-generate pipeline, give the model a `search` tool and let it decide: whether to search, what to search for, whether the results suffice, and whether to search again. It's the highest-ceiling and highest-cost pattern here.",
         },
         {
@@ -1599,6 +1719,10 @@ async def decompose_retrieve(query: str, tenant: str):
         },
 
         { t: "h", text: "GraphRAG" },
+        {
+          t: "p",
+          text: "Agentic retrieval handles questions needing several searches. It still struggles with questions requiring you to *traverse* relationships — and that is a different data structure, not a different loop.",
+        },
         {
           t: "p",
           text: "Build a knowledge graph of entities and relationships during ingestion, then traverse it at query time. It answers questions vector search structurally cannot: 'who else worked on projects with the people who reported this bug?'",
@@ -1636,6 +1760,10 @@ async def decompose_retrieve(query: str, tenant: str):
         },
 
         { t: "h", text: "Cheaper patterns worth knowing" },
+        {
+          t: "p",
+          text: "Before reaching for any of that, exhaust the boring options. Several of the most effective upgrades in this chapter are a few lines of code and no new infrastructure.",
+        },
         {
           t: "list",
           items: [
@@ -1784,6 +1912,14 @@ async def decompose_retrieve(query: str, tenant: str):
 
         { t: "h", text: "The procedure" },
         {
+          t: "p",
+          text: 'This is the most practically useful chapter in the phase, and the reason is narrow: "RAG isn\'t working" is not a diagnosis, and every fix for one of the four failures is useless against the other three. Teams burn weeks tuning chunk size when their problem was a reranker cutoff.',
+        },
+        {
+          t: "p",
+          text: "The procedure below isolates one stage at a time. Run it in order and stop at the first stage that fails — later stages inherit earlier failures, so their numbers mean nothing until the earlier ones are clean.",
+        },
+        {
           t: "steps",
           items: [
             {
@@ -1857,7 +1993,15 @@ async def diagnose():
           text: "If every metric looks good and users still complain, your eval set doesn't reflect real usage. Pull 50 actual queries from production logs — especially ones where users rephrased or abandoned — and add them. Eval sets built from imagined questions are systematically easier than reality.",
         },
 
+        {
+          t: "p",
+          text: "The last assertion in that script is the one people skip, and it is the most informative: feed the generation step perfect context by hand. If the answer is still wrong, no amount of retrieval tuning will help you, and you have a prompting or model-capacity problem wearing a retrieval costume.",
+        },
         { t: "h", text: "Symptom to cause" },
+        {
+          t: "p",
+          text: "Once you have run the script you'll have numbers. This table maps what you observed to where the problem is, and it is the fastest route from a user complaint to the right stage.",
+        },
         {
           t: "table",
           head: ["Symptom", "Likely cause", "Fix"],
@@ -1911,6 +2055,10 @@ async def diagnose():
         },
 
         { t: "h", text: "The metrics to track continuously" },
+        {
+          t: "p",
+          text: "Diagnosing on demand is reactive. The same measurements tracked continuously turn into a regression alarm, and this is where retrieval work hands off to Phase 06 — these are the metrics your eval suite will gate on.",
+        },
         {
           t: "list",
           items: [
