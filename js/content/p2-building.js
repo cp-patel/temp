@@ -12,7 +12,7 @@
       phase: "building",
       title: "The LLM API Surface",
       subtitle:
-        "Every provider exposes roughly the same seven concepts under different names. Learn the shape once and switching providers becomes a afternoon's work.",
+        "Every provider exposes roughly the same seven concepts under different names. Learn the shape once and switching providers becomes an afternoon's work.",
       minutes: 18,
       difficulty: "beginner",
       tags: ["api", "sdk"],
@@ -24,10 +24,18 @@
       body: [
         {
           t: "p",
-          text: "Provider SDKs differ in naming and in the interesting details, but the core is stable: a **messages array** with roles, **sampling parameters**, **tool definitions**, a **stop condition**, and a **usage** block. Learn that shape and the rest is documentation lookup.",
+          text: "The first three phases of this roadmap were about what the model does. From here on it's about what *you* do, and that starts with the interface. Almost every production incident in an AI feature traces back to something in this chapter: an unchecked field, a retried request that could never succeed, a cost that grew quadratically because nobody noticed what each call actually sends.",
+        },
+        {
+          t: "p",
+          text: "Provider SDKs differ in naming and in the interesting details, but the core is stable: a **messages array** with roles, **sampling parameters**, **tool definitions**, a **stop condition**, a **response format**, and a **usage** block. Learn that shape and the rest is documentation lookup. We'll go request first, then response, then the errors — and the parts that cause outages get the most space.",
         },
 
         { t: "h", text: "The messages array" },
+        {
+          t: "p",
+          text: "Start with what you send. A request is a list of turns, each tagged with who said it, and the model reads the whole list every time. Read the comments in this example more carefully than the code — each one marks a place where a reasonable assumption is wrong.",
+        },
         {
           t: "code",
           lang: "python",
@@ -54,8 +62,16 @@
           title: "The API is stateless — this surprises people",
           text: "There is no server-side conversation. Every call resends the entire history, and you pay for all of it every time. A 20-turn conversation costs roughly 20× the input tokens of the first turn even if each user message is short. This single fact drives everything in the context-management and caching chapters.",
         },
+        {
+          t: "p",
+          text: "Sit with that one, because it is the difference between a chat feature that costs what you modelled and one that doesn't. Cost per conversation grows with the *square* of its length, not linearly: turn 20 pays for turns 1 through 19 all over again. Every technique in **Conversation State** and **Caching, Retries & Idempotency** exists to blunt that curve.",
+        },
 
         { t: "h", text: "Parameters that matter" },
+        {
+          t: "p",
+          text: "Eight parameters, and you can ignore most of them most of the time. Two you must set on every single call — leaving `temperature` and `max_tokens` at the provider default is how you get non-reproducible output and a runaway bill on the same afternoon.",
+        },
         {
           t: "table",
           head: ["Parameter", "What it does", "Sensible default"],
@@ -105,6 +121,10 @@
 
         { t: "h", text: "Stop reasons: the field nobody checks" },
         {
+          t: "p",
+          text: "So much for the request. Now the response — and specifically the field almost nobody reads. Every reply carries a stop reason saying *why* the model stopped talking, and only one of its values means \"this worked\". The others look like success to code that only checks for a 200 and pulls out the text.",
+        },
+        {
           t: "table",
           head: ["Reason", "Meaning", "Your response"],
           rows: [
@@ -133,6 +153,14 @@
         },
 
         { t: "h", text: "The error taxonomy" },
+        {
+          t: "p",
+          text: "Notice what those two tables have in common and where they differ. A `length` stop reason is a failure *you* caused, with a 200 status and plausible-looking text — which is exactly why it slips through. The errors below are the ones the provider hands you explicitly. Both need handling; only one announces itself.",
+        },
+        {
+          t: "p",
+          text: "The only distinction that matters here is whether trying again could possibly help. Get that wrong in the optimistic direction and you have a retry storm; get it wrong in the pessimistic direction and you fail requests that would have worked on the second attempt.",
+        },
         {
           t: "code",
           lang: "python",
@@ -167,6 +195,14 @@ TERMINAL = {
         },
 
         { t: "h", text: "A thin adapter worth having" },
+        {
+          t: "p",
+          text: "Everything above is per-provider trivia, and you don't want it scattered through your business logic. The standard answer is an abstraction layer, and the standard mistake is making it too thick — a wrapper that normalises away the differences also normalises away the features you switched providers for.",
+        },
+        {
+          t: "p",
+          text: "So aim narrow. Normalise the three things you genuinely need uniform — message shape, error classification, token accounting — and pass everything else through untouched. Watch what this adapter *doesn't* do: it has no opinion about prompts, no retry policy baked in, and no attempt to model every provider's extras.",
+        },
         {
           t: "code",
           lang: "python",

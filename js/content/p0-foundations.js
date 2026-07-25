@@ -33,6 +33,10 @@
 
         { t: "h", text: "The distinction that saves you six months" },
         {
+          t: "p",
+          text: "The two job titles sit next to each other on job boards and mean almost opposite things. Reading down this table, notice that the *hard part* row is the one that matters: an ML engineer fights to make a model learn, and you will fight to make an already-capable model behave. Nothing in the first column prepares you for the second.",
+        },
+        {
           t: "table",
           head: ["", "ML Engineer", "AI Engineer"],
           rows: [
@@ -65,8 +69,16 @@
           title: "The classic wasted quarter",
           text: "Starting with a deep-learning course. Backpropagation, CNNs, and gradient descent are genuinely interesting and almost entirely irrelevant to shipping an AI product. If you want to build applications, start at the API and work down only when a real problem demands it.",
         },
+        {
+          t: "p",
+          text: "This is the single most expensive mistake in the field, and it is expensive precisely because the material is good. Studying transformers feels like progress in a way that reading provider documentation does not. It just isn't the thing you're being hired to do.",
+        },
 
         { t: "h", text: "What you're actually paid to do" },
+        {
+          t: "p",
+          text: "If the table above says what the job isn't, here is what it is — five activities, in the order you'll meet them on any real feature. This roadmap is organised around them, so treat the list as a map of what's coming.",
+        },
         {
           t: "steps",
           items: [
@@ -93,7 +105,16 @@
           ],
         },
 
+        {
+          t: "p",
+          text: "Read that list again and note where the difficulty sits. Steps one to three are what tutorials cover, and they are the easy part. Step four is what separates a demo from a product, and step five is what decides whether the product survives contact with a finance review.",
+        },
+
         { t: "h", text: "The five capabilities hiring managers screen for" },
+        {
+          t: "p",
+          text: "The activities above are what you do day to day. These five are what an interview loop actually probes for — the same material, cut along the axis a hiring panel cares about.",
+        },
         {
           t: "list",
           ordered: true,
@@ -106,6 +127,10 @@
           ],
         },
         {
+          t: "p",
+          text: "Four of those five are teachable in a few weeks. The third one is not, and it is the one that keeps coming up.",
+        },
+        {
           t: "note",
           kind: "insight",
           title: "Why evals are the moat",
@@ -113,6 +138,10 @@
         },
 
         { t: "h", text: "What you need before starting" },
+        {
+          t: "p",
+          text: "Less than people expect, and different from what people expect. The prerequisites are ordinary backend skills; the notable entry on this list is the one that isn't there.",
+        },
         {
           t: "list",
           items: [
@@ -122,6 +151,10 @@
             "**One backend framework** — FastAPI is the de facto standard in this space.",
             "**No maths beyond high school** to start. You'll pick up the statistics you need in the evals phase, where it's motivated.",
           ],
+        },
+        {
+          t: "p",
+          text: "If you already have those, you are not a beginner here — you are an experienced engineer learning one unfamiliar dependency. That reframing matters, because it tells you to trust your existing instincts about interfaces, failure modes and cost, and to spend your study time only on what is genuinely new. Set your background on the roadmap page and the next chapter will show you exactly which parts those are.",
         },
         {
           t: "note",
@@ -298,6 +331,10 @@
           text: "Think of the model as an RPC call to a service that is **slow** (hundreds of ms to seconds), **expensive** (priced per word, in and out), **non-deterministic** (same input, different output), **stateless but charged cumulatively** (you resend the whole conversation every time), and **occasionally confidently wrong in ways that return HTTP 200**. Every one of those properties has a familiar engineering response. It is the *combination* — especially the last one — that needs new technique.",
         },
 
+        {
+          t: "p",
+          text: "So much for the familiar. The next table is the honest list of what you don't already know — and it's short, which is the good news. The bad news is that these five are unfamiliar in a specific way: each one violates an assumption your existing instincts are built on.",
+        },
         { t: "h", text: "What is genuinely new" },
         {
           t: "table",
@@ -330,7 +367,19 @@
           ],
         },
 
+        {
+          t: "p",
+          text: "Read that reframe closely, because it is doing a lot of work. Slow, expensive, flaky and non-deterministic are all things you have engineering answers for already — timeouts, budgets, retries, idempotency. The only genuinely new word in the list is non-deterministic, and most of this roadmap is about what that one word costs you.",
+        },
+        {
+          t: "p",
+          text: "Read that reframe closely, because it carries a lot of weight. Slow, expensive, flaky and non-deterministic are all things you already have engineering answers for — timeouts, budgets, retries, idempotency. The genuinely new word in the list is non-deterministic, and much of this roadmap is about what that one word costs you.",
+        },
         { t: "h", text: "Three mistakes experienced engineers make first" },
+        {
+          t: "p",
+          text: "Those two tables tell you what to study. This section tells you what to *avoid*, and it's the more useful half. Each of these mistakes is the result of applying a good instinct in a place where it doesn't hold yet.",
+        },
         {
           t: "steps",
           items: [
@@ -355,6 +404,10 @@
           text: "You will be tempted to spend your time on the parts you're already good at — the service architecture, the caching layer, the deployment pipeline — because that work is comfortable and visibly productive. Those parts are largely solved by what you already know. The hard, uncomfortable, differentiating work is retrieval quality and evaluation. Budget your time accordingly, even though it will feel slower.",
         },
 
+        {
+          t: "p",
+          text: "Enough about what goes wrong. You're starting this transition from a genuinely strong position, and it's worth being precise about why — partly for morale, mostly because knowing your edge tells you where to spend less time.",
+        },
         { t: "h", text: "Your unfair advantages" },
         {
           t: "list",
@@ -368,6 +421,10 @@
         },
 
         { t: "h", text: "How to sequence this with a job" },
+        {
+          t: "p",
+          text: "None of which helps if you can't find the hours. The last question is scheduling, and the honest answer is that this takes months rather than weeks.",
+        },
         {
           t: "p",
           text: "Reported timelines for this transition cluster around three to six months of part-time study, and that matches the structure here. A plausible allocation at 8–10 hours a week:",
@@ -598,8 +655,16 @@
         },
 
         {
+          t: "p",
+          text: "That distinction between prompting and fine-tuning returns in Phase 08, where choosing between them is a whole chapter. For now hold on to the asymmetry: prompting changes what the model sees, fine-tuning changes what the model is.",
+        },
+        {
           t: "h",
           text: "Training: three stages that explain three behaviours",
+        },
+        {
+          t: "p",
+          text: "One more piece of theory and we're done. A model reaches you through three distinct training stages, and each is responsible for a different category of behaviour you will observe in production. Knowing which stage produced a behaviour tells you whether a prompt can fix it.",
         },
         {
           t: "steps",
@@ -625,6 +690,10 @@
           text: "When a model behaves oddly, ask which stage the behaviour comes from. Won't follow your format? An instruction-following problem — restructure the prompt or add examples. Confidently wrong about a fact? A pretraining-knowledge gap — retrieve the fact. Agreeing with your obviously wrong premise? That's preference training — ask it to critique instead of confirm.",
         },
 
+        {
+          t: "p",
+          text: "Now the payoff for all of that. Everything above serves one practical skill: looking at a failure and knowing, without experimenting, which layer it came from. The table below is that skill written out — and it is worth returning to when you are stuck in Phase 04.",
+        },
         { t: "h", text: "What the architecture predicts about failures" },
         {
           t: "table",
@@ -791,6 +860,10 @@
         { t: "lab", id: "tokenizer" },
         { t: "h", text: "Rules of thumb worth memorising" },
         {
+          t: "p",
+          text: "Play with that lab until the ratios stop surprising you, because the numbers below are what you'll be estimating with for the rest of your career. You don't need precision here — you need to know within a factor of two what a given payload will cost before you send it.",
+        },
+        {
           t: "table",
           head: ["Content", "Tokens per unit", "Note"],
           rows: [
@@ -828,6 +901,10 @@
           text: "If your users write in Hindi, Thai, or Japanese, the same message can cost 2–4× more than its English equivalent and consume the context window that much faster. Budget for it explicitly rather than discovering it in a bill, and test your context-management logic in the worst-case language you support.",
         },
 
+        {
+          t: "p",
+          text: "The Hindi and Japanese rows are the ones worth sitting with. A tokeniser trained mostly on English fragments other scripts far more aggressively, which means the same sentence costs two to four times as much and consumes two to four times as much of your window. If your users don't write in English, that changes your unit economics and your context budget at the same time.",
+        },
         { t: "h", text: "The context window is a budget, not a target" },
         {
           t: "p",
@@ -895,6 +972,10 @@ Blended per request                          ~= $0.0091
         },
 
         { t: "h", text: "Counting tokens properly" },
+        {
+          t: "p",
+          text: "All of that arithmetic depends on knowing your token count, and estimating it from character counts is only good enough for back-of-envelope work. Before you put a number in a design document, measure it.",
+        },
         {
           t: "code",
           lang: "python",
@@ -1085,6 +1166,10 @@ print(softmax_with_temperature(logits, 2.0))  # [0.31 0.27 0.11 0.09 0.05]`,
 
         { t: "h", text: "Top-p and top-k" },
         {
+          t: "p",
+          text: "Temperature reshapes the whole distribution. The next two parameters do something different: they truncate it, cutting off the tail before sampling happens at all. That distinction is why mixing them is a bad idea.",
+        },
+        {
           t: "list",
           items: [
             "**Top-k** keeps only the k highest-probability tokens and renormalises. Crude: k=40 is far too permissive when one token has 95% of the mass, and too restrictive when the distribution is genuinely flat.",
@@ -1098,6 +1183,10 @@ print(softmax_with_temperature(logits, 2.0))  # [0.31 0.27 0.11 0.09 0.05]`,
           text: "They interact in ways that are genuinely hard to reason about, and you'll end up unable to attribute a behaviour change to either. Pick one — temperature is more intuitive — and leave the other at its default. Most provider defaults (temperature 1.0, top_p 1.0) are tuned for chat, not for your extraction task.",
         },
 
+        {
+          t: "p",
+          text: "Two knobs, then, and one rule: pick the one that matches how you want to fail. Temperature controls how adventurous the model is; top-p controls how much of the improbable tail is even eligible. In practice you will set temperature deliberately and leave top-p alone.",
+        },
         { t: "h", text: "What to use, by task" },
         {
           t: "table",
@@ -1155,6 +1244,10 @@ print(softmax_with_temperature(logits, 2.0))  # [0.31 0.27 0.11 0.09 0.05]`,
         { t: "h", text: "Why temperature 0 still isn't deterministic" },
         {
           t: "p",
+          text: 'Which brings us to the caveat that will cost you an afternoon if nobody tells you. Setting temperature to zero looks like it buys you reproducibility. It very nearly does, and the gap between "very nearly" and "actually" is where flaky tests live.',
+        },
+        {
+          t: "p",
           text: "This surprises people, and it matters for testing. Greedy decoding is deterministic in theory. In practice, identical requests to a hosted model can still diverge:",
         },
         {
@@ -1171,6 +1264,10 @@ print(softmax_with_temperature(logits, 2.0))  # [0.31 0.27 0.11 0.09 0.05]`,
           kind: "warn",
           title: "Test design consequence",
           text: "Never write an assertion that requires byte-identical model output. Assert on structure (valid JSON, required fields present), on semantics (a judge or a similarity threshold), or on properties (no PII, under 200 words, cites a real chunk ID). Snapshot tests over raw LLM output are a maintenance trap that will fail on a Tuesday for no reason.",
+        },
+        {
+          t: "p",
+          text: "In practice that means your test suite asserts on properties rather than strings — schema validity, a numeric range, the presence of a required field. This is the first appearance of an idea that Phase 06 is built on: you evaluate model output by checking what must be true of it, never by comparing it to a golden string.",
         },
         {
           t: "code",
@@ -1301,6 +1398,10 @@ assert data["source_chunk_id"] in retrieved_ids  # grounded in context`,
 
         { t: "h", text: "The four tiers" },
         {
+          t: "p",
+          text: "Forget model names — they change every few months and the specific ones will be stale before you finish this roadmap. What stays stable is the tier structure, and the method for choosing between tiers. Learn the shape and you can re-derive the answer whenever the lineup shifts.",
+        },
+        {
           t: "table",
           head: ["Tier", "Good for", "Wrong for"],
           rows: [
@@ -1335,6 +1436,10 @@ assert data["source_chunk_id"] in retrieved_ids  # grounded in context`,
 
         { t: "h", text: "Reading benchmarks without being fooled" },
         {
+          t: "p",
+          text: "The obvious way to choose between tiers is to read the leaderboards. It is also close to useless, for reasons worth understanding rather than just being told.",
+        },
+        {
           t: "list",
           items: [
             "**Contamination.** Public benchmarks leak into training data. A high MMLU score may partly reflect memorisation.",
@@ -1352,6 +1457,10 @@ assert data["source_chunk_id"] in retrieved_ids  # grounded in context`,
         },
 
         { t: "h", text: "Constraints that override quality" },
+        {
+          t: "p",
+          text: "Even a genuinely honest benchmark answers the wrong question, because quality is rarely the binding constraint. More often something else in the system decides for you, and no amount of model quality can buy its way past a hard requirement.",
+        },
         {
           t: "steps",
           items: [
@@ -1382,6 +1491,10 @@ assert data["source_chunk_id"] in retrieved_ids  # grounded in context`,
           ],
         },
 
+        {
+          t: "p",
+          text: 'Notice the shape of those constraints: each one turns "which model is best?" into "which models are even eligible?". Answer that first and the list is usually down to two.',
+        },
         { t: "h", text: "Routing: how you get quality and cost" },
         {
           t: "p",
@@ -1435,6 +1548,10 @@ def answer(req):
           text: "Production traffic is heavily skewed: typically 50–70% of requests are genuinely easy. Routing those to a model that costs 10–20× less, while keeping the frontier model for the hard tail, commonly cuts total spend 50–70% with no measurable quality loss. Log every escalation — that log is your eval set for the router itself.",
         },
 
+        {
+          t: "p",
+          text: "That skew is the whole argument. You are not trading quality for cost across the board — you are declining to pay frontier prices for the majority of requests that never needed it. The **My Plan** page and the roadmap both assume you'll build a router in the third project, because it's the single change with the best cost-to-effort ratio in this field.",
+        },
         { t: "h", text: "Avoiding lock-in without pretending it's free" },
         {
           t: "p",

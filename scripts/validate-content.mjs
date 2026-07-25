@@ -273,6 +273,53 @@ C.chapters.forEach((ch, i) => {
   if (headings < 1)
     warn(w, "no h blocks — the table of contents will be empty");
 
+  /* --- teaching structure ---
+   *
+   * A chapter that is all tables, callouts and code is a reference card, not a
+   * lesson. It is skimmable and unlearnable: nothing motivates a table before
+   * it appears, nothing says what to take from it afterwards, and nothing
+   * connects one block to the next. The first audit of this curriculum found an
+   * average prose share of 9%, two chapters with no paragraphs at all, and runs
+   * of up to eleven consecutive boxes. These three rules are what stops that
+   * coming back.
+   */
+  const bodyBlocks = ch.body || [];
+
+  // 1. Open by framing the chapter, not by dropping the reader into a subsection.
+  if (bodyBlocks.length && bodyBlocks[0].t !== "p") {
+    warn(
+      w,
+      `opens with a "${bodyBlocks[0].t}" block — a chapter should open with a paragraph that says why this matters`
+    );
+  }
+
+  // 2. Enough connective prose to carry the reader between the artefacts.
+  const proseWords = countWords(bodyBlocks.filter((b) => b.t === "p"));
+  const bodyWords = countWords(bodyBlocks);
+  const prosePct = bodyWords ? Math.round((proseWords / bodyWords) * 100) : 0;
+  if (prosePct < 22) {
+    warn(
+      w,
+      `only ${prosePct}% of body words are prose — the reader has tables and callouts but no thread between them`
+    );
+  }
+
+  // 3. No long unbroken stretch of structured blocks. Headings don't count:
+  //    a heading announces a section, it doesn't explain anything.
+  let run = 0;
+  let worstRun = 0;
+  for (const b of bodyBlocks) {
+    if (b.t === "p") run = 0;
+    else if (b.t === "h" || b.t === "h3") continue;
+    else worstRun = Math.max(worstRun, ++run);
+  }
+  if (worstRun > 3) {
+    warn(
+      w,
+      `${worstRun} structured blocks in a row with no prose between them — the reader is left to infer the connection`
+    );
+  }
+
   /* --- quiz --- */
   if (!Array.isArray(ch.quiz) || ch.quiz.length < 2) {
     err(w, "needs at least 2 quiz questions");
