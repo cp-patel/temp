@@ -190,6 +190,11 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
   gap: var(--s-4);
+  /* Six cards. Two or three per row divides evenly; four leaves two orphans and
+     a hole in the bottom-right. Capping the container width caps the track count
+     without having to hardcode breakpoints. */
+  max-width: 1080px;
+  margin: 0 auto;
 }
 
 .fcard {
@@ -255,10 +260,16 @@
 }
 
 .ppitem:hover {
-  border-color: var(--accent-line);
+  border-color: color-mix(
+    in oklab,
+    var(--phase-color, var(--accent)) 42%,
+    transparent
+  );
   transform: translateX(3px);
 }
 
+/* Each row carries its own phase hue, so this list, the hero rail and the
+   roadmap all identify a phase by the same colour. */
 .ppitem__n {
   display: grid;
   place-items: center;
@@ -268,9 +279,14 @@
   font-family: var(--font-mono);
   font-size: var(--t-sm);
   font-weight: 700;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-line);
+  color: var(--phase-color, var(--accent));
+  background: color-mix(
+    in oklab,
+    var(--phase-color, var(--accent)) 13%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(in oklab, var(--phase-color, var(--accent)) 32%, transparent);
 }
 
 .ppitem h4 {

@@ -343,6 +343,30 @@ async function main() {
     await page.evaluate(() => document.getElementById("palette").hidden)
   );
 
+  /* ---------------- scroll reveal never strands content ---------------- */
+  /* Jump straight to the bottom of the longest page. Every revealable element
+     must end up visible, including the ones the viewport skipped over — an
+     element left at opacity 0 is content the reader can never see. */
+  section("scroll reveal");
+  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.evaluate(() => Store.skipOnboarding());
+  await page.addStyleTag({ content: "html{scroll-behavior:auto !important}" });
+  await page.waitForTimeout(700);
+  await page.evaluate(() =>
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" })
+  );
+  await page.waitForTimeout(1400);
+  const stranded = await page.evaluate(() =>
+    [...document.querySelectorAll(".rv")]
+      .filter((el) => +getComputedStyle(el).opacity < 0.99)
+      .map((el) => el.className)
+  );
+  check(
+    "jumping to the bottom strands nothing",
+    stranded.length === 0,
+    stranded.join(", ")
+  );
+
   /* ---------------- theme ---------------- */
   section("theme");
   await go("#/roadmap");

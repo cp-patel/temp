@@ -118,14 +118,14 @@ progress as JSON from Settings.
 
 ```
 index.html                  app shell; load order is the dependency graph
-styles/                     7 stylesheets, tokens → base → shell → views → reader → labs → plan
-js/core/                    icons, util (markdown/highlighting/tokenizer/vectors), store
+styles/                     8 stylesheets, tokens → base → shell → views → reader → labs → plan → motion
+js/core/                    icons, util (markdown/highlighting/tokenizer/vectors), motion, store
 js/content/                 phases, projects, glossary, 8 phase files, tracks (plan engine)
 js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
 tests/unit/                 75 assertions — util, store, plan engine
-tests/e2e/                  57 checks in real Chromium
+tests/e2e/                  61 checks in real Chromium, incl. a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```
 

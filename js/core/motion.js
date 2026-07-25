@@ -15,30 +15,85 @@
     global.matchMedia &&
     global.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  var observer = null;
-
   /* ---------------------------------------------------------
      Scroll reveal
      --------------------------------------------------------- */
 
-  function ensureObserver() {
-    if (observer || reduced || !global.IntersectionObserver) return observer;
-    observer = new global.IntersectionObserver(
-      function (entries) {
-        entries.forEach(function (entry) {
-          if (!entry.isIntersecting) return;
-          var el = entry.target;
-          el.classList.add("is-in");
-          observer.unobserve(el);
-          // Drop the compositing hint once the transition has finished.
-          setTimeout(function () {
-            el.classList.add("is-done");
-          }, 900);
-        });
+  /* Deliberately a geometry predicate re-evaluated on scroll, not an
+     IntersectionObserver.
+
+     IO is edge-triggered: it fires when intersection *changes*. Observe an
+     element that is below the fold, then jump straight past it — an anchor
+     link, a restored scroll position, a flick on a trackpad — and it goes from
+     not-intersecting to not-intersecting. No callback fires, and the element
+     stays at opacity 0 for the life of the page. Scrolling back up shows blank
+     space where a section should be. That is how scroll reveal turns into a
+     content-loss bug, and no rootMargin fixes it because the problem is the
+     missing event, not the threshold.
+
+     Asking "is this element at or above the reveal line?" every frame the page
+     scrolls cannot miss, and the listener detaches as soon as the last pending
+     element has been revealed. */
+
+  var pending = [];
+  var listening = false;
+  var queued = false;
+
+  /* Transition duration in styles/motion.css. Each element also carries its own
+     stagger delay, so "finished" is per-element — a fixed timeout fires early
+     for later items, and dropping will-change mid-transition hands the layer
+     back to the main thread and leaves opacity a fraction short. */
+  var RV_MS = 620;
+
+  function markDone(el) {
+    var delay = parseFloat(el.style.getPropertyValue("--rv-delay")) || 0;
+    setTimeout(
+      function () {
+        el.classList.add("is-done");
       },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.06 }
+      delay + RV_MS + 120
     );
-    return observer;
+  }
+
+  function show(el) {
+    el.classList.add("is-in");
+    markDone(el);
+  }
+
+  function sweep() {
+    queued = false;
+    var line = global.innerHeight * 0.92;
+    var still = [];
+    for (var i = 0; i < pending.length; i++) {
+      var el = pending[i];
+      // Dropped from the DOM by a re-render: stop tracking it.
+      if (!el.isConnected) continue;
+      var box = el.getBoundingClientRect();
+      if (box.top < line) show(el);
+      else still.push(el);
+    }
+    pending = still;
+    if (!pending.length) stopListening();
+  }
+
+  function onScroll() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(sweep);
+  }
+
+  function startListening() {
+    if (listening) return;
+    listening = true;
+    global.addEventListener("scroll", onScroll, { passive: true });
+    global.addEventListener("resize", onScroll, { passive: true });
+  }
+
+  function stopListening() {
+    if (!listening) return;
+    listening = false;
+    global.removeEventListener("scroll", onScroll);
+    global.removeEventListener("resize", onScroll);
   }
 
   /**
@@ -68,36 +123,37 @@
     }
     if (!items.length) return;
 
-    // Reduced motion, or no observer support: leave everything visible.
-    var io = ensureObserver();
-    if (!io) return;
+    // Reduced motion: leave everything visible and never touch it.
+    if (reduced) return;
+
+    var line = global.innerHeight * 0.92;
+    var added = false;
 
     items.forEach(function (el, i) {
       if (!el || el.dataset.rv) return;
       el.dataset.rv = "1";
       el.style.setProperty("--rv-delay", Math.min(i * step, max) + "ms");
       el.classList.add("rv");
-      // Anything already on screen at mount should not wait for a scroll.
-      var box = el.getBoundingClientRect();
-      if (box.top < global.innerHeight * 0.92 && box.bottom > 0) {
+      if (el.getBoundingClientRect().top < line) {
         // Two frames: one to apply the initial state, one to transition out of it.
         requestAnimationFrame(function () {
           requestAnimationFrame(function () {
-            el.classList.add("is-in");
+            show(el);
           });
         });
       } else {
-        io.observe(el);
+        pending.push(el);
+        added = true;
       }
     });
+
+    if (added) startListening();
   };
 
-  /** Forget observed elements — called on navigation so views don't leak. */
+  /** Drop pending elements — called on navigation so views don't leak. */
   M.reset = function () {
-    if (observer) {
-      observer.disconnect();
-      observer = null;
-    }
+    pending = [];
+    stopListening();
   };
 
   /* ---------------------------------------------------------

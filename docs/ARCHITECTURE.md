@@ -153,8 +153,16 @@ chrome and calls `render`, catching exceptions so one broken lab can't take down
 a chapter.
 
 Labs are self-contained: they own their state in closure variables and don't
-read or write learner progress except `Store.labTouched(id)`, which awards XP
-once on first interaction.
+read or write learner progress except `L.touched(id)`, which awards XP once on
+first interaction.
+
+`L.touched` is gated, and that gate matters: labs call it from their `update()`
+function, which also runs once on mount to paint initial state. Ungated, that
+awarded XP for merely rendering — and the labs index mounts all thirteen, so
+opening it handed out 130 XP for scrolling. `Labs.mount` arms the award on the
+first real interaction inside the lab, at the one choke point rather than in
+fourteen call sites. The gate lives in the UI layer because arming is a UI
+concern and `Store` is core.
 
 Two labs use documented simplifications. The tokenizer is a heuristic
 approximation of subword segmentation. The dense retriever in the retrieval lab
@@ -166,25 +174,65 @@ how a system behaves is worse than no lab.
 
 ## Styles
 
-Six stylesheets, loaded in order, cascading intentionally:
+Eight stylesheets, loaded in order, cascading intentionally:
 
-| File         | Scope                                                     |
-| ------------ | --------------------------------------------------------- |
-| `tokens.css` | Custom properties only. Both themes fully specified.      |
-| `base.css`   | Reset, typography, buttons, chips, cards, animations.     |
-| `shell.css`  | Sidebar, topbar, command palette, toasts, modals.         |
-| `views.css`  | Landing, roadmap, dashboard, library, glossary, projects. |
-| `reader.css` | Chapter prose, code blocks, callouts, quiz, TOC.          |
-| `labs.css`   | Lab-specific components.                                  |
-| `plan.css`   | Onboarding modal and the plan view.                       |
+| File         | Scope                                                       |
+| ------------ | ----------------------------------------------------------- |
+| `tokens.css` | Custom properties only. Both themes fully specified.        |
+| `base.css`   | Reset, typography, buttons, chips, cards, bars, animations. |
+| `shell.css`  | Sidebar, topbar, command palette, toasts, modals.           |
+| `views.css`  | Landing, roadmap, dashboard, library, glossary, projects.   |
+| `reader.css` | Chapter prose, code blocks, callouts, quiz, TOC.            |
+| `labs.css`   | Lab-specific components.                                    |
+| `plan.css`   | Onboarding modal and the plan view.                         |
+| `motion.css` | Aurora, grain, reveal, kinetic type, progress animation.    |
 
 Theming is entirely token substitution under `:root[data-theme="..."]`. No
 component should hardcode a colour. If you need a new colour, add a token.
 
+Two rules follow from having two themes rather than one:
+
+- **A literal text colour over a token fill is a bug.** `--accent`,
+  `--emerald`, `--rose` and `--grad-brand` are light on dark and dark on light,
+  so no single text colour works over them — use `var(--ink-inv)`, which flips.
+  The e2e suite audits both themes against WCAG AA on every route and fails on
+  any violation, because this class of bug only shows up on whichever theme
+  nobody happened to be looking at.
+- **Colour that comes from data carries only a hue.** Phase colours are emitted
+  as `hsl(<hue> var(--phase-s) var(--phase-l))`. A lightness baked into JS
+  cannot respond to the theme.
+
 **One recurring bug class worth knowing about:** several components stack a
 title above a subtitle using nested `<span>` elements. Spans are inline, so
 without an explicit `display: block` the two lines overlap. This has been fixed
-four separate times in this codebase. If text is overlapping, that's why.
+four separate times in this codebase. If text is overlapping, that's why. The
+same cause with a different symptom: a `<span>` given a `height` renders as
+literally nothing, because an inline box ignores height and gives an
+absolutely-positioned child a zero-size containing block.
+
+## Motion
+
+`js/core/motion.js` is progressive enhancement throughout: the reveal class is
+applied from JS rather than authored into the markup, so if the file fails to
+load nothing is hidden. Everything collapses under `prefers-reduced-motion`.
+
+**Scroll reveal is a geometry predicate re-evaluated on scroll, not an
+IntersectionObserver.** IO is edge-triggered — it fires when intersection
+_changes_. Observe an element below the fold, then jump past it (anchor link,
+restored scroll position, a flick on a trackpad) and it goes from
+not-intersecting to not-intersecting: no callback, and the element stays at
+opacity 0 for the life of the page. Asking "is this element above the reveal
+line?" each scroll frame cannot miss that, and the listener detaches once the
+last pending element has revealed. An e2e check jumps to the bottom of the
+landing page and fails if anything is left invisible.
+
+**Kinetic type and gradient-clipped text are resolved, not stacked.** Per-word
+masks require each word to be its own inline-block, which makes words inside a
+`background-clip: text` element inherit the transparent fill and paint nothing.
+Giving each word its own gradient restarts the ramp per word. So `M.kinetic`
+reads the gradient stops back out of the computed style and assigns
+per-character colours — in sync with `--grad-text` on both themes, monotonic
+across the phrase, and unaffected by line wrapping.
 
 ## Routing
 
@@ -200,11 +248,11 @@ its fixed reading-progress bar.
 
 ## Testing strategy
 
-| Layer      | Tool               | What it covers                                                                                                             |
-| ---------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| Content    | `npm run validate` | Schema, cross-references, answer indices, duplicate ids, table arity, unbalanced markdown                                  |
-| Core logic | `npm test`         | util, store, plan engine — 75 assertions, no browser                                                                       |
-| Whole app  | `npm run test:e2e` | Every route, every chapter, every lab control, personalisation flow, keyboard, themes, mobile — 57 checks in real Chromium |
+| Layer      | Tool               | What it covers                                                                                                                                                                         |
+| ---------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Content    | `npm run validate` | Schema, cross-references, answer indices, duplicate ids, table arity, unbalanced markdown                                                                                              |
+| Core logic | `npm test`         | util, store, plan engine — 75 assertions, no browser                                                                                                                                   |
+| Whole app  | `npm run test:e2e` | Every route, every chapter, every lab control, personalisation flow, keyboard, themes, mobile, scroll reveal, and a WCAG AA contrast audit of both themes — 61 checks in real Chromium |
 
 The unit tests load browser files into a `vm` context via
 `scripts/lib/load-curriculum.mjs`, so there's no duplicate copy of the data or
