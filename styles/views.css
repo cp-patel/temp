@@ -1228,6 +1228,14 @@
   color: var(--ink-3);
 }
 
+/* Icons are display:block globally, so any icon-plus-label pair needs its own
+   flex line or the icon stacks above the text. */
+.libcard__foot > span:not([class]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
 /* ================= GLOSSARY ================= */
 
 .glossgrid {
@@ -1266,6 +1274,32 @@
   font-size: var(--t-sm);
   color: var(--ink-2);
   line-height: 1.6;
+}
+
+/* Two columns rather than an inline icon, so wrapped lines hang off the text
+   column instead of running back under the bulb. */
+/* Two classes deep so it wins over `.gterm p` — the page claims the note
+   matters more than the definition, so it should not read as fine print. */
+.gterm .gterm__note {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px dashed var(--line);
+  color: var(--ink-1);
+}
+
+.gterm__bulb {
+  display: grid;
+  place-items: center;
+  height: 1.35em;
+  color: var(--amber);
+}
+
+.gterm__bulb svg {
+  width: 13px;
+  height: 13px;
 }
 
 .gterm p + p {

@@ -537,6 +537,10 @@ kbd {
 
 .ring__label {
   position: relative;
+  /* The inner disc is drawn by .ring::after, which is last in tree order and so
+     paints over anything at the same z-index. Without this the label sits
+     behind the disc and every ring reads as an empty grey circle. */
+  z-index: 1;
   font-size: 0.62rem;
   font-weight: 700;
   color: var(--ink);

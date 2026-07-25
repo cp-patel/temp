@@ -1475,7 +1475,6 @@
           '<div class="libcard__foot">' +
           "<span>" +
           Icons.get("clock", 12) +
-          " " +
           c.minutes +
           "m</span>" +
           '<span class="chip chip--' +
@@ -1601,7 +1600,16 @@
           "<p>" +
           md(g.d) +
           "</p>" +
-          (g.n ? "<p>" + Icons.get("bulb", 12) + " " + md(g.n) + "</p>" : "");
+          /* The practical note is the half of a glossary entry worth reading,
+             so it gets its own treatment rather than reading as a second
+             definition paragraph. */
+          (g.n
+            ? '<p class="gterm__note"><span class="gterm__bulb">' +
+              Icons.get("bulb", 13) +
+              "</span><span>" +
+              md(g.n) +
+              "</span></p>"
+            : "");
         grid.appendChild(c);
       });
     }

@@ -225,7 +225,7 @@
         mm.set("ratio", n ? U.round(chars / n, 2) : "–");
         mm.set("cost", U.money(((n * r) / 1e6) * 1000));
 
-        Store.labTouched("tokenizer");
+        L.touched("tokenizer");
       }
 
       ta.addEventListener("input", U.debounce(update, 120));
@@ -437,7 +437,7 @@
                 : "Low"
         );
 
-        Store.labTouched("sampling");
+        L.touched("sampling");
       }
 
       temp.input.addEventListener("input", update);
@@ -608,7 +608,7 @@
         };
         result.appendChild(reset);
 
-        Store.labTouched("router");
+        L.touched("router");
       }
 
       function build() {
@@ -899,7 +899,7 @@
           });
         }
 
-        Store.labTouched("promptbuilder");
+        L.touched("promptbuilder");
       }
 
       render();
@@ -1103,7 +1103,7 @@
           warn.appendChild(d);
         });
 
-        Store.labTouched("budget");
+        L.touched("budget");
       }
 
       update();
@@ -1271,7 +1271,7 @@
                 : "Sluggish"
         );
 
-        Store.labTouched("latency");
+        L.touched("latency");
       }
 
       opts.forEach(function (o) {
@@ -1693,7 +1693,7 @@
           list.appendChild(row);
         });
 
-        Store.labTouched("embeddings");
+        L.touched("embeddings");
       }
 
       inp.addEventListener("input", U.debounce(update, 160));
@@ -1936,7 +1936,7 @@
           strat === "structural" || strat === "parent" ? 0 : midCuts
         );
 
-        Store.labTouched("chunking");
+        L.touched("chunking");
       }
 
       size.input.addEventListener("input", update);
@@ -2207,7 +2207,7 @@
           msg;
         verdict.appendChild(v);
 
-        Store.labTouched("ragpipeline");
+        L.touched("ragpipeline");
       }
 
       stages.forEach(function (s) {
@@ -2422,7 +2422,7 @@
         stop();
         if (at < TRACE.length) at++;
         paint();
-        Store.labTouched("agenttrace");
+        L.touched("agenttrace");
       };
       bReset.onclick = function () {
         stop();
@@ -2446,7 +2446,7 @@
           paint();
         }, 900);
         paint();
-        Store.labTouched("agenttrace");
+        L.touched("agenttrace");
       };
 
       build();
@@ -2647,7 +2647,7 @@
               "This build is safe to promote.");
         verdict.appendChild(v);
 
-        Store.labTouched("evalscore");
+        L.touched("evalscore");
       }
 
       fixes.forEach(function (f) {
@@ -2886,7 +2886,7 @@
             : "<b>Missing: " + esc(names.join(", ")) + ".</b> " + attack.note);
         verdict.appendChild(v);
 
-        Store.labTouched("injection");
+        L.touched("injection");
       }
 
       DEFENCES.forEach(function (d) {
@@ -3354,7 +3354,7 @@
               "passed almost every broken variant</b> of this run too.");
         verdict.appendChild(v);
 
-        Store.labTouched("trajectory");
+        L.touched("trajectory");
       }
 
       DEVS.forEach(function (d) {
@@ -3371,6 +3371,40 @@
     },
   };
   /* ---------------- mount ---------------- */
+
+  /* Labs record use from their update() function, which also runs once on
+     mount to paint initial state. Unguarded that awards "Lab explored" for
+     merely rendering — and the labs index renders all thirteen, so opening it
+     handed out 130 XP and a wall of toasts for doing nothing.
+
+     So the award is armed by the first real interaction inside the lab. The
+     guard lives here, at the single mount point, rather than in fourteen
+     call sites that would each have to remember it. */
+  var armed = {};
+
+  function arm(id, wrap) {
+    function fire() {
+      armed[id] = true;
+      ["pointerdown", "keydown", "input", "change"].forEach(function (evt) {
+        wrap.removeEventListener(evt, fire, true);
+      });
+    }
+    ["pointerdown", "keydown", "input", "change"].forEach(function (evt) {
+      // Capture phase: labs stop propagation on some of their own controls.
+      wrap.addEventListener(evt, fire, true);
+    });
+  }
+
+  /**
+   * Record that a lab was used. Labs call this from update(); it does nothing
+   * until the reader has actually touched the lab's controls.
+   *
+   * Store deliberately doesn't know about this — it's a core module and the
+   * arming state is a UI concern, so the gate sits on this side of the line.
+   */
+  L.touched = function (id) {
+    if (armed[id]) Store.labTouched(id);
+  };
 
   L.mount = function (id, container) {
     var lab = L[id];
@@ -3396,6 +3430,7 @@
     var body = el("div", "lab__body");
     wrap.appendChild(body);
     container.appendChild(wrap);
+    arm(id, wrap);
     try {
       lab.render(body);
     } catch (e) {

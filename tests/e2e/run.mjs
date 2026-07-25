@@ -171,6 +171,11 @@ async function main() {
   const labCount = await page.locator(".lab").count();
   check("all labs mount", labCount >= 13, `${labCount} mounted`);
 
+  /* Labs record use from update(), which also runs on mount. Rendering must not
+     award XP, or opening this page hands out 130 XP for scrolling. */
+  const xpOnMount = await page.evaluate(() => window.Store.state().xp);
+  check("mounting labs awards no XP", xpOnMount === 0, `${xpOnMount} XP`);
+
   const sliders = await page.locator(".lab input[type=range]").count();
   for (let i = 0; i < sliders; i++) {
     const s = page.locator(".lab input[type=range]").nth(i);
@@ -200,6 +205,9 @@ async function main() {
     true,
     "no exceptions"
   );
+
+  const xpAfterUse = await page.evaluate(() => window.Store.state().xp);
+  check("using labs awards XP", xpAfterUse > 0, `${xpAfterUse} XP`);
 
   /* ---------------- quiz, completion, persistence ---------------- */
   section("progress");
