@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1533" />
+    <meta
+      name="description"
+      content="MITRON MAYHEM — a frantic 14-microgame meme gauntlet built on Indian internet meme culture. Keyboard, mouse or touch. No downloads."
+    />
+    <title>MITRON MAYHEM — The Meme Microgame Gauntlet</title>
+    <style>
+      :root {
+        --saffron: #ff9933;
+        --green: #138808;
+        --navy: #0b1533;
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: radial-gradient(circle at 50% 0%, #1d2a55 0%, #0b1533 55%, #05081a 100%);
+        font-family: 'Trebuchet MS', system-ui, -apple-system, sans-serif;
+        color: #fff;
+        overscroll-behavior: none;
+        touch-action: none;
+      }
+      #wrap {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+      }
+      #stage {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas#game {
+        display: block;
+        border-radius: 14px;
+        box-shadow: 0 0 0 3px rgba(255, 153, 51, 0.55), 0 26px 70px rgba(0, 0, 0, 0.75),
+          0 0 120px rgba(255, 153, 51, 0.12);
+        image-rendering: auto;
+        cursor: crosshair;
+        touch-action: none;
+      }
+
+      /* --- boot splash, removed once the loop starts --- */
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: center;
+        justify-content: center;
+        background: var(--navy);
+        z-index: 20;
+        transition: opacity 0.5s ease;
+        text-align: center;
+        padding: 20px;
+      }
+      #boot.gone {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #boot h1 {
+        margin: 0;
+        font-size: clamp(28px, 7vw, 58px);
+        letter-spacing: 2px;
+        color: var(--saffron);
+        text-shadow: 0 4px 0 #000;
+      }
+      #boot p {
+        margin: 0;
+        opacity: 0.7;
+        font-size: 15px;
+      }
+      .spin {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: 5px solid rgba(255, 255, 255, 0.15);
+        border-top-color: var(--saffron);
+        animation: sp 0.9s linear infinite;
+      }
+      @keyframes sp {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* --- on-screen controls, shown on touch devices --- */
+      #pad {
+        position: fixed;
+        inset: auto 0 0 0;
+        display: none;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+        pointer-events: none;
+        z-index: 10;
+      }
+      #pad.show {
+        display: flex;
+      }
+      #pad > div {
+        pointer-events: auto;
+      }
+      .dpad {
+        display: grid;
+        grid-template-columns: repeat(3, 56px);
+        grid-template-rows: repeat(3, 56px);
+        gap: 4px;
+      }
+      .btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.14);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        font-size: 24px;
+        font-weight: 900;
+        color: #fff;
+        user-select: none;
+        backdrop-filter: blur(4px);
+      }
+      .btn:active {
+        background: var(--saffron);
+        color: #111;
+        transform: scale(0.94);
+      }
+      .big {
+        width: 108px;
+        height: 108px;
+        border-radius: 50%;
+        font-size: 17px;
+        letter-spacing: 1px;
+        background: rgba(255, 153, 51, 0.85);
+        color: #17120a;
+        border-color: rgba(255, 255, 255, 0.6);
+      }
+      .g11 { grid-area: 1 / 2; }
+      .g21 { grid-area: 2 / 1; }
+      .g23 { grid-area: 2 / 3; }
+      .g31 { grid-area: 3 / 2; }
+
+      /* --- portrait phones: lift the board above the pad, nudge to rotate --- */
+      #rotate {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 40vh;
+        display: none;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 16px;
+        border-radius: 999px;
+        background: rgba(255, 153, 51, 0.16);
+        border: 1px solid rgba(255, 153, 51, 0.5);
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        color: #ffd9ad;
+        z-index: 11;
+        pointer-events: none;
+      }
+      @media (orientation: portrait) and (pointer: coarse) {
+        #wrap {
+          align-items: flex-start;
+          padding-top: 7vh;
+        }
+        #rotate {
+          display: flex;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <div id="stage"><canvas id="game" width="960" height="600" aria-label="Mitron Mayhem game canvas"></canvas></div>
+    </div>
+
+    <div id="pad">
+      <div class="dpad">
+        <div class="btn g11" data-key="up">▲</div>
+        <div class="btn g21" data-key="left">◀</div>
+        <div class="btn g23" data-key="right">▶</div>
+        <div class="btn g31" data-key="down">▼</div>
+      </div>
+      <div><div class="btn big" data-key="action">MITRON</div></div>
+    </div>
+
+    <div id="rotate">↻ &nbsp;rotate your phone for a bigger stage</div>
+
+    <div id="boot">
+      <h1>MITRON MAYHEM</h1>
+      <div class="spin"></div>
+      <p>warming up the chai&hellip;</p>
+    </div>
+
+    <script src="src/util.js"></script>
+    <script src="src/audio.js"></script>
+    <script src="src/input.js"></script>
+    <script src="src/fx.js"></script>
+    <script src="src/art.js"></script>
+    <script src="src/scenes.js"></script>
+    <script src="src/cards.js"></script>
+    <script src="src/games-a.js"></script>
+    <script src="src/games-b.js"></script>
+    <script src="src/boss.js"></script>
+    <script src="src/main.js"></script>
+  </body>
+</html>
