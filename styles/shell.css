@@ -263,7 +263,8 @@ body.is-landing .topbar {
   font-size: 0.66rem;
   font-weight: 700;
   font-family: var(--font-mono);
-  color: var(--ink-3);
+  /* Same reason as .chnode__dot: tiny type on a raised chip needs --ink-2. */
+  color: var(--ink-2);
   background: var(--surface-3);
   border: 1px solid var(--line-faint);
 }
@@ -274,9 +275,12 @@ body.is-landing .topbar {
   border-color: transparent;
 }
 
+/* --accent rather than --accent-lo, with --ink-inv on top: accent-lo is darker
+   than accent on the dark theme but lighter on the light one, so no single text
+   colour works over it. */
 .phaselink.is-active .phaselink__idx {
-  color: #fff;
-  background: var(--accent-lo);
+  color: var(--ink-inv);
+  background: var(--accent);
   border-color: transparent;
 }
 
@@ -561,7 +565,7 @@ body.is-landing .topbar {
 
 .presult.is-cursor .presult__icon {
   background: var(--accent);
-  color: #fff;
+  color: var(--ink-inv);
 }
 
 .presult__t {

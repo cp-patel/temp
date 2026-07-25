@@ -96,8 +96,14 @@
     totalMinutes: totalMinutes,
   };
 
+  /* Only the hue comes from the data. Saturation and lightness are theme
+     tokens, so the same phase reads correctly on dark and light. */
+  function phaseHsl(hue) {
+    return "hsl(" + hue + " var(--phase-s) var(--phase-l))";
+  }
+
   function phaseVars(p) {
-    return "--phase-color: hsl(" + p.hue + " 82% 62%);";
+    return "--phase-color: " + phaseHsl(p.hue) + ";";
   }
 
   /* =========================================================
@@ -125,9 +131,8 @@
     var stops = C.phases
       .map(function (p, i) {
         return (
-          "hsl(" +
-          p.hue +
-          " 88% 62%) " +
+          phaseHsl(p.hue) +
+          " " +
           Math.round((i / (C.phases.length - 1)) * 100) +
           "%"
         );
@@ -145,9 +150,9 @@
           U.attr(
             U.plural(chaptersOf(p.id).length, "chapter") + " · " + p.weeks
           ) +
-          '" style="--pc: hsl(' +
-          p.hue +
-          ' 88% 62%)">' +
+          '" style="--pc: ' +
+          phaseHsl(p.hue) +
+          '">' +
           '<span class="pathdot__disc">' +
           Icons.get(p.icon, 18) +
           "</span>" +
@@ -611,9 +616,9 @@
     var head = el("header", "chhead");
     head.innerHTML =
       '<div class="chhead__kicker">' +
-      '<a class="chip chip--accent" href="#/roadmap" style="--accent:hsl(' +
-      p.hue +
-      ' 82% 62%)">' +
+      '<a class="chip chip--accent" href="#/roadmap" style="--accent:' +
+      phaseHsl(p.hue) +
+      '">' +
       p.n +
       " · " +
       esc(p.title.split("—")[0].trim()) +
@@ -1452,11 +1457,9 @@
         a.href = "#/chapter/" + c.id;
         a.innerHTML =
           '<div class="libcard__top">' +
-          '<span class="chip" style="color:hsl(' +
-          p.hue +
-          " 82% 62%);background:hsl(" +
-          p.hue +
-          ' 82% 62% / .13);border-color:transparent">' +
+          '<span class="chip chip--phase" style="--pc: ' +
+          phaseHsl(p.hue) +
+          '">' +
           p.n +
           " · " +
           esc(p.title.split("—")[0].trim()) +

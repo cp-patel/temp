@@ -746,7 +746,9 @@
   border-radius: 50%;
   background: var(--surface-2);
   border: 2px solid var(--line-strong);
-  color: var(--ink-3);
+  /* A 12px mono numeral inside a filled disc needs the secondary ink, not the
+     tertiary — at this size --ink-3 falls below AA on the raised surface. */
+  color: var(--ink-2);
   font-family: var(--font-mono);
   font-size: var(--t-xs);
   font-weight: 700;
@@ -758,16 +760,19 @@
   height: 15px;
 }
 
+/* --ink-inv, not a literal: the accent and emerald fills are light on the dark
+   theme and dark on the light one, so the text on top has to flip with them.
+   Hardcoding #fff put white on light violet — 3.75:1. */
 .chnode.is-done .chnode__dot {
   background: var(--emerald);
   border-color: var(--emerald);
-  color: #04120c;
+  color: var(--ink-inv);
 }
 
 .chnode.is-current .chnode__dot {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--ink-inv);
   animation: pulse-ring 2.4s var(--ease) infinite;
 }
 
@@ -1000,9 +1005,11 @@
   font-size: 0.62rem;
   font-weight: 700;
   color: var(--phase-color, var(--accent));
+  /* 10%, not 16%: the tint is the backdrop for text of the same hue, so a
+     heavier fill eats the contrast it is supposed to sit behind. */
   background: color-mix(
     in oklab,
-    var(--phase-color, var(--accent)) 16%,
+    var(--phase-color, var(--accent)) 10%,
     transparent
   );
 }
@@ -1135,9 +1142,11 @@
   border-color: var(--line-strong);
 }
 
+/* --accent-lo inverts between themes (darker than --accent on dark, lighter on
+   light), so white text over it only works on one of them. */
 .fpill.is-on {
-  color: #fff;
-  background: var(--accent-lo);
+  color: var(--ink-inv);
+  background: var(--accent);
   border-color: transparent;
 }
 
@@ -1333,8 +1342,8 @@
 }
 
 .alpha button.is-on {
-  color: #fff;
-  background: var(--accent-lo);
+  color: var(--ink-inv);
+  background: var(--accent);
   border-color: transparent;
 }
 

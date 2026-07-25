@@ -893,7 +893,9 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .preview__dim {
-  color: #6a7089;
+  /* A literal, not --ink-3: this panel keeps its dark code palette on both
+     themes, so it needs a colour that reads on #14161f either way. */
+  color: #8f95ab;
 }
 
 /* ---- Injection lab ---- */

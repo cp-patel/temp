@@ -89,7 +89,9 @@ L.myLab = {
   icon: "beaker", // must exist in js/core/icons.js
   render: function (root) {
     // build DOM into root; own your state in closures
-    Store.labTouched("myLab"); // awards XP once, on first interaction
+    // Call from your update(). It is a no-op until the reader actually touches
+    // a control, so mounting the lab never awards XP.
+    L.touched("myLab");
   },
 };
 ```
@@ -165,6 +167,18 @@ element renders as literally nothing. The phase-mastery progress bars were
 invisible for exactly this reason. `.bar` now sets `display: block` itself.
 Anything with a height should do the same rather than relying on its parent
 happening to be a flex or grid container.
+
+**Never put a literal `#fff` on a token fill.** `--accent`, `--emerald`,
+`--rose` and `--grad-brand` are _light_ on the dark theme and _dark_ on the
+light one, so no single text colour works over them. Use `var(--ink-inv)`,
+which flips with the theme. Same for `--accent-lo`, which inverts relative to
+`--accent` between themes. This was wrong in six places and each one only looked
+broken on the theme nobody was testing — the e2e contrast check now catches it.
+
+**Colour that comes from data carries only a hue.** Phase colours are emitted
+as `hsl(<hue> var(--phase-s) var(--phase-l))`; saturation and lightness are
+theme tokens. A lightness baked into JS cannot respond to the theme, which is
+how the phase chips ended up below AA on light.
 
 **Emit progress bars through `U.bar(pct, opts)`**, not by hand. Zero progress is
 its own state — a dashed ghost track, not a flat grey line that reads as a bar

@@ -801,10 +801,12 @@
   color: var(--ink);
 }
 
+/* --ink-inv, because --emerald and --rose are light fills on the dark theme
+   and dark fills on the light one. A literal only works on one of them. */
 .opt.is-right .opt__k {
   background: var(--emerald);
   border-color: var(--emerald);
-  color: #04120c;
+  color: var(--ink-inv);
 }
 
 .opt.is-wrong {
@@ -815,7 +817,7 @@
 .opt.is-wrong .opt__k {
   background: var(--rose);
   border-color: var(--rose);
-  color: #fff;
+  color: var(--ink-inv);
 }
 
 .opt:disabled {

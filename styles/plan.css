@@ -86,7 +86,7 @@
 
 .ob__opt.is-sel .ob__opt-ic {
   background: var(--accent);
-  color: #fff;
+  color: var(--ink-inv);
 }
 
 .ob__opt-t {
@@ -161,7 +161,7 @@
 .ob__skill.is-on .ob__skill-box {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--ink-inv);
 }
 
 .ob__skill-t {
@@ -515,7 +515,7 @@
 
 .delta--deep .delta__ic {
   background: var(--accent);
-  color: #fff;
+  color: var(--ink-inv);
 }
 
 .delta__t {

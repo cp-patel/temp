@@ -389,6 +389,13 @@ hr {
   background: var(--accent-soft);
   border-color: var(--accent-line);
 }
+/* A chip tinted by a phase hue passed in as --pc. */
+.chip--phase {
+  color: var(--pc);
+  background: color-mix(in oklab, var(--pc) 13%, transparent);
+  border-color: transparent;
+}
+
 .chip--cyan {
   color: var(--cyan);
   background: var(--cyan-soft);

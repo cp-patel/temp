@@ -407,30 +407,127 @@ async function main() {
   );
   await mctx.close();
 
-  /* ---------------- light theme sweep ---------------- */
-  section("light theme");
-  const lctx = await browser.newContext({
-    viewport: { width: 1440, height: 950 },
-    colorScheme: "light",
-  });
-  const lp = await lctx.newPage();
-  lp.on("pageerror", (e) => errors.push(`light pageerror: ${e.message}`));
-  lp.on("console", (m) => {
-    if (m.type() === "error") errors.push(`light console: ${m.text()}`);
-  });
-  for (const r of [
+  /* ---------------- contrast, both themes ---------------- */
+  /* A dark-first token set drifts out of AA on the light theme without anyone
+     noticing, because nothing looks broken — it just looks washed out. This
+     found 66 failures across the two themes the first time it ran, almost all
+     of them one token (--ink-3) or one pattern (a literal #fff over a fill that
+     inverts between themes). */
+  section("contrast (WCAG AA)");
+  const CONTRAST_ROUTES = [
     "",
+    "#/dashboard",
     "#/plan",
     "#/roadmap",
-    "#/chapter/hybrid-rerank",
+    "#/library",
     "#/labs",
-  ]) {
-    await lp.goto(BASE + r, { waitUntil: "networkidle" });
-    await lp.evaluate(() => Store.skipOnboarding());
-    await lp.waitForTimeout(300);
+    "#/review",
+    "#/projects",
+    "#/glossary",
+    "#/settings",
+    "#/chapter/role",
+    "#/chapter/evals-ci",
+  ];
+
+  for (const scheme of ["dark", "light"]) {
+    const cctx = await browser.newContext({
+      viewport: { width: 1440, height: 1100 },
+      colorScheme: scheme,
+    });
+    const cp = await cctx.newPage();
+    cp.on("pageerror", (e) => errors.push(`${scheme} pageerror: ${e.message}`));
+    cp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`${scheme} console: ${m.text()}`);
+    });
+    await cp.goto(BASE, { waitUntil: "networkidle" });
+    await cp.evaluate(() =>
+      Store.setProfile({
+        role: "backend",
+        years: "4",
+        hours: "~10 h",
+        goal: "job",
+      })
+    );
+
+    const bad = new Map();
+    for (const r of CONTRAST_ROUTES) {
+      await cp.goto(BASE + r, { waitUntil: "networkidle" });
+      await cp.waitForTimeout(400);
+      const found = await cp.evaluate(() => {
+        const lum = ([r, g, b]) => {
+          const f = (v) => {
+            v /= 255;
+            return v <= 0.03928
+              ? v / 12.92
+              : Math.pow((v + 0.055) / 1.055, 2.4);
+          };
+          return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+        };
+        const parse = (s) => (s.match(/[\d.]+/g) || []).map(Number);
+        // First ancestor with a background opaque enough to be the real backdrop.
+        const backdrop = (el) => {
+          let n = el;
+          while (n && n !== document.documentElement) {
+            const c = parse(getComputedStyle(n).backgroundColor);
+            if (c.length >= 3 && (c[3] === undefined || c[3] > 0.85)) return c;
+            n = n.parentElement;
+          }
+          return parse(getComputedStyle(document.body).backgroundColor);
+        };
+        const out = [];
+        document.querySelectorAll("body *").forEach((el) => {
+          if (el.children.length) return; // text-bearing leaves only
+          if (!(el.textContent || "").trim()) return;
+          const box = el.getBoundingClientRect();
+          if (box.width < 6 || box.height < 6) return;
+          if (box.top < 0 || box.bottom > innerHeight) return;
+          const cs = getComputedStyle(el);
+          if (cs.visibility === "hidden" || +cs.opacity < 0.6) return;
+          const fg = parse(cs.color);
+          if (fg.length < 3 || fg[3] === 0) return; // gradient-clipped text
+          // A background-image can't be sampled, so its text is out of scope.
+          let n = el;
+          let painted = false;
+          while (n && n !== document.documentElement) {
+            if (getComputedStyle(n).backgroundImage !== "none") painted = true;
+            n = n.parentElement;
+          }
+          if (painted) return;
+          const bg = backdrop(el);
+          if (bg.length < 3) return;
+          const a = lum(fg);
+          const b = lum(bg);
+          const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+          const size = parseFloat(cs.fontSize);
+          const large = size >= 24 || (size >= 18.66 && +cs.fontWeight >= 700);
+          const need = large ? 3 : 4.5;
+          if (ratio < need) {
+            out.push({
+              sel: el.tagName.toLowerCase() + "." + (el.className || "(none)"),
+              ratio: +ratio.toFixed(2),
+              need,
+            });
+          }
+        });
+        return out;
+      });
+      found.forEach((f) => {
+        if (!bad.has(f.sel)) bad.set(f.sel, f);
+      });
+    }
+    const list = [...bad.values()];
+    check(
+      `${scheme} theme meets AA`,
+      list.length === 0,
+      list.length
+        ? list
+            .slice(0, 6)
+            .map((f) => `${f.sel} ${f.ratio}<${f.need}`)
+            .join(", ")
+        : "no failures"
+    );
+    await cctx.close();
   }
-  check("light theme renders every view", true);
-  await lctx.close();
 
   await browser.close();
   stop();

@@ -93,10 +93,14 @@
   --line-strong: rgba(255, 255, 255, 0.14);
   --line-faint: rgba(255, 255, 255, 0.045);
 
+  /* The ramp is spread so that --ink-3, which carries most of the app's
+     supporting text (eyebrows, stat sublabels, TOC links, control hints),
+     clears WCAG AA 4.5:1 against surface-3 rather than the 3.0:1 it used to
+     manage. Dimmer than this reads as washed out, not as subtle. */
   --ink: #ecedf3;
   --ink-1: #b9bccb;
-  --ink-2: #878b9e;
-  --ink-3: #61657a;
+  --ink-2: #9aa0b4;
+  --ink-3: #7b8195;
   --ink-inv: #08080c;
 
   --accent: hsl(var(--hue-violet) 88% 68%);
@@ -158,6 +162,12 @@
     rgba(255, 255, 255, 0) 42%
   );
 
+  /* Phase accents. Views emit only the hue; saturation and lightness live here
+     so a phase colour can be legible on both themes. A lightness baked into JS
+     cannot be, which is how the phase chips ended up below AA on light. */
+  --phase-s: 84%;
+  --phase-l: 70%;
+
   /* Film grain. Low enough to read as texture rather than noise. */
   --grain-opacity: 0.055;
   --grain-blend: overlay;
@@ -209,30 +219,37 @@
 
   --ink: #14172b;
   --ink-1: #3f445e;
-  --ink-2: #62688a;
-  --ink-3: #8e93ad;
+  --ink-2: #4e5470;
+  --ink-3: #666c85;
   --ink-inv: #ffffff;
 
-  --accent: hsl(var(--hue-violet) 78% 52%);
-  --accent-hi: hsl(var(--hue-violet) 80% 44%);
+  /* 48%, not 52%: --accent is a fill under white text on pills and active
+     states, and 52% left those at 4.49:1. */
+  --accent: hsl(var(--hue-violet) 78% 48%);
+  --accent-hi: hsl(var(--hue-violet) 80% 42%);
   --accent-lo: hsl(var(--hue-violet) 70% 62%);
   --accent-soft: hsl(var(--hue-violet) 80% 56% / 0.1);
   --accent-line: hsl(var(--hue-violet) 76% 56% / 0.3);
 
-  --cyan: hsl(var(--hue-cyan) 82% 38%);
+  /* These are used as chip and callout *text* over their own soft tint, so they
+     have to clear AA against it rather than just look like the hue. That means
+     noticeably darker than the dark theme's equivalents. */
+  --cyan: hsl(var(--hue-cyan) 84% 29%);
   --cyan-soft: hsl(var(--hue-cyan) 82% 44% / 0.11);
-  --emerald: hsl(var(--hue-emerald) 62% 36%);
+  --emerald: hsl(var(--hue-emerald) 66% 28%);
   --emerald-soft: hsl(var(--hue-emerald) 62% 44% / 0.12);
-  --amber: hsl(28 88% 44%);
+  --amber: hsl(26 92% 34%);
   --amber-soft: hsl(38 92% 52% / 0.14);
-  --rose: hsl(var(--hue-rose) 72% 48%);
+  --rose: hsl(var(--hue-rose) 74% 40%);
   --rose-soft: hsl(var(--hue-rose) 78% 56% / 0.11);
 
+  /* Darker than the dark theme's, because this gradient is a fill under white
+     text and glyphs (the brand mark, the hero badge, bar fills). */
   --grad-brand: linear-gradient(
     120deg,
-    hsl(var(--hue-violet) 82% 56%) 0%,
-    hsl(215 86% 54%) 46%,
-    hsl(var(--hue-cyan) 82% 44%) 100%
+    hsl(var(--hue-violet) 82% 49%) 0%,
+    hsl(215 86% 46%) 46%,
+    hsl(var(--hue-cyan) 84% 36%) 100%
   );
   --grad-text: linear-gradient(
     98deg,
@@ -264,6 +281,9 @@
     rgba(255, 255, 255, 0.9),
     rgba(255, 255, 255, 0) 42%
   );
+
+  --phase-s: 74%;
+  --phase-l: 29%;
 
   /* Grain is far more visible on light surfaces — dial it right down. */
   --grain-opacity: 0.028;
