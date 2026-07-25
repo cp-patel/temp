@@ -36,6 +36,10 @@
         { t: "h", text: "What an eval actually is" },
         {
           t: "p",
+          text: "That plateau story is worth recognising because you will be inside it before you notice. It doesn't feel like a measurement problem — it feels like the model isn't good enough, or like the problem is intrinsically hard. It feels that way precisely because you have no instrument.",
+        },
+        {
+          t: "p",
           text: "A dataset of inputs with known-good outputs or gradeable criteria, plus a scoring function, plus a way to run both repeatably. That's it. It's a test suite for a probabilistic system, and the only unusual part is that some assertions are fuzzy.",
         },
         {
@@ -77,6 +81,10 @@
 
         { t: "h", text: "The virtuous cycle" },
         {
+          t: "p",
+          text: "Note how low the bar is. An eval is not a research artefact; it is a folder of cases and a scoring function. The reason it changes everything is not sophistication but the loop it makes possible.",
+        },
+        {
           t: "flow",
           nodes: [
             { b: "Production", s: "real traffic", c: "accent" },
@@ -94,6 +102,10 @@
         },
 
         { t: "h", text: "Objections, answered" },
+        {
+          t: "p",
+          text: "Everyone agrees with this in principle and skips it in practice, for a small number of reasons that all sound sensible. They are worth answering directly, because each one has a specific reply.",
+        },
         {
           t: "compare",
           left: {
@@ -120,6 +132,10 @@
           },
         },
 
+        {
+          t: "p",
+          text: "Underneath every one of those objections is the same instinct: that a partial eval isn't worth having. It is the most expensive wrong belief in this field.",
+        },
         { t: "h", text: "Twenty cases beat zero, always" },
         {
           t: "p",
@@ -264,7 +280,15 @@ def run_evals():
         "Avoid the biases that make eval sets misleading",
       ],
       body: [
+        {
+          t: "p",
+          text: "The previous chapter argued that you need an eval set. This one is about where the cases come from, and the answer determines whether the suite measures your product or your imagination.",
+        },
         { t: "h", text: "Four sources, in order of value" },
+        {
+          t: "p",
+          text: "The ordering below is by how much the cases resemble real usage, which is the only quality that matters. Every source above the last is a substitute for traffic you don't have yet.",
+        },
         {
           t: "steps",
           items: [
@@ -294,6 +318,14 @@ def run_evals():
         },
 
         { t: "h", text: "How many cases?" },
+        {
+          t: "p",
+          text: "That bias is why the ordering matters: questions you invent are questions you already know how to answer. Real users ask things you didn't think of, in phrasing you wouldn't have chosen, and those are the cases that move your score.",
+        },
+        {
+          t: "p",
+          text: "Size comes next, and it is where most teams are unknowingly fooling themselves.",
+        },
         {
           t: "table",
           head: ["Size", "Detects", "Use"],
@@ -357,6 +389,10 @@ report("faithfulness", 82, 100)  # faithfulness  82.0%  [73.3%, 88.3%]  n=100
 
         { t: "h", text: "Structuring a case" },
         {
+          t: "p",
+          text: "Take that confidence interval seriously — it changes how you work. A four-point move on 50 cases is not a result, and treating it as one means shipping changes that did nothing and reverting changes that helped.",
+        },
+        {
           t: "code",
           lang: "python",
           caption: "A case with everything you'll want later",
@@ -395,6 +431,10 @@ report("faithfulness", 82, 100)  # faithfulness  82.0%  [73.3%, 88.3%]  n=100
         },
 
         { t: "h", text: "Keeping the set honest" },
+        {
+          t: "p",
+          text: "One last discipline, and it is the one that decays silently. An eval set is a fixed measurement of a moving product, and it stops being informative unless you maintain it deliberately.",
+        },
         {
           t: "list",
           items: [
@@ -550,6 +590,10 @@ report("faithfulness", 82, 100)  # faithfulness  82.0%  [73.3%, 88.3%]  n=100
 
         { t: "h", text: "Deterministic checks you should always have" },
         {
+          t: "p",
+          text: "That over-use of judges is the expensive mistake in this chapter. A judge costs money, adds latency, and needs its own validation — so every check you can push down to code is a check that gets faster, free, and trustworthy at the same time.",
+        },
+        {
           t: "code",
           lang: "python",
           caption: "Free, instant, and unambiguous",
@@ -597,6 +641,10 @@ def deterministic_checks(out, case) -> dict:
         },
 
         { t: "h", text: "RAG metrics that isolate stages" },
+        {
+          t: "p",
+          text: "Beyond the generic layers, the systems you built in Phase 04 and Phase 05 each have metrics of their own. The RAG ones matter because they attribute a failure to a stage rather than reporting one number for the whole pipeline.",
+        },
         {
           t: "table",
           head: ["Metric", "Measures", "Layer"],
@@ -647,6 +695,10 @@ def deterministic_checks(out, case) -> dict:
 
         { t: "h", text: "Agent metrics" },
         {
+          t: "p",
+          text: "Agents need the same treatment, and for the same reason: a trajectory has many places to go wrong and a single success flag tells you about none of them. The next chapter is entirely about this.",
+        },
+        {
           t: "list",
           items: [
             "**Task success** — did it achieve the goal? Needs a checkable success criterion per case, not a judge's opinion.",
@@ -659,6 +711,10 @@ def deterministic_checks(out, case) -> dict:
         },
 
         { t: "h", text: "Metrics that look rigorous and measure nothing" },
+        {
+          t: "p",
+          text: "Now the negative space. Several widely used metrics produce a plausible number that does not track quality, and they are dangerous precisely because a number feels like measurement.",
+        },
         {
           t: "compare",
           left: {
@@ -693,6 +749,10 @@ def deterministic_checks(out, case) -> dict:
         },
 
         { t: "h", text: "Composite scores: report the components" },
+        {
+          t: "p",
+          text: "Which suggests a general discipline about reporting. The moment you average several metrics into one headline figure, you lose the ability to see which one moved.",
+        },
         {
           t: "code",
           lang: "python",
@@ -842,6 +902,14 @@ def gate(results) -> tuple[bool, list[str]]:
 
         { t: "h", text: "The six biases, and what to do" },
         {
+          t: "p",
+          text: "A judge is a measuring instrument you built out of the thing you're measuring, and that should make you cautious rather than dismissive. Used carefully it is the only affordable way to grade qualities like faithfulness at scale. Used carelessly it produces confident numbers that track nothing.",
+        },
+        {
+          t: "p",
+          text: "Start with the known failure modes, because they are systematic rather than random — which means they bias your results in a consistent direction rather than adding noise.",
+        },
+        {
           t: "table",
           head: ["Bias", "Effect", "Mitigation"],
           rows: [
@@ -885,6 +953,10 @@ def gate(results) -> tuple[bool, list[str]]:
         },
 
         { t: "h", text: "A judge that works" },
+        {
+          t: "p",
+          text: "Every one of those biases has a mitigation, and together they produce a fairly specific recipe.",
+        },
         {
           t: "code",
           lang: "python",
@@ -958,6 +1030,10 @@ Do not consider whether the answer is what a user would want to hear.
         { t: "h", text: "Calibration is not optional" },
         {
           t: "p",
+          text: "And now the step that separates a judge you can cite from a judge you merely have. Everything above makes the instrument sensible; none of it tells you whether it agrees with a human.",
+        },
+        {
+          t: "p",
           text: "An uncalibrated judge is an unvalidated instrument. Label 40–50 cases by hand, compare, and measure agreement.",
         },
         {
@@ -1000,6 +1076,10 @@ if k < 0.6:
         },
 
         { t: "h", text: "Pairwise comparison beats absolute scoring" },
+        {
+          t: "p",
+          text: "If calibration comes out poor, the usual fix is not a better rubric but an easier question.",
+        },
         {
           t: "p",
           text: "Judges are much better at 'which of these two is better?' than 'rate this from 1 to 10'. Comparison needs no calibrated scale, and it's the natural shape for the question you usually have: is the new version better than the old one?",
@@ -1182,6 +1262,10 @@ if k < 0.6:
         { t: "h", text: "Golden trajectories" },
         {
           t: "p",
+          text: "Read those failure cases carefully: in each one, outcome-only grading gives full marks to a run you would never want in production. That is the argument for grading the route as well as the destination.",
+        },
+        {
+          t: "p",
           text: "A golden trajectory is a task where a human has written down not just the expected outcome but the expected *route*: which tools should be called, roughly in what order, with what arguments, and what a reasonable number of steps looks like. They're expensive to author and they are the anchor everything else calibrates against.",
         },
         {
@@ -1287,6 +1371,10 @@ def score_trajectory(golden, run) -> dict:
 
         { t: "h", text: "The metric set" },
         {
+          t: "p",
+          text: 'A golden trajectory gives you a reference to score one run against. Turning that into an ongoing signal needs a metric set, and the useful ones separate "did it succeed" from "how well did it get there".',
+        },
+        {
           t: "table",
           head: ["Metric", "Question it answers", "How"],
           rows: [
@@ -1340,6 +1428,10 @@ def score_trajectory(golden, run) -> dict:
         },
 
         { t: "h", text: "Deliberate failure injection" },
+        {
+          t: "p",
+          text: "Those metrics measure the happy path. Production is not the happy path — tools time out, APIs return garbage, permissions get revoked — and an agent's response to that is the property most likely to differ between a demo and a system.",
+        },
         {
           t: "p",
           text: "Recovery is the property that most distinguishes a robust agent from a demo, and you cannot measure it by waiting for real failures. Inject them.",
@@ -1421,6 +1513,10 @@ async def eval_recovery(golden, fault_name, fault):
           text: "Capture real tool responses once, then replay them as fixtures. You get deterministic, fast, free eval runs for everything except the model's own decisions — which is exactly the variable you're trying to measure. This is the same insight as VCR-style HTTP fixtures in ordinary integration testing, and it applies unusually well.",
         },
 
+        {
+          t: "p",
+          text: "All of which is more expensive than it sounds, and cost is the reason agent evals get skipped. Record-and-replay is the single technique that makes them routine rather than occasional.",
+        },
         { t: "h", text: "What interviewers actually ask" },
         {
           t: "p",
@@ -1573,7 +1669,15 @@ async def eval_recovery(golden, fault_name, fault):
         "Detect drift before users report it",
       ],
       body: [
+        {
+          t: "p",
+          text: "An eval suite you run by hand is a document. This chapter is about making it infrastructure — something that blocks a bad change without your involvement, and keeps measuring after the change ships. That second half is the part teams skip, and it is where the failures users actually see get caught.",
+        },
         { t: "h", text: "The three tiers" },
+        {
+          t: "p",
+          text: "The tension is between coverage and speed: a suite thorough enough to trust is too slow to run on every commit. The standard resolution is three tiers with different triggers.",
+        },
         {
           t: "table",
           head: ["Tier", "Cases", "Runtime", "Trigger"],
@@ -1596,6 +1700,10 @@ async def eval_recovery(golden, fault_name, fault):
         },
 
         { t: "h", text: "Gating without flakiness" },
+        {
+          t: "p",
+          text: "Tiers decide when a suite runs. The harder question is what makes it fail, and this is where eval gates usually go wrong in one of two opposite directions.",
+        },
         {
           t: "code",
           lang: "python",
@@ -1660,6 +1768,10 @@ sys.exit(gate(run_evals(), n=len(CASES)))`,
         { t: "h", text: "Online evals on production traffic" },
         {
           t: "p",
+          text: "Everything so far tests what you thought to test. Your users are not limited to your imagination, which is why the offline suite is necessary and never sufficient.",
+        },
+        {
+          t: "p",
           text: "Offline evals test what you thought to test. Online evals test what users actually do — including the queries you never imagined.",
         },
         {
@@ -1710,6 +1822,10 @@ async def evaluate_async(req, result):
 
         { t: "h", text: "What to alert on" },
         {
+          t: "p",
+          text: "Scores in a dashboard nobody opens are not monitoring. A small number of signals are worth waking someone for.",
+        },
+        {
           t: "list",
           items: [
             "**Deterministic invariant broken** — a citation that doesn't resolve, invalid schema, PII in output. Page someone; these should be impossible.",
@@ -1728,6 +1844,10 @@ async def evaluate_async(req, result):
         },
 
         { t: "h", text: "Drift" },
+        {
+          t: "p",
+          text: "Finally, the failure mode with no error message. Nothing breaks; the world moves, and your system's quality decays against it while every metric you own reports normal.",
+        },
         {
           t: "table",
           head: ["Drift type", "Cause", "Detection"],
