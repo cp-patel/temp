@@ -122,7 +122,7 @@
         { t: "h", text: "Stop reasons: the field nobody checks" },
         {
           t: "p",
-          text: "So much for the request. Now the response — and specifically the field almost nobody reads. Every reply carries a stop reason saying *why* the model stopped talking, and only one of its values means \"this worked\". The others look like success to code that only checks for a 200 and pulls out the text.",
+          text: 'So much for the request. Now the response — and specifically the field almost nobody reads. Every reply carries a stop reason saying *why* the model stopped talking, and only one of its values means "this worked". The others look like success to code that only checks for a 200 and pulls out the text.',
         },
         {
           t: "table",
@@ -369,6 +369,10 @@ class LLM:
         { t: "h", text: "Where the time actually goes" },
         {
           t: "p",
+          text: "That asymmetry is the most useful fact about LLM latency, and it has a corollary people miss: optimising total generation time is often the wrong project. If the user is reading along as tokens arrive, shaving a second off the tail changes nothing they notice.",
+        },
+        {
+          t: "p",
           text: "Before blaming the model, measure the pipeline. In a typical RAG request the model is often not the bottleneck.",
         },
         {
@@ -415,6 +419,10 @@ class LLM:
           text: "Caching is usually sold as a cost optimisation, but skipping recomputation of a large stable prefix routinely cuts TTFT by 30–60% on cache hits. If your TTFT is bad and your system prompt is long, this is the first thing to try — before switching models.",
         },
 
+        {
+          t: "p",
+          text: "Look at where the model actually sits in that budget. In a RAG request it is frequently a minority of the wall clock, which means the first place to look for latency is rarely the model — it is retrieval, reranking, or a serial chain of calls that could have run concurrently.",
+        },
         { t: "h", text: "Server-sent events, done properly" },
         {
           t: "code",
@@ -484,6 +492,10 @@ async def chat(req: Request, body: ChatRequest):
           text: "Perceived-latency techniques that don't touch the model",
         },
         {
+          t: "p",
+          text: "Streaming is the big win and not the only one. Several of the most effective techniques never touch the model at all — they change what the user experiences while the same amount of work happens underneath.",
+        },
+        {
           t: "steps",
           items: [
             {
@@ -510,6 +522,10 @@ async def chat(req: Request, body: ChatRequest):
         },
 
         { t: "h", text: "Measure percentiles, never averages" },
+        {
+          t: "p",
+          text: "None of which you can manage without measurement, and the default measurement misleads. An average hides exactly the requests that make users leave.",
+        },
         {
           t: "code",
           lang: "python",
@@ -634,8 +650,16 @@ metrics.gauge("llm.tokens_per_sec", out_tokens / max(gen_s, 0.001))
       ],
       body: [
         {
+          t: "p",
+          text: "Three reliability problems in one chapter, and they share a theme: each is a familiar backend concern that behaves differently when the dependency is an LLM. Caching is cheaper and more brittle than you're used to. Retries can amplify an outage while also costing money. Idempotency matters more, because an LLM call can send an email.",
+        },
+        {
           t: "h",
           text: "Prompt caching: the highest-ROI optimisation available",
+        },
+        {
+          t: "p",
+          text: "Start with caching, because the return is large and the requirement is exacting. This is not response caching — the provider reuses the computed attention state for a prefix it has already seen, which means the win depends entirely on how you lay the prompt out.",
         },
         {
           t: "p",
@@ -714,6 +738,10 @@ messages = [{
           text: "A support bot with an 8,000-token stable prefix serving 100k requests/day: at full price that prefix alone costs roughly $2,400/month. At an 85% hit rate with a 90% discount on hits, it's around $560. Same behaviour, same model, one layout decision.",
         },
 
+        {
+          t: "p",
+          text: "Note what that implies about prompt authoring. A single interpolated timestamp at the top of a system prompt destroys the whole saving, because the prefix is matched byte for byte. This is why **Prompt Anatomy** put volatile content last: cacheability is a layout decision, and it is worth real money.",
+        },
         { t: "h", text: "Semantic caching, and why to be careful" },
         {
           t: "p",
@@ -750,6 +778,10 @@ messages = [{
         },
 
         { t: "h", text: "Retries that don't amplify an outage" },
+        {
+          t: "p",
+          text: "Caching reduces how often you call. Retries decide what happens when a call fails — and a naive retry is worse than none, converting a provider blip into a self-inflicted load spike at the moment the provider is least able to absorb it.",
+        },
         {
           t: "code",
           lang: "python",
@@ -797,6 +829,10 @@ async def with_retry(fn, *, max_attempts=4, base=0.5, cap=8.0):
         },
 
         { t: "h", text: "Idempotency, once calls have effects" },
+        {
+          t: "p",
+          text: 'Retries create a new problem. Once you are willing to send the same request twice, you need an answer for what happens if both arrive. When the call only returns text, "both arrive" wastes money; when it sends an email, it sends two.',
+        },
         {
           t: "p",
           text: "A timeout doesn't tell you whether the work happened. If your LLM call sends an email, creates a ticket, or issues a refund, a naive retry does it twice.",
@@ -993,6 +1029,10 @@ async def handle(req) -> Result:
 
         { t: "h", text: "Working memory: the sliding window with a brief" },
         {
+          t: "p",
+          text: "Those four strategies aren't alternatives so much as layers, and most real systems use two or three at once. Start with the one every conversation needs: what to send for the current turn, under a budget you enforce rather than hope for.",
+        },
+        {
           t: "code",
           lang: "python",
           caption: "Assemble under an enforced budget",
@@ -1045,6 +1085,10 @@ async def build_messages(conv_id: str, new_msg: str, budget: int):
         { t: "h", text: "Long-term memory: extract, don't dump" },
         {
           t: "p",
+          text: "Working memory covers the current conversation. Anything that should survive it — a user's preferences, their timezone, the fact that they use metric units — needs somewhere else to live, and the obvious approach is the wrong one.",
+        },
+        {
+          t: "p",
           text: "The naive version stores every conversation and retrieves similar past ones. That fills the context with noise. The better version extracts durable **facts** and retrieves only those relevant to the current message.",
         },
         {
@@ -1082,6 +1126,10 @@ were told. If a new fact contradicts an existing one, set
         },
 
         { t: "h", text: "Branching and editing" },
+        {
+          t: "p",
+          text: "One more requirement, and it is the one that dictates your storage schema. Users edit an earlier message and expect the conversation to fork from that point — which a flat list of messages cannot represent.",
+        },
         {
           t: "p",
           text: "Users edit a message and expect the conversation to fork. If you store messages as a flat list, editing corrupts history. Store a tree.",
@@ -1216,6 +1264,10 @@ def path_to(leaf_id: str) -> list[Message]:
         "Set and defend a latency budget",
       ],
       body: [
+        {
+          t: "p",
+          text: "This chapter is the one that decides whether your feature is a business or a hobby. Every technique in Phase 03 has been aimed at a number, and here we put the numbers together: what an AI feature costs per user, what it is allowed to cost, and which lever to pull when those two disagree.",
+        },
         { t: "h", text: "Unit economics, from the top" },
         {
           t: "p",
@@ -1259,6 +1311,10 @@ Same feature, agentic, 12 model calls per request
 
         { t: "h", text: "Cost levers, ordered by return" },
         {
+          t: "p",
+          text: "Once you can write that model down, the question becomes which term to attack. The levers below are ordered by return on effort, and the ordering is more stable than any individual number in it.",
+        },
+        {
           t: "steps",
           items: [
             {
@@ -1299,6 +1355,10 @@ Same feature, agentic, 12 model calls per request
         },
 
         { t: "h", text: "Latency budgets" },
+        {
+          t: "p",
+          text: "Cost is one constraint on the same pipeline; latency is the other, and they trade against each other constantly. A cheaper model is usually faster, but a cheaper *architecture* — more retrieval, more reranking, more calls — is usually slower.",
+        },
         {
           t: "p",
           text: "Set a p95 budget per interaction type and allocate it across stages. Without an explicit budget you get whatever the sum of unexamined choices produces.",
@@ -1362,6 +1422,10 @@ docs = await vsearch(q_vec, allowed=perms)   # 120ms
         },
 
         { t: "h", text: "What to instrument on day one" },
+        {
+          t: "p",
+          text: "Both budgets are unenforceable without telemetry, and this is the one part of the chapter that has to happen before launch rather than after. Phase 07 covers observability properly; the short list below is what you cannot ship without.",
+        },
         {
           t: "list",
           items: [
