@@ -81,6 +81,14 @@
 
         { t: "h", text: "What fine-tuning genuinely delivers" },
         {
+          t: "p",
+          text: "Fine-tuning is the most over-requested and least often correct answer in applied AI, usually because it sounds like the serious option. That one rule resolves most cases before you need any of the detail below.",
+        },
+        {
+          t: "p",
+          text: "When it is the right call, it is right for a narrow set of reasons — and being precise about them is what stops you spending a month on the wrong thing.",
+        },
+        {
           t: "compare",
           left: {
             title: "Delivers well",
@@ -107,6 +115,10 @@
         },
 
         { t: "h", text: "The methods" },
+        {
+          t: "p",
+          text: "Assume it does deliver something you need. The next question is which method, and the practical range is narrower than the literature suggests.",
+        },
         {
           t: "table",
           head: ["Method", "Cost", "Use when"],
@@ -147,6 +159,14 @@
 
         { t: "h", text: "Does it pay for itself?" },
         {
+          t: "p",
+          text: "Distillation is the case worth understanding properly, because it inverts the usual risk. You aren't hoping a small model can learn the task — you already have a frontier model's validated outputs proving the task is learnable, and you're buying a cheaper way to serve it.",
+        },
+        {
+          t: "p",
+          text: "Which leaves the question that decides it. Fine-tuning is a fixed cost that buys a lower marginal cost, so it is an arithmetic problem with a break-even point.",
+        },
+        {
           t: "code",
           lang: "text",
           caption: "The arithmetic to do before committing",
@@ -185,6 +205,10 @@ Worked example
         },
 
         { t: "h", text: "If you do fine-tune" },
+        {
+          t: "p",
+          text: "If the arithmetic works, a handful of practices separate a fine-tune that helps from one you quietly abandon.",
+        },
         {
           t: "list",
           ordered: true,
@@ -313,6 +337,10 @@ Worked example
         "Design multimodal features that degrade gracefully",
       ],
       body: [
+        {
+          t: "p",
+          text: "Multimodal capability arrived quietly and changed one thing decisively: document parsing, which was a long-standing engineering problem, is now largely a model call. The rest of this chapter is about the two places multimodal surprises people — what it costs, and how it breaks your security assumptions.",
+        },
         { t: "h", text: "Vision: what it's actually good at" },
         {
           t: "table",
@@ -359,6 +387,10 @@ Worked example
 
         { t: "h", text: "Image cost, which surprises people" },
         {
+          t: "p",
+          text: "That parsing result is worth acting on. If you built a PDF pipeline out of layout heuristics, a vision model probably beats it on tables and scanned pages for less engineering than you already spent.",
+        },
+        {
           t: "code",
           lang: "text",
           caption: "Images are expensive input",
@@ -397,6 +429,14 @@ Levers
 
         { t: "h", text: "Audio" },
         {
+          t: "p",
+          text: "Two things about audio are worth knowing before you design around it. Real-time speech-to-speech models removed the latency that made voice interfaces feel broken, and transcription is now cheap enough that recording-and-transcribing is a reasonable default rather than a considered decision.",
+        },
+        {
+          t: "p",
+          text: "The cost story generalises to audio, with one difference: audio is billed by duration rather than resolution, which makes it easier to predict and harder to reduce.",
+        },
+        {
           t: "list",
           items: [
             "**Transcription-then-text** is the cheap, controllable path: run speech-to-text, then process the transcript with your existing text pipeline. Loses tone, emotion, and speaker overlap.",
@@ -407,6 +447,10 @@ Levers
         },
 
         { t: "h", text: "Multimodal RAG" },
+        {
+          t: "p",
+          text: "Retrieval over images raises a question text retrieval never posed: what exactly are you indexing? An image has no tokens to embed, so you must choose a representation before you can search at all.",
+        },
         {
           t: "p",
           text: "Retrieving over images and documents needs a decision about what you actually index.",
@@ -445,6 +489,14 @@ Levers
         },
 
         { t: "h", text: "Failure modes and graceful degradation" },
+        {
+          t: "p",
+          text: "Everything else in this chapter is about capability. This last section is about what happens when the capability is used against you, and it is the reason multimodal features deserve a security review rather than a feature flag.",
+        },
+        {
+          t: "p",
+          text: "Finally, the part that matters most and gets least attention. Adding an image input adds an untrusted channel that your text-based defences do not inspect.",
+        },
         {
           t: "list",
           items: [
@@ -552,7 +604,7 @@ Levers
       title: "Small Models & Local Inference",
       subtitle:
         "Open-weight models running on your own hardware are a real option now. Here's when it's the right call and what it actually costs.",
-      minutes: 18,
+      minutes: 15,
       difficulty: "advanced",
       tags: ["local", "open-weights", "quantisation"],
       objectives: [
@@ -561,6 +613,10 @@ Levers
         "Estimate the true cost of self-hosting",
       ],
       body: [
+        {
+          t: "p",
+          text: "Self-hosting is the option people reach for on principle and regret on the invoice. It is genuinely correct for a handful of situations, and the honest version of this chapter spends as much time on when not to as on how.",
+        },
         { t: "h", text: "When self-hosting is the right answer" },
         {
           t: "compare",
@@ -597,6 +653,10 @@ Levers
         { t: "h", text: "Quantisation" },
         {
           t: "p",
+          text: "Suppose one of those reasons applies to you. Everything that follows is about fitting a useful model onto hardware you can afford, and quantisation is the technique that makes it possible.",
+        },
+        {
+          t: "p",
           text: "Model weights are normally 16-bit floats. Quantisation stores them at lower precision — 8-bit, 4-bit, or lower — cutting memory and increasing throughput at some quality cost.",
         },
         {
@@ -625,6 +685,14 @@ Levers
         },
 
         { t: "h", text: "The serving stack" },
+        {
+          t: "p",
+          text: "That rule is the single most useful thing in the chapter: given fixed VRAM, a bigger model quantised harder generally beats a smaller model at full precision. Quality tracks parameter count more strongly than it tracks precision.",
+        },
+        {
+          t: "p",
+          text: "With the model sized, throughput is a serving-stack decision rather than a model one.",
+        },
         {
           t: "table",
           head: ["Tool", "For"],
@@ -659,6 +727,10 @@ Levers
         },
 
         { t: "h", text: "Where small models genuinely win" },
+        {
+          t: "p",
+          text: "Set aside self-hosting for its own sake. Small models have a role in almost every system, including ones that otherwise call a frontier API for everything.",
+        },
         {
           t: "list",
           items: [
@@ -812,6 +884,10 @@ async def handle(req):
 
         { t: "h", text: "The six questions that carry the weight" },
         {
+          t: "p",
+          text: "Given that, prepare in proportion. The questions below recur across almost every loop, and the honest way to use this list is to answer each one out loud, from a project you actually built, before you need to.",
+        },
+        {
           t: "steps",
           items: [
             {
@@ -844,6 +920,14 @@ async def handle(req):
         },
 
         { t: "h", text: "The system design round" },
+        {
+          t: "p",
+          text: "Six questions, and none of them is a trivia question. Each is asking you to defend a decision with evidence, which is why they are hard to prepare for by reading and easy to prepare for by having built something.",
+        },
+        {
+          t: "p",
+          text: "Individual questions test whether you know things. The design round tests whether you can make decisions under constraints, which is a different skill and the one that determines your level.",
+        },
         {
           t: "p",
           text: 'Expect a prompt like "design a support assistant over our documentation for 50,000 users." The grading rubric is fairly consistent, and it rewards the same instincts as any backend design round plus the AI-specific concerns.',
@@ -895,6 +979,14 @@ async def handle(req):
 
         { t: "h", text: "What gets people rejected" },
         {
+          t: "p",
+          text: 'Note what that table is asking for throughout: a number and a reason, not a preference. "We chose 400-token chunks because the docs\' sections average 350 and recall@5 dropped 9 points at 800" is a senior answer. "We used 500 with 50 overlap" is a recital.',
+        },
+        {
+          t: "p",
+          text: "It is worth being just as clear about the failure modes, because most rejections at this level are not knowledge gaps.",
+        },
+        {
           t: "compare",
           left: {
             title: "Strong signals",
@@ -929,6 +1021,10 @@ async def handle(req):
         },
 
         { t: "h", text: "Your portfolio, and how it's actually read" },
+        {
+          t: "p",
+          text: "Interviews are downstream of getting the interview, and for this field a repository does more work than a CV.",
+        },
         {
           t: "p",
           text: "Recruiters spend seconds on a CV and engage substantially more with a repository containing runnable code or a live demo. That asymmetry is worth optimising for.",
@@ -968,6 +1064,14 @@ async def handle(req):
         },
 
         { t: "h", text: "Practical preparation" },
+        {
+          t: "p",
+          text: "The pattern across both columns is that strong candidates talk about evidence and weak ones talk about tools. A named framework is not an architecture, and an interviewer asking how you'd build RAG is asking about the decisions, not the dependency list.",
+        },
+        {
+          t: "p",
+          text: "Which reduces to a short list of things to do in the weeks before you start applying.",
+        },
         {
           t: "list",
           ordered: true,
@@ -1106,7 +1210,15 @@ async def handle(req):
         "Assemble a portfolio and interview narrative that hold up",
       ],
       body: [
+        {
+          t: "p",
+          text: "You have reached the end of a roadmap that took months, in a field that will look different in a year. That is less alarming than it sounds, because the rate of change is very uneven — and this last chapter is about telling the fast-moving surface from the slow-moving substance.",
+        },
         { t: "h", text: "What's durable versus what churns" },
+        {
+          t: "p",
+          text: "Sort everything you encounter into one of two piles before deciding whether to study it.",
+        },
         {
           t: "compare",
           left: {
@@ -1143,6 +1255,10 @@ async def handle(req):
 
         { t: "h", text: "An information diet that's sustainable" },
         {
+          t: "p",
+          text: "That ratio is the practical conclusion of the whole roadmap: depth in a few durable things beats breadth across the churn. The problem is that the churn is louder, which makes a deliberate information diet a real defence rather than a productivity tip.",
+        },
+        {
           t: "steps",
           items: [
             {
@@ -1175,6 +1291,10 @@ async def handle(req):
         },
 
         { t: "h", text: "The portfolio that gets interviews" },
+        {
+          t: "p",
+          text: "Reading is not the output. What you build is, and a small number of project shapes carry disproportionate signal.",
+        },
         {
           t: "table",
           head: ["Signal", "Strength"],
@@ -1212,6 +1332,14 @@ async def handle(req):
 
         { t: "h", text: "What interviews actually probe" },
         {
+          t: "p",
+          text: "Read that table as a set of claims you want to be able to make truthfully. Each project shape exists because it produces a specific piece of evidence about how you work — an eval harness proves you measure, a cost write-up proves you understand the business, a deployed system proves you finish.",
+        },
+        {
+          t: "p",
+          text: "The previous chapter covered interviews in detail. The short version is worth repeating here, because it is also a checklist for whether your projects are the right ones.",
+        },
+        {
           t: "list",
           ordered: true,
           items: [
@@ -1225,6 +1353,10 @@ async def handle(req):
         },
 
         { t: "h", text: "Where to go next" },
+        {
+          t: "p",
+          text: "Finally, the specialisations that open up once the fundamentals are in place. None of these are prerequisites for a job in this field — they are directions, to be picked when a problem makes one of them interesting.",
+        },
         {
           t: "table",
           head: ["Direction", "What it looks like"],

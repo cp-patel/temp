@@ -340,7 +340,7 @@ class LLM:
       title: "Streaming & Perceived Latency",
       subtitle:
         "Streaming makes nothing faster and changes everything. Time-to-first-token is the number users feel; total generation time is the number they tolerate.",
-      minutes: 20,
+      minutes: 23,
       difficulty: "intermediate",
       tags: ["streaming", "latency", "ux"],
       lab: "latency",

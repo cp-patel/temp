@@ -13,7 +13,7 @@
       title: "Prompt Anatomy & the Instruction Hierarchy",
       subtitle:
         "A production prompt is a structured document with a deliberate order, not a paragraph of wishes. Here is the layout that holds up, and why each part sits where it does.",
-      minutes: 22,
+      minutes: 25,
       difficulty: "beginner",
       tags: ["prompting", "structure"],
       lab: "promptbuilder",

@@ -542,7 +542,7 @@ report("faithfulness", 82, 100)  # faithfulness  82.0%  [73.3%, 88.3%]  n=100
       title: "Metrics: Deterministic, Model-Graded, Human",
       subtitle:
         "Never grade with a model what code can check. The discipline of pushing checks down to the cheapest reliable layer is most of what makes an eval harness trustworthy.",
-      minutes: 22,
+      minutes: 25,
       difficulty: "intermediate",
       tags: ["evals", "metrics"],
       lab: "evalscore",
@@ -1214,7 +1214,7 @@ if k < 0.6:
       title: "Agent & Trajectory Evaluation",
       subtitle:
         "Grading only the final answer misses almost everything that matters about an agent. This is the round that filters most candidates in agentic-AI interviews — and the one most teams skip.",
-      minutes: 24,
+      minutes: 30,
       difficulty: "advanced",
       tags: ["evals", "agents", "trajectories"],
       lab: "trajectory",

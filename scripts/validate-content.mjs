@@ -148,6 +148,48 @@ C.chapters.forEach((ch, i) => {
   if (typeof ch.minutes !== "number" || ch.minutes < 3 || ch.minutes > 90) {
     err(w, `minutes looks wrong: ${ch.minutes}`);
   }
+
+  /* --- does `minutes` still match the chapter's content? ---
+   *
+   * `minutes` is hand-authored, because a word count can't know that a chapter
+   * is conceptually hard and deserves more thinking time. But it is also the
+   * input to the entire plan engine — every week in a learner's schedule is
+   * derived from it — so an edit that adds 40% more content and leaves the
+   * number alone silently makes both the "14 min read" label and the 15-week
+   * estimate wrong. Adding the connective prose this curriculum needed did
+   * exactly that, which is why this check exists.
+   *
+   * The model below is calibrated so that the sum over all chapters matches the
+   * authored total: prose is read at roughly 130 words/minute (dense technical
+   * material, read to be understood rather than skimmed), code far slower per
+   * line, plus interaction time for a lab and thinking time per quiz question.
+   * The tolerance is wide on purpose — this is here to catch drift, not to
+   * second-guess an author's judgement about a specific chapter.
+   */
+  {
+    const codeLines = (ch.body || [])
+      .filter((b) => b.t === "code")
+      .reduce((a, b) => a + (b.code || "").split("\n").length, 0);
+    const proseWords = (ch.body || []).reduce(
+      (a, b) => a + (b.t === "code" ? 0 : countWords(b)),
+      0
+    );
+    const hasLab = (ch.body || []).some((b) => b.t === "lab");
+    const modelled =
+      1.314 *
+      (proseWords / 170 +
+        (codeLines * 4) / 60 +
+        (hasLab ? 5 : 0) +
+        (ch.quiz || []).length * 0.9 +
+        2);
+    const ratio = ch.minutes / modelled;
+    if (ratio < 0.65 || ratio > 1.45) {
+      warn(
+        w,
+        `minutes: ${ch.minutes} but the content models at ~${Math.round(modelled)} — the estimate and the chapter have drifted apart`
+      );
+    }
+  }
   if (!/^[a-z0-9-]+$/.test(ch.id || "")) {
     err(w, "id must be lowercase kebab-case");
   }

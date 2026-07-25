@@ -77,6 +77,29 @@ than the rest of the material and date the content badly. Refer to tiers
 must say so in its own UI. A lab that quietly misrepresents system behaviour is
 worse than no lab.
 
+**Write the connective tissue, not just the artefacts.** This is the standard the
+validator enforces, and it exists because the curriculum failed it badly at one
+point — 9% of body words were prose, two chapters had no paragraphs at all, and
+some had eleven tables, callouts and code blocks in a row. All the facts were
+there and none of the teaching was. Specifically:
+
+- **Open by saying why the chapter matters**, not with a heading. The reader
+  arrives from a roadmap; tell them what this one buys them.
+- **Lead into every table, diagram and code block.** Say what to look for in it.
+  A table dropped after a heading makes the reader guess what it's for.
+- **Resolve it afterwards.** Say what it implied, or which row matters most.
+- **State the relationship between adjacent blocks.** When two blocks sit next to
+  each other because they're related, the relationship is usually the actual
+  insight, and leaving it implicit throws it away.
+- **Debrief code.** Say what design decision it embodies, or what it deliberately
+  doesn't do.
+
+**Point at other chapters.** The premise of this curriculum is a deliberate
+sequence, so a chapter that never references another one is a missed opportunity.
+Reach backwards ("you saw this in X, here's what's different") and forwards
+("this is why Phase 06 exists") wherever a reader would naturally ask "and then
+what?".
+
 ## Adding a lab
 
 Labs live in `js/ui/labs.js`. Add an object on `L`:

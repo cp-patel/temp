@@ -5,7 +5,7 @@ engineer**: the person who ships products on top of models someone else trained,
 and can prove the result works.
 
 **44 chapters · 8 phases · 13 interactive labs · 6 projects · 167 flashcards ·
-~56,000 words · zero dependencies**
+~68,000 words · zero dependencies**
 
 It adapts to you. Tell it you're a backend engineer and it marks the ten chapters
 you can skim — each with a note on exactly what _is_ new in it — and builds a

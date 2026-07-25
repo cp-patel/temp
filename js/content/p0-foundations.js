@@ -583,7 +583,7 @@
       title: "How LLMs Actually Work",
       subtitle:
         "You need exactly enough theory to predict how the system will fail. That's about fifteen minutes of reading — and it explains almost every strange behaviour you'll hit later.",
-      minutes: 20,
+      minutes: 17,
       difficulty: "beginner",
       tags: ["theory", "mental-model"],
       objectives: [
@@ -1121,7 +1121,7 @@ def fit_to_budget(chunks: list[str], budget: int) -> list[str]:
       title: "Sampling: Temperature, Top-p & Determinism",
       subtitle:
         "The model outputs a probability distribution. Sampling parameters decide how you collapse it into one token — and why the same prompt can give different answers.",
-      minutes: 16,
+      minutes: 19,
       difficulty: "beginner",
       tags: ["sampling", "determinism"],
       lab: "sampling",
@@ -1380,7 +1380,7 @@ assert data["source_chunk_id"] in retrieved_ids  # grounded in context`,
       title: "Choosing a Model Deliberately",
       subtitle:
         "There are hundreds of models and one correct method: define the task, define the constraints, then test two or three candidates on your own data. Leaderboards are marketing.",
-      minutes: 18,
+      minutes: 22,
       difficulty: "beginner",
       tags: ["models", "decisions"],
       lab: "router",

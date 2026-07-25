@@ -341,7 +341,7 @@ async def run_with_tools(messages: list, tools: list) -> str:
       title: "The Agent Loop",
       subtitle:
         "An agent is a model in a loop with tools, where the model chooses what happens next. That last clause is the whole distinction — and the whole risk.",
-      minutes: 24,
+      minutes: 27,
       difficulty: "advanced",
       tags: ["agents", "architecture"],
       lab: "agenttrace",
