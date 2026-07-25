@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Forge — AI Engineering Academy</title>
+    <meta
+      name="description"
+      content="An interactive, opinionated curriculum for becoming an AI application engineer. 41 chapters across 8 phases, 12 hands-on labs, spaced-repetition review, and the parts nobody teaches: evaluation, cost engineering, and security."
+    />
+    <meta name="color-scheme" content="dark light" />
+    <meta
+      name="theme-color"
+      content="#08080c"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta
+      name="theme-color"
+      content="#fbfbfd"
+      media="(prefers-color-scheme: light)"
+    />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23a78bfa'/%3E%3Cstop offset='1' stop-color='%2338bdf8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M20 5 8 19h7l-1.5 8L26 13h-7l1-8Z' fill='%23fff'/%3E%3C/svg%3E"
+    />
+
+    <link rel="stylesheet" href="styles/tokens.css" />
+    <link rel="stylesheet" href="styles/base.css" />
+    <link rel="stylesheet" href="styles/shell.css" />
+    <link rel="stylesheet" href="styles/views.css" />
+    <link rel="stylesheet" href="styles/reader.css" />
+    <link rel="stylesheet" href="styles/labs.css" />
+  </head>
+
+  <body>
+    <noscript>
+      <div
+        style="
+          max-width: 60ch;
+          margin: 12vh auto;
+          padding: 0 1.5rem;
+          font-family: system-ui, sans-serif;
+          line-height: 1.7;
+        "
+      >
+        <h1 style="font-size: 1.75rem">Forge — AI Engineering Academy</h1>
+        <p>
+          This is an interactive curriculum: the roadmap, labs, quizzes, and
+          spaced-repetition review all run in the browser. Please enable
+          JavaScript to use it.
+        </p>
+      </div>
+    </noscript>
+
+    <!-- core -->
+    <script src="js/core/icons.js"></script>
+    <script src="js/core/util.js"></script>
+    <script src="js/core/store.js"></script>
+
+    <!-- curriculum content -->
+    <script src="js/content/meta.js"></script>
+    <script src="js/content/p0-foundations.js"></script>
+    <script src="js/content/p1-prompting.js"></script>
+    <script src="js/content/p2-building.js"></script>
+    <script src="js/content/p3-retrieval.js"></script>
+    <script src="js/content/p4-agents.js"></script>
+    <script src="js/content/p5-evals.js"></script>
+    <script src="js/content/p6-production.js"></script>
+    <script src="js/content/p7-frontier.js"></script>
+
+    <!-- ui -->
+    <script src="js/ui/labs.js"></script>
+    <script src="js/ui/render.js"></script>
+    <script src="js/ui/views.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

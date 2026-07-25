@@ -1,0 +1,837 @@
+/* ============================================================
+   App shell: router, sidebar, command palette, toasts
+   ============================================================ */
+(function (global) {
+  "use strict";
+
+  var el = U.el;
+  var esc = U.esc;
+  var C = global.Curriculum;
+
+  var App = {};
+  var scrollHandlers = [];
+  var keyHandlers = [];
+  var leaveHandlers = [];
+
+  /* =========================================================
+     Toasts
+     ========================================================= */
+
+  var Toast = {};
+  var toastHost;
+
+  var MAX_TOASTS = 3;
+
+  function dropToast(t) {
+    if (!t || t.dataset.going) return;
+    t.dataset.going = "1";
+    t.classList.add("is-out");
+    setTimeout(function () {
+      if (t.parentNode) t.parentNode.removeChild(t);
+    }, 240);
+  }
+
+  Toast.show = function (title, sub, kind, icon) {
+    if (!toastHost) return;
+    var t = el("div", "toast" + (kind ? " toast--" + kind : ""));
+    t.innerHTML =
+      '<div class="toast__icon">' +
+      Icons.get(icon || "info", 16) +
+      "</div>" +
+      '<div><div class="toast__t">' +
+      esc(title) +
+      "</div>" +
+      (sub ? '<div class="toast__s">' + esc(sub) + "</div>" : "") +
+      "</div>";
+    toastHost.appendChild(t);
+
+    // A burst of awards (completing several chapters quickly, or a scripted
+    // run) would otherwise stack toasts down the whole viewport. Retire the
+    // oldest so at most MAX_TOASTS are ever on screen.
+    var live = U.qa(".toast", toastHost).filter(function (n) {
+      return !n.dataset.going;
+    });
+    while (live.length > MAX_TOASTS) dropToast(live.shift());
+
+    setTimeout(function () {
+      dropToast(t);
+    }, 3200);
+  };
+
+  global.Toast = Toast;
+
+  /* =========================================================
+     Modal confirm
+     ========================================================= */
+
+  App.confirm = function (title, text, onYes) {
+    var m = el("div", "modal");
+    m.innerHTML =
+      '<div class="modal__box"><h3>' +
+      esc(title) +
+      "</h3><p>" +
+      esc(text) +
+      "</p>" +
+      '<div class="modal__actions">' +
+      '<button class="btn btn--ghost" data-a="no">Cancel</button>' +
+      '<button class="btn btn--primary" data-a="yes">Confirm</button></div></div>';
+    document.body.appendChild(m);
+    function close() {
+      if (m.parentNode) m.parentNode.removeChild(m);
+    }
+    m.addEventListener("click", function (e) {
+      if (e.target === m || e.target.dataset.a === "no") close();
+      if (e.target.dataset.a === "yes") {
+        close();
+        onYes();
+      }
+    });
+  };
+
+  /* =========================================================
+     Sidebar
+     ========================================================= */
+
+  var NAV = [
+    { href: "#/dashboard", icon: "home", label: "Dashboard" },
+    { href: "#/roadmap", icon: "map", label: "Roadmap" },
+    { href: "#/library", icon: "grid", label: "Library" },
+    { href: "#/labs", icon: "beaker", label: "Labs" },
+    { href: "#/review", icon: "cards", label: "Review" },
+    { href: "#/projects", icon: "hammer", label: "Projects" },
+    { href: "#/glossary", icon: "book", label: "Glossary" },
+    { href: "#/settings", icon: "settings", label: "Settings" },
+  ];
+
+  function buildSidebar() {
+    var side = el("aside", "sidebar");
+    side.id = "sidebar";
+
+    var brand = el("a", "brand");
+    brand.href = "#/dashboard";
+    brand.innerHTML =
+      '<span class="brand__mark">' +
+      Icons.get("bolt", 19) +
+      "</span>" +
+      '<span><span class="brand__name">Forge</span>' +
+      '<span class="brand__sub">AI Engineering</span></span>';
+    side.appendChild(brand);
+
+    var searchWrap = el("div", "sidebar__search");
+    var sb = el("button", "searchbtn");
+    sb.type = "button";
+    sb.innerHTML =
+      Icons.get("search", 15) + "<span>Search…</span><kbd>⌘K</kbd>";
+    sb.onclick = function () {
+      Palette.open();
+    };
+    searchWrap.appendChild(sb);
+    side.appendChild(searchWrap);
+
+    var scroll = el("div", "sidebar__scroll");
+
+    var g1 = el("nav", "navgroup");
+    g1.setAttribute("aria-label", "Main navigation");
+    NAV.forEach(function (n) {
+      var a = el("a", "navlink");
+      a.href = n.href;
+      a.dataset.nav = n.href;
+      var count = "";
+      if (n.href === "#/review") {
+        var st = Store.cardStats(Views.helpers.allCardIds());
+        if (st.due)
+          count = '<span class="navlink__count">' + st.due + "</span>";
+      }
+      a.innerHTML =
+        Icons.get(n.icon, 16) + "<span>" + esc(n.label) + "</span>" + count;
+      g1.appendChild(a);
+    });
+    scroll.appendChild(g1);
+
+    var g2 = el("div", "navgroup");
+    g2.innerHTML = '<div class="navgroup__label">Phases</div>';
+    C.phases.forEach(function (p) {
+      var prog = Views.helpers.phaseProgress(p.id);
+      var a = el("a", "phaselink" + (prog.pct === 100 ? " is-done" : ""));
+      a.href = "#/roadmap";
+      a.dataset.phase = p.id;
+      a.title = p.title;
+      a.innerHTML =
+        '<span class="phaselink__idx">' +
+        p.n +
+        "</span>" +
+        '<span class="u-truncate u-grow">' +
+        esc(p.title.split("—")[0].trim()) +
+        "</span>" +
+        '<span class="phaselink__bar bar bar--thin"><span class="bar__fill" style="width:' +
+        prog.pct +
+        '%"></span></span>';
+      g2.appendChild(a);
+    });
+    scroll.appendChild(g2);
+    side.appendChild(scroll);
+
+    var foot = el("div", "sidebar__foot");
+    var s = Store.state();
+    var o = Views.helpers.overall();
+    foot.innerHTML =
+      '<div class="streak">' +
+      '<span class="streak__flame">' +
+      Icons.get("flame", 16) +
+      "</span>" +
+      '<span class="u-grow"><span class="streak__n">' +
+      U.plural(s.streak.n, "day") +
+      " streak</span>" +
+      '<span class="streak__lbl">' +
+      o.done +
+      "/" +
+      o.total +
+      " chapters · " +
+      U.compact(s.xp) +
+      " XP</span></span></div>";
+    side.appendChild(foot);
+
+    return side;
+  }
+
+  function refreshSidebar() {
+    var old = U.q("#sidebar");
+    if (!old) return;
+    var fresh = buildSidebar();
+    old.parentNode.replaceChild(fresh, old);
+    markActive();
+  }
+
+  function markActive() {
+    var h = location.hash || "#/";
+    U.qa("[data-nav]").forEach(function (a) {
+      var match =
+        a.dataset.nav === h ||
+        (a.dataset.nav === "#/roadmap" && h.indexOf("#/chapter/") === 0);
+      a.classList.toggle("is-active", match);
+    });
+    var chId = h.indexOf("#/chapter/") === 0 ? h.slice(10) : null;
+    var ch = chId ? Views.helpers.chapter(chId) : null;
+    U.qa("[data-phase]").forEach(function (a) {
+      a.classList.toggle("is-active", !!ch && a.dataset.phase === ch.phase);
+    });
+  }
+
+  /* =========================================================
+     Topbar
+     ========================================================= */
+
+  function buildTopbar() {
+    var bar = el("header", "topbar");
+    bar.id = "topbar";
+
+    var menu = el("button", "btn btn--icon topbar__menu");
+    menu.setAttribute("aria-label", "Toggle navigation");
+    menu.innerHTML = Icons.get("menu", 18);
+    menu.onclick = function () {
+      document.body.classList.toggle("nav-open");
+      toggleScrim();
+    };
+    bar.appendChild(menu);
+
+    var crumbs = el("nav", "crumbs");
+    crumbs.id = "crumbs";
+    bar.appendChild(crumbs);
+
+    var right = el("div", "topbar__right");
+
+    var xp = el("div", "xp");
+    xp.id = "xpchip";
+    right.appendChild(xp);
+
+    var theme = el("button", "btn btn--icon");
+    theme.setAttribute("aria-label", "Toggle theme");
+    theme.id = "themebtn";
+    theme.onclick = function () {
+      Store.setTheme(Store.theme() === "dark" ? "light" : "dark");
+      paintTheme();
+    };
+    right.appendChild(theme);
+
+    var search = el("button", "btn btn--icon");
+    search.setAttribute("aria-label", "Search");
+    search.innerHTML = Icons.get("search", 17);
+    search.onclick = function () {
+      Palette.open();
+    };
+    right.appendChild(search);
+
+    bar.appendChild(right);
+    return bar;
+  }
+
+  function paintTheme() {
+    var b = U.q("#themebtn");
+    if (b)
+      b.innerHTML = Icons.get(Store.theme() === "dark" ? "sun" : "moon", 17);
+  }
+
+  function paintXp() {
+    var n = U.q("#xpchip");
+    if (!n) return;
+    var lvl = Store.level();
+    n.innerHTML =
+      Icons.get("spark", 14) +
+      "<span>" +
+      U.compact(Store.state().xp) +
+      " XP</span>";
+    n.title =
+      lvl.name +
+      (lvl.next
+        ? " · " + (lvl.next - Store.state().xp) + " XP to next level"
+        : "");
+  }
+
+  function paintCrumbs(route) {
+    var n = U.q("#crumbs");
+    if (!n) return;
+    var parts = [];
+    parts.push('<a href="#/dashboard" class="crumbs__hide">Forge</a>');
+
+    if (route.name === "chapter") {
+      var ch = Views.helpers.chapter(route.arg);
+      if (ch) {
+        var p = Views.helpers.phase(ch.phase);
+        parts.push('<span class="crumbs__sep crumbs__hide">/</span>');
+        parts.push(
+          '<a href="#/roadmap" class="crumbs__hide">' +
+            esc(p.n + " " + p.title.split("—")[0].trim()) +
+            "</a>",
+        );
+        parts.push('<span class="crumbs__sep">/</span>');
+        parts.push('<span class="crumbs__now">' + esc(ch.title) + "</span>");
+      }
+    } else {
+      var titles = {
+        dashboard: "Dashboard",
+        roadmap: "Roadmap",
+        library: "Library",
+        labs: "Labs",
+        review: "Review",
+        projects: "Projects",
+        glossary: "Glossary",
+        settings: "Settings",
+      };
+      parts.push('<span class="crumbs__sep">/</span>');
+      parts.push(
+        '<span class="crumbs__now">' +
+          esc(titles[route.name] || "Forge") +
+          "</span>",
+      );
+    }
+    n.innerHTML = parts.join("");
+  }
+
+  function toggleScrim() {
+    var scrim = U.q("#scrim");
+    if (!scrim) return;
+    scrim.hidden = !document.body.classList.contains("nav-open");
+  }
+
+  /* =========================================================
+     Command palette
+     ========================================================= */
+
+  var Palette = {};
+  var palNode,
+    palInput,
+    palResults,
+    palItems = [],
+    palCursor = 0;
+
+  function buildPalette() {
+    var p = el("div", "palette");
+    p.id = "palette";
+    p.hidden = true;
+    p.innerHTML =
+      '<div class="palette__box" role="dialog" aria-label="Search">' +
+      '<div class="palette__input">' +
+      Icons.get("search", 17) +
+      '<input type="text" placeholder="Search chapters, labs, glossary, commands…" aria-label="Search">' +
+      "</div>" +
+      '<div class="palette__results"></div>' +
+      '<div class="palette__foot">' +
+      "<span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>" +
+      "<span><kbd>↵</kbd> open</span>" +
+      "<span><kbd>esc</kbd> close</span>" +
+      '<span class="u-grow"></span>' +
+      "<span>" +
+      C.chapters.length +
+      " chapters · " +
+      C.glossary.length +
+      " terms</span>" +
+      "</div></div>";
+    palNode = p;
+    palInput = p.querySelector("input");
+    palResults = p.querySelector(".palette__results");
+
+    p.addEventListener("click", function (e) {
+      if (e.target === p) Palette.close();
+    });
+    palInput.addEventListener("input", function () {
+      search(palInput.value);
+    });
+    palInput.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        moveCursor(1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        moveCursor(-1);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (palItems[palCursor]) {
+          Palette.close();
+          palItems[palCursor].run();
+        }
+      } else if (e.key === "Escape") {
+        Palette.close();
+      }
+    });
+    return p;
+  }
+
+  Palette.open = function () {
+    palNode.hidden = false;
+    palInput.value = "";
+    palInput.focus();
+    search("");
+  };
+
+  Palette.close = function () {
+    palNode.hidden = true;
+    palInput.blur();
+  };
+
+  function moveCursor(d) {
+    if (!palItems.length) return;
+    palCursor = (palCursor + d + palItems.length) % palItems.length;
+    U.qa(".presult", palResults).forEach(function (n, i) {
+      n.classList.toggle("is-cursor", i === palCursor);
+      if (i === palCursor && n.scrollIntoView) {
+        n.scrollIntoView({ block: "nearest" });
+      }
+    });
+  }
+
+  var COMMANDS = [
+    { t: "Go to dashboard", icon: "home", go: "#/dashboard" },
+    { t: "Open the roadmap", icon: "map", go: "#/roadmap" },
+    { t: "Browse all labs", icon: "beaker", go: "#/labs" },
+    { t: "Review flashcards", icon: "cards", go: "#/review" },
+    { t: "Open projects", icon: "hammer", go: "#/projects" },
+    { t: "Open glossary", icon: "book", go: "#/glossary" },
+    { t: "Settings", icon: "settings", go: "#/settings" },
+    {
+      t: "Toggle light / dark theme",
+      icon: "moon",
+      run: function () {
+        Store.setTheme(Store.theme() === "dark" ? "light" : "dark");
+        paintTheme();
+      },
+    },
+    {
+      t: "Continue where I left off",
+      icon: "play",
+      run: function () {
+        var n = Views.helpers.nextChapter();
+        App.go(n ? "#/chapter/" + n.id : "#/projects");
+      },
+    },
+  ];
+
+  function score(hay, needle) {
+    hay = hay.toLowerCase();
+    var i = hay.indexOf(needle);
+    if (i === -1) return 0;
+    return 100 - i - (hay.length - needle.length) * 0.1;
+  }
+
+  function search(q) {
+    q = q.trim().toLowerCase();
+    palItems = [];
+    palCursor = 0;
+    palResults.innerHTML = "";
+
+    function addGroup(label, entries) {
+      if (!entries.length) return;
+      palResults.appendChild(el("div", "palette__group", esc(label)));
+      entries.forEach(function (e) {
+        var b = el("button", "presult");
+        b.type = "button";
+        b.innerHTML =
+          '<span class="presult__icon">' +
+          Icons.get(e.icon, 15) +
+          "</span>" +
+          '<span class="u-grow" style="min-width:0"><span class="presult__t">' +
+          esc(e.t) +
+          "</span>" +
+          (e.s ? '<span class="presult__s">' + esc(e.s) + "</span>" : "") +
+          "</span>" +
+          (e.meta ? '<span class="presult__meta">' + e.meta + "</span>" : "");
+        b.onclick = function () {
+          Palette.close();
+          e.run();
+        };
+        var idx = palItems.length;
+        b.addEventListener("mouseenter", function () {
+          palCursor = idx;
+          U.qa(".presult", palResults).forEach(function (n, i) {
+            n.classList.toggle("is-cursor", i === idx);
+          });
+        });
+        palItems.push(e);
+        palResults.appendChild(b);
+      });
+    }
+
+    // chapters
+    var chapters = C.chapters
+      .map(function (c) {
+        var sc = q
+          ? Math.max(
+              score(c.title, q) * 2,
+              score(c.subtitle, q),
+              score((c.tags || []).join(" "), q),
+            )
+          : 1;
+        return { c: c, sc: sc };
+      })
+      .filter(function (x) {
+        return x.sc > 0;
+      })
+      .sort(function (a, b) {
+        return b.sc - a.sc;
+      })
+      .slice(0, q ? 7 : 5)
+      .map(function (x) {
+        var p = Views.helpers.phase(x.c.phase);
+        return {
+          t: x.c.title,
+          s: x.c.subtitle,
+          icon: Store.isDone(x.c.id) ? "checkCircle" : p.icon,
+          meta: '<span class="chip">' + p.n + "</span>",
+          run: function () {
+            App.go("#/chapter/" + x.c.id);
+          },
+        };
+      });
+
+    // commands
+    var cmds = COMMANDS.filter(function (c) {
+      return !q || score(c.t, q) > 0;
+    })
+      .slice(0, q ? 4 : 9)
+      .map(function (c) {
+        return {
+          t: c.t,
+          icon: c.icon,
+          run:
+            c.run ||
+            function () {
+              App.go(c.go);
+            },
+        };
+      });
+
+    // glossary
+    var terms = q
+      ? C.glossary
+          .filter(function (g) {
+            return score(g.t, q) > 0 || g.d.toLowerCase().indexOf(q) !== -1;
+          })
+          .slice(0, 5)
+          .map(function (g) {
+            return {
+              t: g.t,
+              s: g.d,
+              icon: "book",
+              run: function () {
+                App.go("#/glossary");
+                setTimeout(function () {
+                  var f = U.q(".searchfield input");
+                  if (f) {
+                    f.value = g.t;
+                    f.dispatchEvent(new Event("input"));
+                  }
+                }, 60);
+              },
+            };
+          })
+      : [];
+
+    // labs
+    var labs = q
+      ? Object.keys(Labs)
+          .filter(function (k) {
+            return (
+              typeof Labs[k] === "object" &&
+              Labs[k] &&
+              Labs[k].render &&
+              (score(Labs[k].title, q) > 0 || score(k, q) > 0)
+            );
+          })
+          .slice(0, 4)
+          .map(function (k) {
+            return {
+              t: Labs[k].title,
+              s: Labs[k].sub,
+              icon: Labs[k].icon || "beaker",
+              run: function () {
+                App.go("#/labs");
+              },
+            };
+          })
+      : [];
+
+    addGroup(q ? "Chapters" : "Jump back in", chapters);
+    addGroup("Labs", labs);
+    addGroup("Glossary", terms);
+    addGroup(q ? "Commands" : "Actions", cmds);
+
+    if (!palItems.length) {
+      palResults.innerHTML =
+        '<div class="empty" style="padding:var(--s-10) var(--s-5)">' +
+        '<div class="empty__icon">' +
+        Icons.get("search", 22) +
+        "</div>" +
+        "<h3>No matches</h3><p>Try a different search.</p></div>";
+      return;
+    }
+    moveCursor(0);
+  }
+
+  /* =========================================================
+     Router
+     ========================================================= */
+
+  var ROUTES = {
+    "": { name: "landing", render: Views.landing },
+    "/": { name: "landing", render: Views.landing },
+    "/dashboard": { name: "dashboard", render: Views.dashboard },
+    "/roadmap": { name: "roadmap", render: Views.roadmap },
+    "/library": { name: "library", render: Views.library },
+    "/labs": { name: "labs", render: Views.labs },
+    "/review": { name: "review", render: Views.review },
+    "/projects": { name: "projects", render: Views.projects },
+    "/glossary": { name: "glossary", render: Views.glossary },
+    "/settings": { name: "settings", render: Views.settings },
+  };
+
+  function parse() {
+    var h = (location.hash || "").replace(/^#/, "");
+    if (h.indexOf("/chapter/") === 0) {
+      return { name: "chapter", arg: h.slice(9), render: Views.chapter };
+    }
+    var r = ROUTES[h];
+    if (r) return { name: r.name, render: r.render };
+    return { name: "landing", render: Views.landing };
+  }
+
+  var mainHost;
+
+  function render() {
+    var route = parse();
+
+    // clear per-view handlers
+    leaveHandlers.forEach(function (f) {
+      try {
+        f();
+      } catch (e) {}
+    });
+    leaveHandlers = [];
+    scrollHandlers = [];
+    keyHandlers = [];
+
+    document.body.classList.remove("is-landing", "nav-open");
+    toggleScrim();
+
+    var isLanding = route.name === "landing";
+    if (isLanding) document.body.classList.add("is-landing");
+
+    mainHost.innerHTML = "";
+    var page = el("div", "page" + (route.name === "roadmap" ? "" : ""));
+    if (isLanding) page.className = "";
+    mainHost.appendChild(page);
+
+    try {
+      route.render(page, route.arg);
+    } catch (e) {
+      page.className = "page";
+      page.innerHTML = "";
+      page.appendChild(
+        Views.emptyState(
+          "Something went wrong rendering this page",
+          e.message,
+          "#/roadmap",
+          "Back to roadmap",
+        ),
+      );
+      if (global.console) console.error(e);
+    }
+
+    markActive();
+    paintCrumbs(route);
+    paintXp();
+    paintTheme();
+
+    // hash anchors inside a chapter shouldn't reset scroll
+    if (!location.hash.match(/#s-/)) window.scrollTo(0, 0);
+    document.title =
+      (route.name === "chapter" && Views.helpers.chapter(route.arg)
+        ? Views.helpers.chapter(route.arg).title + " · "
+        : route.name !== "landing"
+          ? route.name.charAt(0).toUpperCase() + route.name.slice(1) + " · "
+          : "") + "Forge — AI Engineering Academy";
+  }
+
+  App.go = function (hash, force) {
+    if (location.hash === hash && force) render();
+    else location.hash = hash;
+  };
+
+  App.onScroll = function (fn) {
+    scrollHandlers.push(fn);
+  };
+  App.onKey = function (fn) {
+    keyHandlers.push(fn);
+  };
+  App.onLeave = function (fn) {
+    leaveHandlers.push(fn);
+  };
+
+  /* =========================================================
+     Boot
+     ========================================================= */
+
+  function boot() {
+    document.documentElement.setAttribute("data-theme", Store.theme());
+
+    var ambient = el("div", "ambient");
+    ambient.innerHTML =
+      '<div class="ambient__grid"></div>' +
+      '<div class="ambient__blob ambient__blob--a"></div>' +
+      '<div class="ambient__blob ambient__blob--b"></div>' +
+      '<div class="ambient__blob ambient__blob--c"></div>';
+    document.body.appendChild(ambient);
+
+    var app = el("div", "app");
+    app.appendChild(buildSidebar());
+
+    var main = el("div", "main");
+    main.appendChild(buildTopbar());
+    mainHost = el("div", "u-grow");
+    mainHost.style.display = "flex";
+    mainHost.style.flexDirection = "column";
+    main.appendChild(mainHost);
+    app.appendChild(main);
+    document.body.appendChild(app);
+
+    var scrim = el("div", "scrim");
+    scrim.id = "scrim";
+    scrim.hidden = true;
+    scrim.onclick = function () {
+      document.body.classList.remove("nav-open");
+      toggleScrim();
+    };
+    document.body.appendChild(scrim);
+
+    document.body.appendChild(buildPalette());
+
+    toastHost = el("div", "toasts");
+    toastHost.setAttribute("aria-live", "polite");
+    document.body.appendChild(toastHost);
+
+    /* global listeners */
+    window.addEventListener("hashchange", render);
+
+    window.addEventListener(
+      "scroll",
+      function () {
+        scrollHandlers.forEach(function (f) {
+          f();
+        });
+      },
+      { passive: true },
+    );
+
+    document.addEventListener("keydown", function (e) {
+      // palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        palNode.hidden ? Palette.open() : Palette.close();
+        return;
+      }
+      if (e.key === "Escape" && !palNode.hidden) {
+        Palette.close();
+        return;
+      }
+
+      var typing =
+        e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      if (typing) return;
+
+      if (e.key === "/") {
+        e.preventDefault();
+        Palette.open();
+        return;
+      }
+
+      // view-specific
+      for (var i = 0; i < keyHandlers.length; i++) {
+        if (keyHandlers[i](e)) {
+          e.preventDefault();
+          return;
+        }
+      }
+
+      // chapter nav with j/k
+      var r = parse();
+      if (r.name === "chapter") {
+        var ch = Views.helpers.chapter(r.arg);
+        var idx = C.chapters.indexOf(ch);
+        if (e.key === "j" && C.chapters[idx + 1]) {
+          App.go("#/chapter/" + C.chapters[idx + 1].id);
+        } else if (e.key === "k" && C.chapters[idx - 1]) {
+          App.go("#/chapter/" + C.chapters[idx - 1].id);
+        }
+      }
+    });
+
+    Store.subscribe(function () {
+      paintXp();
+    });
+
+    // refresh sidebar counters when progress changes (debounced)
+    var refresh = U.debounce(refreshSidebar, 400);
+    Store.subscribe(refresh);
+
+    // system theme changes
+    if (window.matchMedia) {
+      var mq = window.matchMedia("(prefers-color-scheme: light)");
+      var onMq = function () {
+        if (!Store.state().theme) {
+          document.documentElement.setAttribute("data-theme", Store.theme());
+          paintTheme();
+        }
+      };
+      if (mq.addEventListener) mq.addEventListener("change", onMq);
+      else if (mq.addListener) mq.addListener(onMq);
+    }
+
+    render();
+  }
+
+  global.App = App;
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})(window);
