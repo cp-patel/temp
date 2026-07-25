@@ -40,6 +40,10 @@
 
         { t: "h", text: "The loop" },
         {
+          t: "p",
+          text: "Tools are what turn a model from something that talks into something that acts, and that shift is why this phase is also where the safety chapters live. Start with the mechanism, which is simpler than it looks: the model never runs anything itself. It asks, you execute, you report back.",
+        },
+        {
           t: "code",
           lang: "python",
           caption: "A correct tool loop, with the guards that matter",
@@ -88,6 +92,10 @@ async def run_with_tools(messages: list, tools: list) -> str:
         },
 
         { t: "h", text: "Tool descriptions are prompts" },
+        {
+          t: "p",
+          text: "The loop is boilerplate you write once. What decides whether tool calling works is the part that looks like documentation.",
+        },
         {
           t: "p",
           text: "This is where tool calling succeeds or fails. The description is read by a model, not a developer, and it needs to answer: what does this do, when should I use it, when should I *not*, and what do the parameters mean.",
@@ -167,6 +175,10 @@ async def run_with_tools(messages: list, tools: list) -> str:
 
         { t: "h", text: "How many tools is too many" },
         {
+          t: "p",
+          text: "Given descriptions matter that much, more tools means more prompt and more ways to choose wrongly. The relationship between tool count and reliability is worth knowing before you design a toolset.",
+        },
+        {
           t: "table",
           head: ["Count", "Behaviour"],
           rows: [
@@ -182,6 +194,10 @@ async def run_with_tools(messages: list, tools: list) -> str:
         },
 
         { t: "h", text: "Validation on both sides" },
+        {
+          t: "p",
+          text: "Everything above assumes the arguments the model sends are sane and the results your tool returns are safe to feed back. Neither is a given, and this is the first point in the roadmap where a modelling mistake becomes a security bug.",
+        },
         {
           t: "code",
           lang: "python",
@@ -372,6 +388,14 @@ async def run_with_tools(messages: list, tools: list) -> str:
 
         { t: "h", text: "The patterns" },
         {
+          t: "p",
+          text: "Take that test seriously — it is the most valuable sentence in the phase. Most systems marketed as agents are workflows, and the workflow is usually the better engineering choice because you can predict what it will do and what it will cost.",
+        },
+        {
+          t: "p",
+          text: "When the loop genuinely is warranted, a handful of shapes cover almost every real case.",
+        },
+        {
           t: "table",
           head: ["Pattern", "Shape", "Use when"],
           rows: [
@@ -414,6 +438,10 @@ async def run_with_tools(messages: list, tools: list) -> str:
         },
 
         { t: "h", text: "A loop with budgets on every axis" },
+        {
+          t: "p",
+          text: "Model-controlled control flow means you have handed the model your for-loop condition. That is the whole point and the whole danger, and it makes bounding the loop a correctness requirement rather than an optimisation.",
+        },
         {
           t: "code",
           lang: "python",
@@ -493,6 +521,10 @@ async def run_agent(task: str, tools: list, budget=Budget()) -> AgentResult:
 
         { t: "h", text: "The four failure modes" },
         {
+          t: "p",
+          text: "Budgets stop a runaway agent from being expensive. They don't stop it from being useless, and agents fail in a small number of recognisable ways.",
+        },
+        {
           t: "steps",
           items: [
             {
@@ -545,6 +577,10 @@ def check_thrash(call, messages) -> bool:
     return False`,
         },
 
+        {
+          t: "p",
+          text: "Notice that thrash detection is cheap and catches the most common of the four. A handful of lines comparing recent actions will catch a loop that budgets alone would let run to exhaustion.",
+        },
         { t: "h", text: "Human in the loop" },
         {
           t: "p",
@@ -701,6 +737,10 @@ def check_thrash(call, messages) -> bool:
 
         { t: "h", text: "Four strategies, ranked" },
         {
+          t: "p",
+          text: "This is the context-engineering problem from Phase 02 with the difficulty turned up. There, you controlled what went into a single call. Here the agent runs for twenty minutes and generates more material than the window can hold, so something must be discarded — and the interesting question is what gets discarded and whether you can get it back.",
+        },
+        {
           t: "table",
           head: ["Strategy", "How", "Verdict"],
           rows: [
@@ -734,6 +774,10 @@ def check_thrash(call, messages) -> bool:
         },
 
         { t: "h", text: "The task-state file" },
+        {
+          t: "p",
+          text: "The ranking above puts offloading first for one reason: a summary is a one-way door. Everything below is built on keeping the losable information somewhere retrievable and holding only pointers in the window.",
+        },
         {
           t: "code",
           lang: "python",
@@ -791,6 +835,10 @@ UPDATE_STATE_TOOL = {
 
         { t: "h", text: "Filesystem offload in practice" },
         {
+          t: "p",
+          text: "The state file holds the plan. The same idea applied to tool results is where the token savings actually come from — a 50,000-token API response becomes a filename.",
+        },
+        {
           t: "code",
           lang: "python",
           caption: "Keep pointers, not payloads",
@@ -817,6 +865,10 @@ to inspect further."""))
         },
 
         { t: "h", text: "Cross-session memory" },
+        {
+          t: "p",
+          text: "So far everything is scoped to one run. Memory that outlives the session is a different feature with different risks, and it is the one users notice when it goes wrong.",
+        },
         {
           t: "list",
           items: [
@@ -967,6 +1019,14 @@ to inspect further."""))
 
         { t: "h", text: "Topologies" },
         {
+          t: "p",
+          text: "Hold onto that compounding arithmetic, because it is the argument against most multi-agent designs. Adding an agent adds a multiplication, not an addition — and reliability is what you were presumably trying to improve.",
+        },
+        {
+          t: "p",
+          text: "When you do need more than one, the topology decides how errors propagate.",
+        },
+        {
           t: "table",
           head: ["Topology", "Shape", "Trade-off"],
           rows: [
@@ -1004,6 +1064,10 @@ to inspect further."""))
         },
 
         { t: "h", text: "Handoffs are where information dies" },
+        {
+          t: "p",
+          text: "Whichever topology you pick, the failure will almost certainly be at a boundary rather than inside an agent.",
+        },
         {
           t: "p",
           text: "The most common multi-agent bug is a lossy handoff: agent A discovered something important, summarised it into three sentences, and agent B now can't do its job. Design handoffs explicitly with a schema.",
@@ -1050,6 +1114,10 @@ class Finding(BaseModel):
         },
 
         { t: "h", text: "The pattern that reliably works" },
+        {
+          t: "p",
+          text: "Given all of the above, there is one arrangement that survives contact with production often enough to recommend. It works because it minimises the number of handoffs and keeps the workers from having to know about each other.",
+        },
         {
           t: "flow",
           nodes: [
@@ -1219,6 +1287,10 @@ class Finding(BaseModel):
 
         { t: "h", text: "What a server exposes" },
         {
+          t: "p",
+          text: "MCP is worth a chapter for two reasons: it is becoming the default way tools reach models, and connecting one is a larger security decision than the two-line config makes it look. Mechanism first, then that.",
+        },
+        {
           t: "table",
           head: ["Primitive", "What it is", "Controlled by"],
           rows: [
@@ -1248,6 +1320,10 @@ class Finding(BaseModel):
         },
 
         { t: "h", text: "A minimal server" },
+        {
+          t: "p",
+          text: "That control distinction is the one to hold on to. It determines who decides when something is read — and therefore who you have to trust.",
+        },
         {
           t: "code",
           lang: "python",
@@ -1293,6 +1369,10 @@ if __name__ == "__main__":
 
         { t: "h", text: "Transports" },
         {
+          t: "p",
+          text: "The server above runs over a pipe on your own machine. Putting it anywhere else changes the threat model, which is why transport is not just a deployment detail.",
+        },
+        {
           t: "list",
           items: [
             "**stdio** — the server runs as a local subprocess. Simplest, and the right choice for local tools: filesystem access, git, local databases.",
@@ -1302,6 +1382,10 @@ if __name__ == "__main__":
         },
 
         { t: "h", text: "Security: this is the important section" },
+        {
+          t: "p",
+          text: "Which brings us to the part of this chapter that matters more than the protocol. An MCP server is not a library you import; it is a capability you grant, and its tool descriptions are text a model will follow.",
+        },
         {
           t: "note",
           kind: "warn",
@@ -1318,6 +1402,10 @@ if __name__ == "__main__":
             "**Confused deputy.** The server acts with *your* credentials. If it can reach both private data and the internet, you have the lethal trifecta — see Phase 07.",
             "**Excessive scope.** Servers commonly request broader access than they need. A read-only task shouldn't get write tokens.",
           ],
+        },
+        {
+          t: "p",
+          text: "Tool poisoning is the one to internalise, because it inverts the usual assumption about dependencies. You review a library's code; here the payload is prose, it goes straight into your model's context, and a plausible-sounding description is all an attacker needs. **Prompt Injection & the Lethal Trifecta** is the full treatment.",
         },
         {
           t: "code",
@@ -1468,6 +1556,10 @@ async def delete_records(table: str, filter: str) -> str:
 
         { t: "h", text: "The four enforcement points" },
         {
+          t: "p",
+          text: "The previous five chapters built something capable. This one makes it safe to deploy, and the framing matters: the goal is not an agent that never errs, because you cannot have one. The goal is an agent whose errors are cheap, visible, and reversible.",
+        },
+        {
           t: "steps",
           items: [
             {
@@ -1496,6 +1588,10 @@ async def delete_records(table: str, filter: str) -> str:
         },
 
         { t: "h", text: "Containment patterns" },
+        {
+          t: "p",
+          text: "Of those four layers, one does most of the work. Input filtering can be talked around and output filtering only catches what already happened — but a capability the agent does not have is a capability it cannot misuse.",
+        },
         {
           t: "table",
           head: ["Pattern", "Contains"],
@@ -1588,6 +1684,10 @@ async def guarded_execute(call, ctx: RunContext) -> ToolResult:
         { t: "h", text: "Dry runs and previews" },
         {
           t: "p",
+          text: "Containment decides what the agent *can* do. For the actions you deliberately allow but wouldn't want done wrongly, the remaining question is how a human approves them — and most approval UX asks the wrong question.",
+        },
+        {
+          t: "p",
           text: "The best approval UX shows the user what *will* happen, not what was requested. Implement a `dry_run` for every destructive tool that returns a concrete diff.",
         },
         {
@@ -1619,6 +1719,10 @@ Irreversible without a database restore."""`,
           text: "If your agent asks fifteen times per task, users stop reading by the fourth prompt and click approve reflexively — which is strictly worse than no gate, because it creates a false record of informed consent. Batch approvals, use sandboxes so most actions need no gate at all, and reserve prompts for genuinely consequential decisions.",
         },
 
+        {
+          t: "p",
+          text: "That fatigue point is not a minor UX note. An approval flow that fires too often trains the user to approve without reading, which converts your safety mechanism into a rubber stamp and leaves you worse off than having none.",
+        },
         { t: "h", text: "The kill switch" },
         {
           t: "list",
