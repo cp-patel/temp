@@ -40,6 +40,10 @@
 
         { t: "h", text: "What to capture per span" },
         {
+          t: "p",
+          text: "This phase is where an AI feature becomes a production system, and observability comes first because everything after it depends on being able to see what happened. A stack trace tells you where a program broke; for an AI request you need to reconstruct a decision, and that means capturing the inputs at every stage rather than the failure at one.",
+        },
+        {
           t: "table",
           head: ["Field", "Why it matters"],
           rows: [
@@ -98,6 +102,10 @@
         },
 
         { t: "h", text: "OpenTelemetry" },
+        {
+          t: "p",
+          text: "Two entries in that table do most of the work in an incident: the rendered prompt and the retrieved chunk IDs. Between them they let you answer the only question that matters — did the model see the right information and choose badly, or was it never given a chance?",
+        },
         {
           t: "p",
           text: "Use OpenTelemetry rather than a proprietary SDK. It's the industry standard, every observability backend ingests it, and the GenAI semantic conventions give you consistent attribute names across tools.",
@@ -160,6 +168,10 @@ async def generate(question: str, chunks: list, ctx) -> Answer:
 
         { t: "h", text: "Sampling and cost" },
         {
+          t: "p",
+          text: "Traces containing full prompts are large, and at volume you cannot keep all of them. What you sample determines whether your traces are useful, because the interesting requests are by definition the rare ones.",
+        },
+        {
           t: "list",
           items: [
             "**Metadata on 100% of requests.** Token counts, latency, cost, stop reason, versions. Small and always needed.",
@@ -177,6 +189,10 @@ async def generate(question: str, chunks: list, ctx) -> Answer:
         },
 
         { t: "h", text: "Privacy" },
+        {
+          t: "p",
+          text: "Which raises something easy to miss when you're focused on debugging. You have just built a system that records everything your users typed, and it is subject to every rule that applies to the primary datastore.",
+        },
         {
           t: "note",
           kind: "warn",
@@ -329,6 +345,10 @@ if settings.capture_payloads:
 
         { t: "h", text: "Direct versus indirect" },
         {
+          t: "p",
+          text: "Read that warning as an engineering constraint rather than a disclaimer. Because injection is unsolved at the prompt layer, every mitigation in this chapter is architectural — you are limiting what a successful attack can reach, not preventing it.",
+        },
+        {
           t: "compare",
           left: {
             title: "Direct injection",
@@ -359,6 +379,10 @@ if settings.capture_payloads:
         { t: "h", text: "The lethal trifecta" },
         {
           t: "p",
+          text: "Direct injection is a nuisance: the attacker is the user, and the worst case is usually that they misuse their own session. Indirect injection is the serious one, and the difference is worth being precise about.",
+        },
+        {
+          t: "p",
           text: "This framing, popularised by Simon Willison, is the clearest architectural test available. An agent is dangerous when it combines all three of:",
         },
         {
@@ -383,6 +407,10 @@ if settings.capture_payloads:
           kind: "insight",
           title: "Any two are usually fine. All three enable exfiltration.",
           text: "With all three, an injected instruction can say: read the private data, then send it out. Remove any one leg and the attack loses its payload path. This gives you a concrete design test — for each AI feature, list which legs it has, and if it has all three, change the architecture rather than strengthening the prompt.",
+        },
+        {
+          t: "p",
+          text: "The attack below is worth reading line by line, because its most alarming property is how ordinary each step is. Nothing is exploited in the traditional sense — the model is asked to do something, and it helpfully does it.",
         },
         {
           t: "code",
@@ -413,6 +441,10 @@ component in the chain.`,
         },
 
         { t: "h", text: "Mitigations, ranked by how well they actually hold" },
+        {
+          t: "p",
+          text: "The trifecta gives you a test you can apply to a design before writing any code, which makes it the most useful thing in this chapter. If a system has all three properties, no amount of prompt hardening makes it safe — you have to remove one of the three.",
+        },
         {
           t: "table",
           head: ["Mitigation", "Effectiveness"],
@@ -504,6 +536,10 @@ async def query_orders(args, ctx) -> list:
         { t: "h", text: "The quarantine pattern" },
         {
           t: "p",
+          text: "Notice the ordering in that table and where the line falls. Everything at the prompt layer raises the cost of an attack; only the measures that remove capability actually hold. That is the same conclusion the guardrails chapter reached from a different direction.",
+        },
+        {
+          t: "p",
           text: "Split the system so that the component with privileges never reads untrusted content, and the component reading untrusted content has no privileges.",
         },
         {
@@ -522,6 +558,10 @@ async def query_orders(args, ctx) -> list:
         },
 
         { t: "h", text: "Threat modelling checklist" },
+        {
+          t: "p",
+          text: "Quarantine is the strongest pattern available, and it is a real architectural commitment rather than a setting. Before you decide whether you need it, work through the questions below on the system you actually have.",
+        },
         {
           t: "list",
           ordered: true,
@@ -656,6 +696,10 @@ async def query_orders(args, ctx) -> list:
         "Handle provider outages without going down",
       ],
       body: [
+        {
+          t: "p",
+          text: "Most of deploying an AI system is ordinary deployment, which is good news if you've done it before. This chapter is about the three places it differs: prompts are artefacts that need versioning and can't be tested by unit tests, your critical dependency has incidents you cannot fix, and capacity is bounded by someone else's rate limits.",
+        },
         { t: "h", text: "The architecture" },
         {
           t: "flow",
@@ -680,6 +724,14 @@ async def query_orders(args, ctx) -> list:
         },
 
         { t: "h", text: "Prompts are deployable artefacts" },
+        {
+          t: "p",
+          text: "Treat them exactly as you treat code: in version control, reviewed, released together with the code that depends on them, and rollback-able as a unit. The moment a prompt can change without a deploy, you have a production system whose behaviour is not described by any commit.",
+        },
+        {
+          t: "p",
+          text: "The first difference is the one teams get wrong most consistently, usually with good intentions.",
+        },
         {
           t: "note",
           kind: "pitfall",
@@ -728,6 +780,10 @@ PROMPT_ROLLOUT = {
         },
 
         { t: "h", text: "Provider outages" },
+        {
+          t: "p",
+          text: "The second difference you can't engineer away, only plan around. Your most important dependency will have incidents, and its status page is not something you control.",
+        },
         {
           t: "p",
           text: "Providers have incidents. Plan for degraded operation rather than an outage.",
@@ -805,7 +861,15 @@ async def complete_resilient(messages, **kw):
           text: "A prompt tuned on one model can behave quite differently on another — format adherence, refusal behaviour, and tool-call reliability all shift. If you have a cross-provider fallback, run your eval suite against every model in the chain and keep those results current. Otherwise your outage response is to silently serve worse answers, and you won't know until users tell you.",
         },
 
+        {
+          t: "p",
+          text: "The important word in that warning is *evaluated*. A fallback chain is only as good as your evidence that the fallback works — a prompt tuned against one model can degrade badly on another, and discovering that during an incident is the worst possible time.",
+        },
         { t: "h", text: "Load and capacity" },
+        {
+          t: "p",
+          text: "The third is a capacity model unlike anything in ordinary web serving: you cannot scale out of a rate limit by adding instances, because the limit isn't yours.",
+        },
         {
           t: "list",
           items: [
@@ -912,6 +976,10 @@ async def complete_resilient(messages, **kw):
         "Understand what disclosure and record-keeping obligations apply",
       ],
       body: [
+        {
+          t: "p",
+          text: "This chapter is the one most likely to be handed to you as a checklist by someone in legal, and the one where an engineer's instincts are the most useful thing in the room. Almost every requirement here reduces to a question you can answer from an architecture diagram: where does user data go, and can you get it back out?",
+        },
         { t: "h", text: "Data flow mapping" },
         {
           t: "p",
@@ -962,6 +1030,10 @@ async def complete_resilient(messages, **kw):
 
         { t: "h", text: "The controls" },
         {
+          t: "p",
+          text: "That assumption about embeddings is worth dwelling on because it is so common and so wrong. A vector is a lossy encoding, not a hash — enough of the original text can be recovered from it that you should treat your index as containing the source material.",
+        },
+        {
           t: "list",
           ordered: true,
           items: [
@@ -972,6 +1044,10 @@ async def complete_resilient(messages, **kw):
             "**Data residency.** If you serve EU users under GDPR, know which region processes their data and pick regional endpoints accordingly.",
             "**Retention limits with actual enforcement.** A policy that says 30 days and a database with three years of data is worse than no policy.",
           ],
+        },
+        {
+          t: "p",
+          text: "Deletion is the control that reveals whether your data-flow map was honest. The request has to reach every store you listed above, including the ones added since — which is why the function below is worth treating as the definition of your data model rather than as a utility.",
         },
         {
           t: "code",
@@ -1024,6 +1100,10 @@ async def complete_resilient(messages, **kw):
 
         { t: "h", text: "Safety controls" },
         {
+          t: "p",
+          text: "Privacy is about data you hold. Safety is about output you produce, and the controls are different in kind — less about storage and access, more about what the system is willing to say and do.",
+        },
+        {
           t: "list",
           items: [
             "**Input moderation** on user-generated content, especially anything shown to other users.",
@@ -1036,6 +1116,10 @@ async def complete_resilient(messages, **kw):
         },
 
         { t: "h", text: "Disclosure and record-keeping" },
+        {
+          t: "p",
+          text: "Finally, the part that is genuinely about paperwork — and which, done properly, mostly falls out of engineering you wanted anyway.",
+        },
         {
           t: "p",
           text: "Regulatory expectations tightened substantially through 2025–26. The specifics vary by jurisdiction and none of this is legal advice, but the recurring themes are consistent enough to design for:",
