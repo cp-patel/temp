@@ -549,14 +549,19 @@ input[type="range"]::-moz-range-thumb {
 
 /* ---- Agent trace ---- */
 
+/* minmax(0, 1fr), not the implicit `auto` track: an auto track cannot shrink
+   below its content's min-content width, so a long tool payload pushed the whole
+   trace 95px past the lab card at 390px. The same applies to the text column of
+   each step. */
 .trace {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--s-2);
 }
 
 .tstep {
   display: grid;
-  grid-template-columns: 26px 1fr;
+  grid-template-columns: 26px minmax(0, 1fr);
   gap: var(--s-3);
   padding: var(--s-3);
   border-radius: var(--r-md);
@@ -643,6 +648,11 @@ input[type="range"]::-moz-range-thumb {
   background: var(--surface-4);
   border-radius: 4px;
   color: var(--ink);
+  /* Overrides .prose code's nowrap. These are tool-call payloads — JSON with
+     UUIDs in it — so they have to be allowed to break mid-token, or a single
+     argument runs off the edge of the lab on a phone. */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .tstep__cost {

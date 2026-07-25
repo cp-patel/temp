@@ -436,6 +436,59 @@ async function main() {
     );
     check(`mobile ${r || "/"} no h-overflow`, ov <= 2, `${ov}px`);
   }
+  /* Page-level overflow checks miss content clipped *inside* a container: a card
+     with overflow:hidden hides the fact that its children run off its edge. This
+     found chips carrying whole sentences running out of the roadmap card, and an
+     agent trace 95px wider than its lab — both invisible to the checks above. */
+  const clipped = new Map();
+  for (const r of [
+    "#/dashboard",
+    "#/plan",
+    "#/roadmap",
+    "#/library",
+    "#/projects",
+    "#/chapter/agent-loop",
+    "#/chapter/tokens",
+  ]) {
+    await mp.goto(BASE + r, { waitUntil: "networkidle" });
+    await mp.waitForTimeout(500);
+    const found = await mp.evaluate(() => {
+      const out = [];
+      document.querySelectorAll("body *").forEach((el) => {
+        if (el.children.length) return;
+        if (!(el.textContent || "").trim()) return;
+        const box = el.getBoundingClientRect();
+        if (box.width < 4 || box.height < 4) return;
+        let n = el.parentElement;
+        let clip = null;
+        while (n && n !== document.body) {
+          const ox = getComputedStyle(n).overflowX;
+          if (ox === "hidden" || ox === "clip") {
+            clip = n;
+            break;
+          }
+          // A real horizontal scroller is allowed to have content past its edge.
+          if (ox === "auto" || ox === "scroll") return;
+          n = n.parentElement;
+        }
+        if (!clip) return;
+        const over = Math.round(box.right - clip.getBoundingClientRect().right);
+        if (over > 2) {
+          out.push(
+            `${el.tagName.toLowerCase()}.${el.className || "?"} +${over}px in .${clip.className || "?"}`
+          );
+        }
+      });
+      return out;
+    });
+    found.forEach((f) => clipped.set(f, r));
+  }
+  check(
+    "no content clipped inside its container",
+    clipped.size === 0,
+    [...clipped.keys()].slice(0, 4).join("; ")
+  );
+
   /* A table that scrolls must say so. On a phone the third column is clipped;
      without an edge fade that reads as broken content rather than as "swipe". */
   await mp.goto(BASE + "#/chapter/tokens", { waitUntil: "networkidle" });

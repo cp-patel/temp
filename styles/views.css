@@ -685,6 +685,21 @@
   margin-bottom: var(--s-5);
 }
 
+/* These chips carry sentences ("Explain next-token prediction without
+   hand-waving"), not one-word labels, so .chip's nowrap ran them off the edge of
+   the card on a phone. Unconditional rather than behind a breakpoint: a chip
+   only wraps when it genuinely can't fit, which on desktop is never. */
+.phase__outcomes .chip {
+  white-space: normal;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.phase__outcomes .chip svg {
+  flex: none;
+  margin-top: 0.18em;
+}
+
 @media (max-width: 640px) {
   .phase {
     grid-template-columns: 40px minmax(0, 1fr);
@@ -881,6 +896,32 @@
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: var(--s-4);
   margin-bottom: var(--s-8);
+}
+
+/* On a phone the 210px track resolves to a single column, which turned six
+   metric cards into 1700px of scrolling before any real content. Force two up
+   and tighten the card: at a glance these are six numbers, not six sections. */
+@media (max-width: 640px) {
+  .dgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3);
+  }
+
+  .dgrid .stat {
+    padding: var(--s-4);
+  }
+
+  .dgrid .stat__top {
+    margin-bottom: var(--s-3);
+  }
+
+  .dgrid .stat__n {
+    font-size: var(--t-xl);
+  }
+
+  .dgrid .stat__sub {
+    margin-top: var(--s-2);
+  }
 }
 
 .stat {
@@ -1518,6 +1559,11 @@
   min-height: 300px;
   perspective: 1600px;
   cursor: pointer;
+  /* The ghost cards below are positioned inset:0 and translated down, so they
+     spill past this element's box. Reserve room for the deepest one or they
+     collide with the grade buttons — which they did at 390px, where the stage
+     gap alone wasn't enough. */
+  margin-bottom: 26px;
 }
 
 /* Two ghost cards behind the live one, so the deck reads as a pile with more

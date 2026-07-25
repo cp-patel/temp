@@ -252,7 +252,7 @@ its fixed reading-progress bar.
 | ---------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Content    | `npm run validate` | Schema, cross-references, answer indices, duplicate ids, table arity, unbalanced markdown                                                                                              |
 | Core logic | `npm test`         | util, store, plan engine — 76 assertions, no browser                                                                                                                                   |
-| Whole app  | `npm run test:e2e` | Every route, every chapter, every lab control, personalisation flow, keyboard, themes, mobile, scroll reveal, and a WCAG AA contrast audit of both themes — 66 checks in real Chromium |
+| Whole app  | `npm run test:e2e` | Every route, every chapter, every lab control, personalisation flow, keyboard, themes, mobile, scroll reveal, and a WCAG AA contrast audit of both themes — 67 checks in real Chromium |
 
 The unit tests load browser files into a `vm` context via
 `scripts/lib/load-curriculum.mjs`, so there's no duplicate copy of the data or
