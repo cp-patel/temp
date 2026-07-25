@@ -1439,6 +1439,6 @@ if resp.stop_reason == "max_tokens":
           kind: "docs",
         },
       ],
-    },
+    }
   );
 })(window);

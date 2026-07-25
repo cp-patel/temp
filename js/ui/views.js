@@ -267,6 +267,7 @@
   V.roadmap = function (root) {
     var o = overall();
     var next = nextChapter();
+    var rmPlan = Store.plan();
 
     var head = el("div", "page-head");
     head.innerHTML =
@@ -279,6 +280,29 @@
       " of " +
       o.total +
       "</strong> complete.</p>";
+
+    if (!Store.profile()) {
+      var pcta = el("div", "ob__note");
+      pcta.style.marginBottom = "var(--s-6)";
+      pcta.innerHTML =
+        Icons.get("compass", 14) +
+        '<span class="u-grow">Answer four questions and this roadmap will mark ' +
+        "what you can <b>skim</b> given what you already know — with a note on " +
+        "exactly what's new in each of those chapters.</span>";
+      var pbtn = el("button", "btn btn--accent-soft btn--sm");
+      pbtn.style.flex = "none";
+      pbtn.textContent = "Personalise";
+      pbtn.onclick = function () {
+        Onboarding.open({
+          onDone: function (saved) {
+            if (saved) App.go("#/plan");
+            else App.go("#/roadmap", true);
+          },
+        });
+      };
+      pcta.appendChild(pbtn);
+      root.appendChild(pcta);
+    }
 
     var legend = el("div", "rm__legend");
     legend.innerHTML =
@@ -361,10 +385,11 @@
         var isNext = next && next.id === ch.id;
         var a = el(
           "a",
-          "chnode" + (done ? " is-done" : "") + (isNext ? " is-current" : ""),
+          "chnode" + (done ? " is-done" : "") + (isNext ? " is-current" : "")
         );
         a.href = "#/chapter/" + ch.id;
         var d = DIFF[ch.difficulty] || DIFF.intermediate;
+        var pi = rmPlan && rmPlan.byId[ch.id];
         a.innerHTML =
           '<span class="chnode__dot">' +
           (done ? Icons.get("check", 15) : String(i + 1)) +
@@ -375,6 +400,9 @@
           esc(ch.subtitle) +
           "</span></span>" +
           '<span class="chnode__tags">' +
+          (pi
+            ? '<span class="mode mode--' + pi.mode + '">' + pi.mode + "</span>"
+            : "") +
           (ch.lab
             ? '<span class="chip chip--accent chip--hide-sm">' +
               Icons.get("beaker", 12) +
@@ -448,8 +476,8 @@
           "Chapter not found",
           "That chapter doesn't exist.",
           "#/roadmap",
-          "Back to roadmap",
-        ),
+          "Back to roadmap"
+        )
       );
       return;
     }
@@ -536,6 +564,33 @@
       main.appendChild(ob);
     }
 
+    /* --- personalised delta note --- */
+    var plan = Store.plan();
+    var pItem = plan && plan.byId[ch.id];
+    if (pItem && pItem.why) {
+      var isDeep = pItem.mode === "deep";
+      var isSkim = pItem.mode === "skim";
+      // Only worth showing when the plan has something specific to say: a skim
+      // recommendation with a delta, or a core chapter with focus guidance.
+      var hasOverlap = !!(C.overlap && C.overlap[ch.id]);
+      if (isSkim || (isDeep && hasOverlap)) {
+        var dn = el("div", "delta" + (isDeep ? " delta--deep" : ""));
+        dn.innerHTML =
+          '<div class="delta__ic">' +
+          Icons.get(isSkim ? "zap" : "target", 17) +
+          "</div><div>" +
+          '<div class="delta__t">' +
+          (isSkim
+            ? "You can skim this — here's what's actually new"
+            : "Core chapter — where to focus, given your background") +
+          "</div>" +
+          '<div class="delta__b">' +
+          md(pItem.why) +
+          "</div></div>";
+        main.appendChild(dn);
+      }
+    }
+
     /* --- body --- */
     var prose = el("article", "prose");
     var rendered = Render.body(ch.body, ch.id);
@@ -572,7 +627,7 @@
         "</div></div>";
       var btn = el(
         "button",
-        "btn " + (isDone ? "btn--outline" : "btn--primary"),
+        "btn " + (isDone ? "btn--outline" : "btn--primary")
       );
       btn.innerHTML = isDone
         ? Icons.get("reset", 15) + " Mark incomplete"
@@ -585,7 +640,7 @@
             "Chapter complete",
             "Next: " + nxt.title,
             "win",
-            "checkCircle",
+            "checkCircle"
           );
         }
       };
@@ -656,7 +711,7 @@
         setTimeout(function () {
           saved.classList.remove("is-on");
         }, 1400);
-      }, 500),
+      }, 500)
     );
     aside.appendChild(notes);
 
@@ -692,6 +747,247 @@
     onScroll();
   };
 
+  /* =========================================================
+     PLAN — personalised week-by-week schedule
+     ========================================================= */
+
+  var MODE_LABEL = {
+    deep: { l: "Deep", ic: "brain" },
+    study: { l: "Study", ic: "book" },
+    skim: { l: "Skim", ic: "zap" },
+  };
+
+  V.plan = function (root) {
+    var profile = Store.profile();
+
+    if (!profile) {
+      var head0 = el("div", "page-head");
+      head0.innerHTML =
+        '<div class="u-eyebrow">Personalised</div><h1>My plan</h1>' +
+        "<p>Tell us your background and available hours, and this becomes a " +
+        "week-by-week schedule that marks what you can skim and what's genuinely " +
+        "new for you.</p>";
+      root.appendChild(head0);
+
+      var cta = el("div", "resume");
+      cta.innerHTML =
+        '<div class="u-eyebrow">Two minutes</div><h3>Build your plan</h3>' +
+        "<p>Four questions. Everything stays in this browser, and you can change " +
+        "your answers whenever your situation does.</p>";
+      var btn = el("button", "btn btn--primary");
+      btn.innerHTML = Icons.get("compass", 15) + " Set up my plan";
+      btn.onclick = function () {
+        Onboarding.open({
+          onDone: function (saved) {
+            if (saved) App.go("#/plan", true);
+          },
+        });
+      };
+      cta.appendChild(btn);
+      root.appendChild(cta);
+      return;
+    }
+
+    var plan = Store.plan();
+    var track = (C.tracks || []).filter(function (t) {
+      return t.id === profile.track;
+    })[0];
+
+    /* ---- hero ---- */
+    var doneCount = plan.items.filter(function (it) {
+      return Store.isDone(it.id);
+    }).length;
+    var pct = (doneCount / plan.items.length) * 100;
+
+    var hero = el("div", "planhero");
+    var left = el("div");
+    left.innerHTML =
+      '<div class="u-eyebrow">Your plan · ' +
+      esc(track ? track.label : "Custom") +
+      "</div>" +
+      "<h2>" +
+      plan.totalWeeks +
+      " weeks at " +
+      profile.hoursPerWeek +
+      " h/week</h2>" +
+      "<p>" +
+      Math.round(plan.readingMinutes / 60) +
+      "h of chapters and labs, plus " +
+      Math.round(plan.projectMinutes / 60) +
+      "h of project work — projects are where most of the learning happens, so " +
+      "they are scheduled rather than left as an afterthought. " +
+      plan.counts.deep +
+      " chapters to go deep on, " +
+      plan.counts.study +
+      " to study, and " +
+      plan.counts.skim +
+      " you can skim because you already know the material.</p>";
+    var ring = el("div", "week__ring");
+    ring.innerHTML =
+      '<div class="ring" style="--ring-size:72px;--ring-w:6px;--pct:' +
+      pct +
+      '">' +
+      '<span class="ring__label" style="font-size:0.8rem">' +
+      Math.round(pct) +
+      "%</span></div>";
+    hero.appendChild(left);
+    hero.appendChild(ring);
+    root.appendChild(hero);
+
+    /* ---- controls ---- */
+    var bar = el("div", "u-between");
+    bar.style.marginBottom = "var(--s-5)";
+    var next = nextChapter();
+    var acts = el("div", "u-row u-wrap");
+    if (next) {
+      var go = el("a", "btn btn--primary");
+      go.href = "#/chapter/" + next.id;
+      var m = plan.byId[next.id];
+      go.innerHTML =
+        Icons.get("play", 15) +
+        " Continue · " +
+        esc(next.title.slice(0, 34)) +
+        (m ? " (" + MODE_LABEL[m.mode].l.toLowerCase() + ")" : "");
+      acts.appendChild(go);
+    }
+    var edit = el("button", "btn btn--outline");
+    edit.innerHTML = Icons.get("settings", 15) + " Edit profile";
+    edit.onclick = function () {
+      Onboarding.open({
+        onDone: function () {
+          App.go("#/plan", true);
+        },
+      });
+    };
+    acts.appendChild(edit);
+    bar.appendChild(acts);
+    root.appendChild(bar);
+
+    /* ---- legend ---- */
+    var legend = el("div", "modelegend");
+    legend.innerHTML =
+      '<span><span class="mode mode--deep">Deep</span> &nbsp;<b>Core.</b> ' +
+      "Load-bearing and interview-probed. Do the lab and the quiz.</span>" +
+      '<span><span class="mode mode--study">Study</span> &nbsp;<b>New to you.</b> ' +
+      "Read properly.</span>" +
+      '<span><span class="mode mode--skim">Skim</span> &nbsp;<b>You know this.</b> ' +
+      "Read the delta note, then move on.</span>";
+    root.appendChild(legend);
+
+    /* ---- weeks ---- */
+    var weeks = el("div", "weeks");
+    plan.weeks.forEach(function (wk) {
+      var wDone = wk.items.filter(function (it) {
+        return Store.isDone(it.id);
+      }).length;
+      // Project-only weeks have no chapters: fall back to project milestones
+      // so the ring means something instead of showing NaN.
+      var wTotal = wk.items.length;
+      var wPct = wTotal ? (wDone / wTotal) * 100 : 0;
+      if (!wTotal && wk.projects.length) {
+        var pr0 = wk.projects[0].project;
+        wDone = Store.projDone(pr0.id);
+        wTotal = pr0.tasks.length;
+        wPct = wTotal ? (wDone / wTotal) * 100 : 0;
+      }
+
+      var node = el("section", "week");
+      var phases = {};
+      wk.items.forEach(function (it) {
+        phases[it.phase] = true;
+      });
+      var phaseNames = Object.keys(phases)
+        .map(function (pid) {
+          var p = phase(pid);
+          return p ? p.title.split("—")[0].trim() : pid;
+        })
+        .join(" · ");
+
+      var focus = wk.items.length
+        ? esc(phaseNames)
+        : wk.projects.length
+          ? "Project work — " + esc(wk.projects[0].project.title)
+          : "";
+      node.innerHTML =
+        '<div class="week__head"><div class="week__n">' +
+        wk.n +
+        "</div>" +
+        '<div class="u-grow"><div class="week__t">Week ' +
+        wk.n +
+        "</div>" +
+        '<div class="week__s">' +
+        focus +
+        " · " +
+        U.hours(wk.minutes) +
+        "</div></div>" +
+        '<div class="week__ring"><div class="ring" style="--pct:' +
+        wPct +
+        '"><span class="ring__label">' +
+        wDone +
+        "/" +
+        wTotal +
+        "</span></div></div></div>";
+
+      var body = el("div", "week__body");
+      wk.items.forEach(function (it) {
+        var done = Store.isDone(it.id);
+        var a = el("a", "planrow" + (done ? " is-done" : ""));
+        a.href = "#/chapter/" + it.id;
+        var ml = MODE_LABEL[it.mode];
+        a.innerHTML =
+          '<span class="planrow__dot">' +
+          (done ? Icons.get("check", 12) : "") +
+          "</span>" +
+          '<span><span class="planrow__t">' +
+          esc(it.title) +
+          "</span>" +
+          '<span class="planrow__why">' +
+          md(it.why || "") +
+          "</span></span>" +
+          '<span class="planrow__min">' +
+          it.effort +
+          "m</span>" +
+          '<span class="mode mode--' +
+          it.mode +
+          '">' +
+          ml.l +
+          "</span>";
+        body.appendChild(a);
+      });
+
+      wk.projects.forEach(function (slot) {
+        var pr = slot.project;
+        var pDone = Store.projDone(pr.id);
+        var pn = el("a", "week__proj");
+        pn.href = "#/projects";
+        pn.innerHTML =
+          Icons.get("hammer", 15) +
+          '<span class="u-grow">Project: <b>' +
+          esc(pr.title) +
+          "</b>" +
+          (slot.parts > 1
+            ? ' <span class="u-faint">(part ' +
+              slot.part +
+              " of " +
+              slot.parts +
+              ")</span>"
+            : "") +
+          " — " +
+          U.hours(slot.minutes) +
+          " this week · " +
+          pDone +
+          "/" +
+          pr.tasks.length +
+          " milestones done</span>" +
+          Icons.get("chevRight", 14);
+        body.appendChild(pn);
+      });
+
+      node.appendChild(body);
+      weeks.appendChild(node);
+    });
+    root.appendChild(weeks);
+  };
   /* =========================================================
      DASHBOARD
      ========================================================= */
@@ -1028,7 +1324,7 @@
       grid.innerHTML = "";
       if (!list.length) {
         grid.appendChild(
-          emptyState("Nothing matches", "Try a different filter.", null, null),
+          emptyState("Nothing matches", "Try a different filter.", null, null)
         );
         return;
       }
@@ -1086,7 +1382,7 @@
       U.debounce(function () {
         filter.q = input.value;
         paint();
-      }, 140),
+      }, 140)
     );
 
     root.appendChild(head);
@@ -1176,7 +1472,7 @@
       grid.innerHTML = "";
       if (!list.length) {
         grid.appendChild(
-          emptyState("No terms match", "Try a different search.", null, null),
+          emptyState("No terms match", "Try a different search.", null, null)
         );
         return;
       }
@@ -1199,7 +1495,7 @@
       U.debounce(function () {
         q = input.value.toLowerCase();
         paint();
-      }, 140),
+      }, 140)
     );
 
     root.appendChild(head);
@@ -1352,8 +1648,8 @@
           "Nothing due right now",
           "Every card is scheduled for a future day. Complete more chapters to add cards, or come back tomorrow.",
           "#/roadmap",
-          "Back to roadmap",
-        ),
+          "Back to roadmap"
+        )
       );
       return;
     }
@@ -1567,6 +1863,38 @@
     themeRow.appendChild(seg);
     card.appendChild(themeRow);
 
+    /* personalisation */
+    var profRow = el("div", "setrow");
+    var prof = Store.profile();
+    var trk = prof
+      ? (C.tracks || []).filter(function (x) {
+          return x.id === prof.track;
+        })[0]
+      : null;
+    profRow.innerHTML =
+      '<div><div class="setrow__t">Learning profile</div>' +
+      '<div class="setrow__d">' +
+      (prof
+        ? esc(trk ? trk.label : "Custom") +
+          " · " +
+          U.plural((prof.skills || []).length, "skill") +
+          " claimed · " +
+          prof.hoursPerWeek +
+          " h/week. Drives which chapters are marked skim."
+        : "Not set. Without it, every chapter is treated as new material.") +
+      "</div></div>";
+    var profBtn = el("button", "btn btn--outline btn--sm");
+    profBtn.innerHTML = Icons.get("compass", 14) + (prof ? " Edit" : " Set up");
+    profBtn.onclick = function () {
+      Onboarding.open({
+        onDone: function () {
+          App.go("#/settings", true);
+        },
+      });
+    };
+    profRow.appendChild(profBtn);
+    card.appendChild(profRow);
+
     /* export */
     var expRow = el("div", "setrow");
     expRow.innerHTML =
@@ -1614,7 +1942,7 @@
             "Import failed",
             "That file wasn't valid progress data",
             "",
-            "alert",
+            "alert"
           );
         }
       };
@@ -1642,7 +1970,7 @@
           Store.reset();
           Toast.show("Progress reset", "Starting fresh", "", "reset");
           App.go("#/dashboard", true);
-        },
+        }
       );
     };
     resetRow.appendChild(resetBtn);

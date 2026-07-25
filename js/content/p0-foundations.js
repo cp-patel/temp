@@ -216,6 +216,311 @@
 
     /* ------------------------------------------------------ */
     {
+      id: "backend-delta",
+      phase: "foundations",
+      title: "What Transfers From Backend Engineering",
+      subtitle:
+        "If you already ship services, roughly a third of this roadmap is your day job with a stranger dependency. Here's the honest accounting of what carries over, what's new, and where experienced engineers get caught out.",
+      minutes: 18,
+      difficulty: "beginner",
+      tags: ["orientation", "career", "backend"],
+      objectives: [
+        "Separate what your existing experience already covers from what is genuinely new",
+        "Reframe an LLM as a dependency with familiar-but-shifted properties",
+        "Recognise the three mistakes experienced engineers make first",
+      ],
+      body: [
+        {
+          t: "p",
+          text: 'The most common framing of this transition is wrong in both directions. It is not "learn machine learning" — you won\'t be training anything. But it is also not "just call an API" — if it were, the field wouldn\'t have a hiring shortage. The accurate framing is narrower and more useful: **you are adding one unreliable, expensive, non-deterministic dependency to systems you already know how to build**, and almost all the new skill is in managing that dependency\'s peculiarities.',
+        },
+
+        { t: "h", text: "What transfers directly" },
+        {
+          t: "p",
+          text: "This is not a token courtesy. Measured against the full roadmap, this column is a large fraction of the work — which is why an experienced backend engineer can reach employable competence in months rather than years.",
+        },
+        {
+          t: "table",
+          head: ["You already do", "Where it shows up"],
+          rows: [
+            [
+              "HTTP APIs, SDKs, error taxonomies",
+              "Every model call. The retry/terminal distinction is the same reasoning.",
+            ],
+            [
+              "Retries, backoff, jitter, circuit breakers",
+              "Provider outages and 429s are routine, not exceptional.",
+            ],
+            [
+              "Idempotency keys with atomic claims",
+              "Mandatory once a model call has side effects.",
+            ],
+            [
+              "Caching and invalidation",
+              "Prompt caching and response caching — same instincts, new key semantics.",
+            ],
+            [
+              "Postgres, indexes, query plans",
+              "pgvector is the right default vector store. Your tuning intuition mostly holds.",
+            ],
+            [
+              "Tracing, spans, percentiles",
+              "Multi-step LLM requests are unreadable without a trace tree.",
+            ],
+            [
+              "Containers, canaries, rollback",
+              "Prompts become deployable artefacts with the same lifecycle.",
+            ],
+            [
+              "Automated tests and CI gates",
+              "Eval suites are regression suites with fuzzy assertions.",
+            ],
+            [
+              "Authz and least privilege",
+              "The only defence that actually holds against prompt injection.",
+            ],
+            [
+              "Queues and background jobs",
+              "Compaction, evals, ingestion, and any task over ~30 seconds.",
+            ],
+            [
+              "Cost/capacity modelling",
+              "Unit economics decide whether an AI feature is a product.",
+            ],
+            ["SSE and streaming", "Every user-facing generation."],
+          ],
+        },
+        {
+          t: "note",
+          kind: "insight",
+          title: "The reframe that makes everything click",
+          text: "Think of the model as an RPC call to a service that is **slow** (hundreds of ms to seconds), **expensive** (priced per word, in and out), **non-deterministic** (same input, different output), **stateless but charged cumulatively** (you resend the whole conversation every time), and **occasionally confidently wrong in ways that return HTTP 200**. Every one of those properties has a familiar engineering response. It is the *combination* — especially the last one — that needs new technique.",
+        },
+
+        { t: "h", text: "What is genuinely new" },
+        {
+          t: "table",
+          head: ["New skill", "Why your existing experience doesn't cover it"],
+          rows: [
+            [
+              "**Context engineering**",
+              "There is no analogue. Deciding what occupies a finite, expensive, quality-degrading input window is a novel resource-allocation problem.",
+            ],
+            [
+              "**Retrieval quality**",
+              "You may know search. You probably don't know chunking strategy, why negation breaks embeddings, or how to localise a bad answer to one pipeline stage.",
+            ],
+            [
+              "**Evaluation of non-deterministic output**",
+              "Your test suite asserts equality. Here you assert on structure, semantics, and *statistical* properties — and you need confidence intervals to avoid chasing noise.",
+            ],
+            [
+              "**Agent control flow**",
+              "Control flow decided at runtime by a model, with budgets on five axes and failure modes (goal drift, thrashing) that have no classical equivalent.",
+            ],
+            [
+              "**Prompt injection**",
+              "You know injection classes — but there is **no parameterisation**. Instructions and data share one channel. The fix is architectural, not sanitisation.",
+            ],
+            [
+              "**Token economics**",
+              "Cost scales with conversation length in a way request-count-based intuition gets badly wrong.",
+            ],
+          ],
+        },
+
+        { t: "h", text: "Three mistakes experienced engineers make first" },
+        {
+          t: "steps",
+          items: [
+            {
+              title: "1. Reaching for abstraction too early",
+              text: "The instinct to wrap the provider in a framework before understanding the primitives is strong and counterproductive. Frameworks hide exactly the features that matter — prompt caching semantics, schema-enforced output, thinking controls. Write the tool loop by hand once. It's about forty lines, and you'll know what every framework is doing for you and what it's costing you.",
+            },
+            {
+              title: "2. Trusting a test suite that can't fail usefully",
+              text: "Snapshot-testing model output feels rigorous and is a trap: it flakes on a Tuesday for reasons you cannot act on, so people delete the assertions. Non-deterministic systems need property-based and statistical assertions from day one, and a regression suite you gate deploys on. Phase 06 exists for this and it is the phase that decides interviews.",
+            },
+            {
+              title: "3. Treating the prompt as configuration",
+              text: "It looks like a config string, so it ends up in a database that non-engineers edit live. It is the primary determinant of behaviour — closer to source code than to a feature flag. Put prompts in git, version them, gate them on evals, and canary them on quality metrics, because a prompt regression returns HTTP 200 and no infrastructure metric will catch it.",
+            },
+          ],
+        },
+        {
+          t: "note",
+          kind: "pitfall",
+          title: "The specific trap of a strong backend background",
+          text: "You will be tempted to spend your time on the parts you're already good at — the service architecture, the caching layer, the deployment pipeline — because that work is comfortable and visibly productive. Those parts are largely solved by what you already know. The hard, uncomfortable, differentiating work is retrieval quality and evaluation. Budget your time accordingly, even though it will feel slower.",
+        },
+
+        { t: "h", text: "Your unfair advantages" },
+        {
+          t: "list",
+          items: [
+            "**You instrument by reflex.** Most people building AI features have no traces and cannot debug their own systems. You'll have tracing before your first bug.",
+            "**You think in percentiles.** The habit of asking for p95 rather than an average transfers directly and is unusually valuable here, because LLM latency and cost distributions are heavily skewed.",
+            "**You already distrust input.** The mental move from 'never trust user input' to 'never trust model output, and never trust retrieved text' is short.",
+            "**You know what production means.** Rate limits, quota headroom, graceful degradation, load shedding — the operational maturity that AI-first teams frequently lack.",
+            "**You can read a failure.** Localising a fault to a component is the core skill in RAG debugging, and it's a skill, not knowledge.",
+          ],
+        },
+
+        { t: "h", text: "How to sequence this with a job" },
+        {
+          t: "p",
+          text: "Reported timelines for this transition cluster around three to six months of part-time study, and that matches the structure here. A plausible allocation at 8–10 hours a week:",
+        },
+        {
+          t: "table",
+          head: ["Weeks", "Focus", "Deliverable"],
+          rows: [
+            [
+              "1–2",
+              "Foundations, skimming what you know",
+              "Cost model spreadsheet for a feature you'd actually build",
+            ],
+            [
+              "3–5",
+              "Prompting and context engineering",
+              "A structured-extraction service with 25 test cases",
+            ],
+            [
+              "6–7",
+              "Application phase — skim, then build",
+              "Streaming chat service with caching and routing",
+            ],
+            [
+              "8–11",
+              "**Retrieval.** Do not rush this one.",
+              "RAG over a corpus you care about, with measured recall",
+            ],
+            [
+              "12–14",
+              "Agents and tools",
+              "A bounded agent with tracing and budgets",
+            ],
+            [
+              "15–17",
+              "**Evaluation.** The differentiator.",
+              "Eval harness with CI gates and a calibrated judge",
+            ],
+            [
+              "18–20",
+              "Production, security, ship it",
+              "Something deployed, with real users and a public write-up",
+            ],
+          ],
+        },
+        {
+          t: "note",
+          kind: "pro",
+          title: "Use the plan generator",
+          text: "The **My Plan** page turns this into a concrete week-by-week schedule from your actual available hours, and annotates every chapter with what you can skim versus what's new for you. It reads the same skill claims you set during onboarding, so if your background shifts, regenerate it.",
+        },
+
+        {
+          t: "check",
+          key: "bd-1",
+          q: "You've built a RAG prototype and want to make it production-grade. Your instinct is to add a Redis cache, a proper DI container, and a retry layer. What's the problem with that plan?",
+          options: [
+            "Those are the wrong technologies for AI systems",
+            "It spends your time on solved problems while retrieval quality and evaluation — the actual differentiators — go unmeasured",
+            "Caching breaks non-deterministic systems",
+            "You should use a framework instead",
+          ],
+          answer: 1,
+          why: "Every item on that list is something you already know how to do well, and none of it makes the answers better. The uncomfortable questions — is the right chunk being retrieved, does the answer stay faithful to it, did last week's prompt change help — are where the value and the difficulty are. Build the 30-question eval set first; it will tell you whether the caching layer is even on the critical path.",
+        },
+      ],
+      takeaways: [
+        "An LLM is a slow, expensive, non-deterministic dependency that can fail while returning HTTP 200.",
+        "Your API, reliability, caching, database, observability, deployment, and testing skills transfer directly.",
+        "Genuinely new: context engineering, retrieval quality, statistical evaluation, agent control flow, injection, token economics.",
+        "Resist abstraction, snapshot tests, and prompts-as-config — the three traps of a strong backend background.",
+        "Spend your time on retrieval and evaluation even though the infrastructure work feels more productive.",
+      ],
+      quiz: [
+        {
+          q: "Which existing backend skill is the strongest defence against prompt injection?",
+          options: [
+            "Input sanitisation",
+            "Least-privilege authorisation enforced in code at the tool boundary",
+            "Rate limiting",
+            "TLS everywhere",
+          ],
+          answer: 1,
+          why: "Injection cannot be parameterised away, so the defence is limiting what a compromised instruction can reach. Scoping every tool query to the authenticated session, and granting the narrowest possible credentials, means the model can be fully persuaded and still be unable to touch another tenant's data. Sanitisation — the reflex from SQL injection — is the weakest mitigation here.",
+        },
+        {
+          q: "Why is snapshot-testing LLM output a trap?",
+          options: [
+            "Snapshots are too large to store",
+            "Output is not byte-reproducible even at temperature 0, so the test flakes for reasons you cannot act on and eventually gets deleted",
+            "Snapshots don't work with async code",
+            "It's too slow for CI",
+          ],
+          answer: 1,
+          why: "GPU float non-associativity, variable batch composition, and mixture-of-experts routing all mean identical requests can produce different bytes. A test that fails unpredictably and unactionably trains the team to ignore or remove it — which is worse than not having written it. Assert on structure, semantics, and properties instead.",
+        },
+        {
+          q: "What's the strongest reason to keep prompts in git rather than a live-editable database?",
+          options: [
+            "Database reads are slower",
+            "A prompt is the primary determinant of behaviour, so live editing is deploying untested code with no review, diff, or rollback",
+            "Prompts contain secrets",
+            "Version control compresses better",
+          ],
+          answer: 1,
+          why: "Prompts behave like source, not configuration. Putting them in git gives you review, eval gating, canary rollout, a change record, and a revert path — all of which you already expect for anything that changes behaviour. The extra sting is that a prompt regression returns HTTP 200, so without those controls you find out from users.",
+        },
+        {
+          q: "Which is the most consequential difference from a conventional API dependency?",
+          options: [
+            "It's slower",
+            "It's stateless but billed cumulatively, so cost grows with roughly the square of conversation turns",
+            "It requires an API key",
+            "It returns JSON",
+          ],
+          answer: 1,
+          why: "There is no server-side conversation, so turn 20 resends all 19 previous turns as input. Request-count-based cost intuition is badly wrong here, and this single property is what makes compaction and prompt caching load-bearing rather than optimisations.",
+        },
+      ],
+      cards: [
+        {
+          f: "Reframe an LLM as a dependency: what are its five properties?",
+          b: "Slow (100s ms–seconds), expensive (priced per word in and out), non-deterministic (same input, different output), stateless but billed cumulatively (resend whole history), and able to fail while returning HTTP 200.",
+        },
+        {
+          f: "Which backend skills transfer directly to AI engineering?",
+          b: "APIs and error taxonomies, retries/backoff/circuit breakers, idempotency, caching, relational databases, tracing and percentiles, deployment and canaries, testing and CI, authz/least privilege, queues, cost modelling, streaming.",
+        },
+        {
+          f: "What's genuinely new (not covered by backend experience)?",
+          b: "Context engineering, retrieval quality, statistical evaluation of non-deterministic output, agent control flow with multi-axis budgets, prompt injection (no parameterisation possible), and token economics.",
+        },
+        {
+          f: "Name the three traps of a strong backend background.",
+          b: "1) Abstracting over the provider before learning the primitives. 2) Snapshot-testing model output. 3) Treating the prompt as configuration rather than source code.",
+        },
+      ],
+      resources: [
+        {
+          title: "Zen van Riel — Backend developer to AI engineer",
+          url: "https://zenvanriel.com/ai-engineer-blog/backend-developer-to-ai-engineer-transition/",
+          kind: "article",
+        },
+        {
+          title: "Anthropic — Building effective agents",
+          url: "https://www.anthropic.com/engineering/building-effective-agents",
+          kind: "guide",
+        },
+      ],
+    },
+
+    /* ------------------------------------------------------ */
+    {
       id: "llm-mental-model",
       phase: "foundations",
       title: "How LLMs Actually Work",
@@ -1244,6 +1549,6 @@ def answer(req):
           kind: "docs",
         },
       ],
-    },
+    }
   );
 })(window);

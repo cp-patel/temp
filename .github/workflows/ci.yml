@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The site has no runtime dependencies; these are dev tools only.
+      - run: npm install --no-audit --no-fund
+
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Content schema
+        run: npm run validate
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Chromium for e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npm run test:e2e

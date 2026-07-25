@@ -1139,6 +1139,6 @@ async def complete_resilient(messages, **kw):
           kind: "guide",
         },
       ],
-    },
+    }
   );
 })(window);

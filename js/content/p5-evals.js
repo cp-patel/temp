@@ -1129,6 +1129,436 @@ if k < 0.6:
 
     /* ------------------------------------------------------ */
     {
+      id: "agent-evals",
+      phase: "evals",
+      title: "Agent & Trajectory Evaluation",
+      subtitle:
+        "Grading only the final answer misses almost everything that matters about an agent. This is the round that filters most candidates in agentic-AI interviews — and the one most teams skip.",
+      minutes: 24,
+      difficulty: "advanced",
+      tags: ["evals", "agents", "trajectories"],
+      lab: "trajectory",
+      objectives: [
+        "Explain why outcome-only grading is insufficient for agents",
+        "Build a golden-trajectory anchor set and score it step by step",
+        "Treat cost per task as a first-class eval signal, not a footnote",
+      ],
+      body: [
+        {
+          t: "p",
+          text: "A single-turn system has one output to grade. An agent has a **trajectory**: a sequence of reasoning steps, tool calls, observations, retries, and a final answer. Grading only the last item is like reviewing a pull request by checking that the tests pass — sometimes adequate, frequently misleading.",
+        },
+        { t: "lab", id: "trajectory" },
+
+        { t: "h", text: "Why outcome-only grading fails" },
+        {
+          t: "steps",
+          items: [
+            {
+              title: "Right answer, indefensible path",
+              text: "The agent guessed, or got lucky with a tool call that happened to return the answer. It passes today and breaks next week when the data shifts. You have no signal that it was fragile.",
+            },
+            {
+              title: "Right answer, unacceptable cost",
+              text: "Two agents can hit the same accuracy and differ by a large multiple in spend — reported gaps of 50× at equal accuracy are not unusual. Outcome-only evals score them identically.",
+            },
+            {
+              title: "Right answer, unsafe route",
+              text: "It read a record it had no business reading, or attempted a destructive tool the guardrail blocked. The outcome is fine; the trajectory is a security finding.",
+            },
+            {
+              title: "Wrong answer, unclear cause",
+              text: "Was it bad retrieval, a wrong tool, a malformed argument, an unrecovered tool error, or bad synthesis at the end? Without step-level scoring you cannot tell, so you cannot fix it.",
+            },
+          ],
+        },
+        {
+          t: "note",
+          kind: "insight",
+          title: "Score per step, aggregate at the trajectory",
+          text: "The standard mistake is grading the trajectory as one blob at the end. The pattern that works is the inverse: score each step against what a competent operator would have done at that point, then roll those up. That gives you a per-step accuracy you can actually act on — 'tool selection is 94% but argument construction is 71%' is a work item; 'the agent is 68% good' is not.",
+        },
+
+        { t: "h", text: "Golden trajectories" },
+        {
+          t: "p",
+          text: "A golden trajectory is a task where a human has written down not just the expected outcome but the expected *route*: which tools should be called, roughly in what order, with what arguments, and what a reasonable number of steps looks like. They're expensive to author and they are the anchor everything else calibrates against.",
+        },
+        {
+          t: "table",
+          head: ["Property", "Guidance"],
+          rows: [
+            [
+              "How many",
+              "50–100 hand-authored cases as an anchor set, covering your most critical user scenarios. Below ~30 you can't distinguish signal from noise.",
+            ],
+            [
+              "Who writes them",
+              "Someone who knows what *correct operation* looks like — a domain expert or the engineer who owns the tools.",
+            ],
+            [
+              "What's recorded",
+              "Task, expected outcome, required tool calls, forbidden tool calls, acceptable step range, cost ceiling.",
+            ],
+            [
+              "Order strictness",
+              "Usually partial. Encode genuine dependencies ('lookup before query') and leave the rest unordered, or you'll fail correct-but-different routes.",
+            ],
+            [
+              "Refresh cadence",
+              "Re-verify whenever tools change. A golden trajectory referencing a removed tool silently becomes a wrong test.",
+            ],
+          ],
+        },
+        {
+          t: "code",
+          lang: "python",
+          caption: "A golden trajectory, and how to score against it",
+          code: `GOLDEN = {
+    "id": "billing-duplicate-charge-001",
+    "task": "Customer j@example.com says they were charged twice in March.",
+
+    # Outcome: what a correct final answer must contain.
+    "outcome": {
+        "must_mention": ["duplicate", "5 business days"],
+        "must_cite": ["doc-3"],
+        "must_not_do": ["issue_refund"],   # policy is automatic
+    },
+
+    # Route: required calls, with a genuine dependency encoded.
+    "required_calls": [
+        {"tool": "lookup_customer", "args_contain": {"email": "j@example.com"}},
+        {"tool": "search_invoices", "after": "lookup_customer"},
+        {"tool": "search_docs"},
+    ],
+    "forbidden_calls": ["issue_refund", "delete_records"],
+
+    # Budgets. These are pass/fail criteria, not reporting.
+    "max_steps": 8,
+    "max_usd": 0.05,
+    "max_seconds": 20,
+}
+
+
+def score_trajectory(golden, run) -> dict:
+    """Per-step scores that roll up. Every field here is a
+    deterministic check — no judge needed for any of it."""
+    called = [c.tool for c in run.tool_calls]
+
+    required = [r["tool"] for r in golden["required_calls"]]
+    hit = [t for t in required if t in called]
+
+    # Order: only the dependencies we actually declared.
+    order_ok = True
+    for r in golden["required_calls"]:
+        if "after" in r and r["tool"] in called and r["after"] in called:
+            if called.index(r["tool"]) < called.index(r["after"]):
+                order_ok = False
+
+    return {
+        # --- route ---
+        "tool_recall": len(hit) / len(required),
+        "tool_precision": len(hit) / max(1, len(set(called))),
+        "order_respected": order_ok,
+        "no_forbidden": not (set(called) & set(golden["forbidden_calls"])),
+        "arg_accuracy": arg_match_rate(golden, run),
+
+        # --- efficiency (first-class, not a footnote) ---
+        "steps": run.steps,
+        "within_step_budget": run.steps <= golden["max_steps"],
+        "usd": run.cost_usd,
+        "within_cost_budget": run.cost_usd <= golden["max_usd"],
+        "within_time_budget": run.seconds <= golden["max_seconds"],
+
+        # --- recovery ---
+        "tool_errors": run.tool_errors,
+        "recovered": run.tool_errors > 0 and run.completed,
+
+        # --- outcome ---
+        "outcome_ok": check_outcome(golden["outcome"], run.answer),
+    }`,
+        },
+        {
+          t: "note",
+          kind: "pro",
+          title: "Almost all of this needs no judge model",
+          text: "Look at that scorecard: tool recall, precision, ordering, forbidden calls, step count, spend, wall-clock, error count. Every one is a deterministic check over the trace. Teams reach for an LLM judge on agent evals far too early — grade the route in code, and reserve the judge for the one genuinely subjective question, which is whether the final answer was good.",
+        },
+
+        { t: "h", text: "The metric set" },
+        {
+          t: "table",
+          head: ["Metric", "Question it answers", "How"],
+          rows: [
+            [
+              "**Task success**",
+              "Did it achieve the goal?",
+              "Deterministic check against a stated success criterion",
+            ],
+            [
+              "**Tool selection accuracy**",
+              "Right tool, first time?",
+              "Compare against required/forbidden lists",
+            ],
+            [
+              "**Argument accuracy**",
+              "Right arguments?",
+              "Field-level match. Often the weakest link.",
+            ],
+            [
+              "**Trajectory quality**",
+              "Was the route defensible?",
+              "Step-level scoring, rolled up",
+            ],
+            [
+              "**Efficiency**",
+              "Steps, tokens, spend, wall-clock",
+              "From the trace. Regressions here are real regressions.",
+            ],
+            [
+              "**Recovery rate**",
+              "When a tool failed, did it adapt?",
+              "Inject failures deliberately and measure",
+            ],
+            [
+              "**Unsafe-attempt rate**",
+              "How often did guardrails have to fire?",
+              "Count blocked calls. Should trend down.",
+            ],
+            [
+              "**Cost per task**",
+              "What does one completion cost?",
+              "p50 and p95, tracked per version",
+            ],
+          ],
+        },
+        {
+          t: "note",
+          kind: "money",
+          title: "Cost is a first-class signal",
+          text: "Modern eval frameworks emit cost alongside outcome, and for good reason: an agent that is 2 points more accurate for 8× the spend is usually the wrong trade, and outcome-only evals will recommend it. Report p50 and p95 cost per task next to every accuracy number, and set a per-task ceiling that fails the suite the way an accuracy floor does.",
+        },
+
+        { t: "h", text: "Deliberate failure injection" },
+        {
+          t: "p",
+          text: "Recovery is the property that most distinguishes a robust agent from a demo, and you cannot measure it by waiting for real failures. Inject them.",
+        },
+        {
+          t: "code",
+          lang: "python",
+          caption: "Fault injection as an eval dimension",
+          code: `FAULTS = [
+    ("timeout",      lambda: TimeoutError("tool timed out")),
+    ("empty",        lambda: {"results": []}),
+    ("malformed",    lambda: "not json at all"),
+    ("wrong_shape",  lambda: {"unexpected_key": 1}),
+    ("permission",   lambda: PermissionError("not authorised")),
+    ("stale",        lambda: {"results": [...], "updated_at": "2019-01-01"}),
+]
+
+async def eval_recovery(golden, fault_name, fault):
+    """Fail the FIRST call to the primary tool, then behave normally.
+    A good agent adapts; a brittle one either gives up or loops."""
+    run = await run_agent_with_fault(golden["task"], fault, fail_nth=1)
+    return {
+        "fault": fault_name,
+        "completed": run.completed,
+        "gave_up": run.steps < 3 and not run.completed,
+        "thrashed": max_repeat_count(run.tool_calls) >= 3,
+        "extra_cost": run.cost_usd - baseline_cost(golden["id"]),
+        # The important one: did it tell the user what was wrong,
+        # rather than inventing an answer to cover the gap?
+        "disclosed_failure": mentions_limitation(run.answer),
+    }`,
+        },
+        {
+          t: "note",
+          kind: "pitfall",
+          title: "The failure mode fault injection reveals",
+          text: "The most common and most damaging response to a failed tool is not giving up — it's **quietly answering anyway** from whatever the model already believed, with no indication that the lookup failed. That produces a confident, plausible, unsourced answer, and it is invisible unless you injected the fault yourself. `disclosed_failure` is the field worth watching.",
+        },
+
+        { t: "h", text: "Running these affordably" },
+        {
+          t: "p",
+          text: "Agent evals are expensive in a way single-turn evals are not: each case is many model calls, and a full suite of a thousand trajectories can cost real money and take hours. That cost profile forces a tiered structure.",
+        },
+        {
+          t: "table",
+          head: ["Tier", "Cases", "When", "Cost control"],
+          rows: [
+            [
+              "**Mocked**",
+              "All of them",
+              "Every commit",
+              "Stub every tool with recorded fixtures. No model calls in the tool layer; near-free and fast.",
+            ],
+            [
+              "**Anchor**",
+              "20–30 goldens",
+              "Every PR",
+              "Real model, real tools against a fixture backend. Minutes and cents.",
+            ],
+            [
+              "**Full**",
+              "50–100 goldens + faults",
+              "Nightly / pre-release",
+              "Real everything. Budget it explicitly.",
+            ],
+            [
+              "**Online**",
+              "1–2% of traffic",
+              "Continuous",
+              "Deterministic route checks on all sampled runs; judge a fraction.",
+            ],
+          ],
+        },
+        {
+          t: "note",
+          kind: "pro",
+          title: "Record and replay is the highest-leverage tooling here",
+          text: "Capture real tool responses once, then replay them as fixtures. You get deterministic, fast, free eval runs for everything except the model's own decisions — which is exactly the variable you're trying to measure. This is the same insight as VCR-style HTTP fixtures in ordinary integration testing, and it applies unusually well.",
+        },
+
+        { t: "h", text: "What interviewers actually ask" },
+        {
+          t: "p",
+          text: "The agentic-AI eval round is reportedly where most candidates get filtered, and the questions are consistent: how would you evaluate an agent that calls four tools in a loop; what is a golden trajectory; how do you score a partially-correct route; what's your cost-per-task budget and how do you enforce it. If you can answer those with specifics from something you built, you are past the filter.",
+        },
+        {
+          t: "compare",
+          left: {
+            title: "A strong answer contains",
+            kind: "good",
+            items: [
+              "A named anchor set size and where the cases came from",
+              "Step-level metrics, not one aggregate number",
+              "Deterministic route checks; judge only for the final answer",
+              "Cost and step budgets as pass/fail criteria",
+              "Fault injection to measure recovery",
+              "A tiered run strategy with the cost implications stated",
+            ],
+          },
+          right: {
+            title: "A weak answer sounds like",
+            kind: "bad",
+            items: [
+              "'We check whether it got the right answer'",
+              "'We use an LLM to judge the trajectory'",
+              "'We track accuracy' (one number, no slices)",
+              "No mention of cost at all",
+              "'We'd add evals once it's stable'",
+              "Naming a framework instead of describing a method",
+            ],
+          },
+        },
+
+        {
+          t: "check",
+          key: "ae-1",
+          q: "Two agent versions both score 91% task success. A costs $0.04 per task; B costs $0.31 and uses 3× the steps. Your eval reports only accuracy. What's the problem?",
+          options: [
+            "Nothing — they're equally good",
+            "The eval is blind to an 8× cost difference and will happily recommend the worse system",
+            "B is better because it's more thorough",
+            "You need a bigger eval set",
+          ],
+          answer: 1,
+          why: "Outcome-only evals treat these as identical, and at scale that 8× gap is the difference between a viable feature and an unviable one. Cost and step count belong next to every accuracy number, with an explicit per-task ceiling that can fail the suite. The extra steps are also a reliability signal: more steps means more places to go wrong.",
+        },
+      ],
+      takeaways: [
+        "Grade the trajectory, not just the outcome: right answers via lucky routes are fragile and unsafe routes are invisible.",
+        "Score per step and aggregate up — 'tool selection 94%, argument accuracy 71%' is actionable; one number is not.",
+        "Author 50–100 golden trajectories with required calls, forbidden calls, and explicit step/cost/time budgets.",
+        "Almost every route check is deterministic. Reserve the judge for final-answer quality only.",
+        "Inject tool faults deliberately: the dangerous response is answering anyway without disclosing the failure.",
+      ],
+      quiz: [
+        {
+          q: "What is a golden trajectory?",
+          options: [
+            "The cheapest path an agent can take",
+            "A hand-authored case recording the expected outcome AND the expected route — required calls, forbidden calls, and step/cost budgets",
+            "A trace from a successful production run",
+            "The trajectory a reasoning model produces",
+          ],
+          answer: 1,
+          why: "The defining feature is that a human recorded what correct *operation* looks like, not just the right answer. That's what lets you score a route as defensible or not, and it's why goldens are expensive to author and used as an anchor set of 50–100 rather than thousands.",
+        },
+        {
+          q: "Why score per step rather than grading the whole trajectory at the end?",
+          options: [
+            "It's cheaper",
+            "Per-step scores localise the fault — tool selection versus argument construction versus synthesis — so you know what to fix",
+            "End-of-trajectory grading isn't possible",
+            "It avoids needing golden trajectories",
+          ],
+          answer: 1,
+          why: "One aggregate score tells you the agent is mediocre without telling you why. Step-level scoring that rolls up gives you separable numbers for tool choice, arguments, ordering, and final synthesis — each of which has a different fix.",
+        },
+        {
+          q: "Which agent eval check genuinely requires an LLM judge?",
+          options: [
+            "Whether required tools were called",
+            "Whether the final answer is a good response to the question",
+            "Whether the step budget was respected",
+            "Whether a forbidden tool was attempted",
+          ],
+          answer: 1,
+          why: "Route checks — tool recall and precision, ordering, forbidden calls, step count, spend, wall-clock — are all deterministic reads over the trace and should be done in code. Final-answer quality is the one genuinely subjective judgement, and even there a reference answer plus pairwise comparison beats absolute scoring.",
+        },
+        {
+          q: "You inject a tool timeout. The agent returns a confident answer with no mention of the failure. How should this score?",
+          options: [
+            "Pass — it completed the task",
+            "Fail — it fabricated over a known gap without disclosing it, which is the most damaging recovery failure",
+            "Pass with a warning about latency",
+            "Inconclusive — retry the case",
+          ],
+          answer: 1,
+          why: "Giving up loudly is recoverable; answering silently from prior belief is not, because nothing downstream can tell that the lookup failed. This is exactly what fault injection exists to surface, and `disclosed_failure` should be a hard criterion rather than a nice-to-have.",
+        },
+      ],
+      cards: [
+        {
+          f: "What does a golden trajectory record?",
+          b: "Task, expected outcome, required tool calls (with genuine dependencies), forbidden calls, and explicit max steps / max spend / max wall-clock. 50–100 of them as a hand-authored anchor set.",
+        },
+        {
+          f: "Why score agent steps individually?",
+          b: "It localises the fault. 'Tool selection 94%, argument accuracy 71%' is a work item; a single 'agent is 68% good' is not actionable.",
+        },
+        {
+          f: "Which agent eval checks are deterministic?",
+          b: "Tool recall and precision, order dependencies, forbidden-call attempts, argument field match, step count, cost, wall-clock, tool-error count. Only final-answer quality needs a judge.",
+        },
+        {
+          f: "What's the most damaging tool-failure response, and how do you find it?",
+          b: "Answering anyway from prior belief without disclosing that the lookup failed — a confident, unsourced answer. Only deliberate fault injection surfaces it; track a `disclosed_failure` criterion.",
+        },
+        {
+          f: "How do you run agent evals affordably?",
+          b: "Tiered: mocked tools with recorded fixtures on every commit (near-free), 20–30 anchor goldens per PR, full suite plus faults nightly, and deterministic route checks on 1–2% of production traffic.",
+        },
+      ],
+      resources: [
+        {
+          title: "Confident AI — LLM agent evaluation metrics",
+          url: "https://www.confident-ai.com/blog/llm-agent-evaluation-complete-guide",
+          kind: "article",
+        },
+        {
+          title: "Anthropic — Multi-agent research system",
+          url: "https://www.anthropic.com/engineering/multi-agent-research-system",
+          kind: "guide",
+        },
+      ],
+    },
+
+    /* ------------------------------------------------------ */
+    {
       id: "evals-ci",
       phase: "evals",
       title: "Evals in CI & Online Monitoring",
@@ -1428,6 +1858,6 @@ async def evaluate_async(req, result):
           kind: "repo",
         },
       ],
-    },
+    }
   );
 })(window);

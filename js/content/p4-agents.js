@@ -1729,6 +1729,6 @@ Irreversible without a database restore."""`,
           kind: "guide",
         },
       ],
-    },
+    }
   );
 })(window);

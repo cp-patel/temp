@@ -2026,6 +2026,6 @@ async def diagnose():
           kind: "article",
         },
       ],
-    },
+    }
   );
 })(window);

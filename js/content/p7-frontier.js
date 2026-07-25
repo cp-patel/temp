@@ -785,6 +785,313 @@ async def handle(req):
 
     /* ------------------------------------------------------ */
     {
+      id: "interview-prep",
+      phase: "frontier",
+      title: "Interviewing for AI Engineering Roles",
+      subtitle:
+        "What these loops actually test, in what proportion, and the round that filters most candidates. Read this before you start applying, not after your first rejection.",
+      minutes: 22,
+      difficulty: "intermediate",
+      tags: ["career", "interview"],
+      objectives: [
+        "Know the rough composition of a 2026 AI engineering loop",
+        "Answer the six questions that carry the most weight",
+        "Prepare numbers from your own work instead of opinions about models",
+      ],
+      body: [
+        {
+          t: "p",
+          text: "These loops have converged on a recognisable shape. Reported composition across 2026 hiring processes clusters around **40% retrieval, evaluation and agents; 30% production systems; 20% model internals; 10% behavioural**. Notice what that leaves out: almost no classical machine learning, and almost no leetcode-style algorithms. The job is wiring models into products, and the interview reflects it.",
+        },
+        {
+          t: "note",
+          kind: "insight",
+          title: "The round that filters most people",
+          text: "It is the evaluation round, and specifically the agentic-eval version of it. Candidates arrive able to describe RAG and able to write clean code, then cannot answer how they would evaluate an agent that calls four tools in a loop. Eval literacy is reported as the single strongest signal distinguishing people who have actually built with LLMs from people who have watched videos about it. If you prepare one thing, prepare this.",
+        },
+
+        { t: "h", text: "The six questions that carry the weight" },
+        {
+          t: "steps",
+          items: [
+            {
+              title: '"How do you know it works?"',
+              text: "The highest-signal question in the field. A strong answer names a set size and its provenance (production traffic, not imagination), the metrics and which stage each isolates, how the judge was calibrated against human labels, and how it gates CI with confidence intervals. A weak answer is 'we tested it and users seem happy'.",
+            },
+            {
+              title: '"Walk me through debugging a bad answer."',
+              text: "They want a localisation procedure, in order: is it indexed at all → recall@50 → recall@5 → generation with the correct chunk forced in. Naming that sequence tells them you have debugged a real system. Jumping straight to 'I'd improve the prompt' tells them you haven't.",
+            },
+            {
+              title: '"How would you chunk a 200-page PDF?"',
+              text: "A concrete favourite. Answer with structure first — parse to Markdown preserving heading hierarchy, split on sections, parent-child so retrieval is precise and generation gets context, contextual enrichment for orphaned chunks, tables kept intact with repeated headers. Then say how you'd *measure* whether it worked, which is the part most candidates omit.",
+            },
+            {
+              title: '"When would you add a reranker?"',
+              text: "When recall@50 is high and recall@5 is low. That single sentence demonstrates you think in measurements rather than techniques. Follow with the cost: ~50 candidates is the usual knee point, gains flatten after, and an absolute score floor is what enables abstention.",
+            },
+            {
+              title:
+                '"How do you evaluate an agent that calls four tools in a loop?"',
+              text: "Golden trajectories with required and forbidden calls, step-level scoring rolled up to the trajectory, deterministic route checks in code, a judge only for final-answer quality, cost and step budgets as pass/fail, and deliberate fault injection to measure recovery. This is the answer that separates the field.",
+            },
+            {
+              title:
+                '"Keep p95 under 800ms with a frontier model in the path."',
+              text: "A constraint problem, not a trivia question. Talk through: measure the pipeline first because the model often isn't the bottleneck, prompt caching for TTFT, parallelise independent I/O, rerank fewer candidates, route easy traffic to a small model, stream so TTFT is what users feel — and be willing to say that if the budget still can't be met, the budget is the thing to renegotiate.",
+            },
+          ],
+        },
+
+        { t: "h", text: "The system design round" },
+        {
+          t: "p",
+          text: 'Expect a prompt like "design a support assistant over our documentation for 50,000 users." The grading rubric is fairly consistent, and it rewards the same instincts as any backend design round plus the AI-specific concerns.',
+        },
+        {
+          t: "table",
+          head: ["They're listening for", "What earns credit"],
+          rows: [
+            [
+              "Requirements first",
+              "Latency budget, accuracy bar, cost ceiling per user, data residency, whether abstention is acceptable — before any architecture",
+            ],
+            [
+              "Ingestion as a first-class pipeline",
+              "Change detection, structural chunking, enrichment, versioned index, eval before promoting",
+            ],
+            [
+              "Hybrid retrieval",
+              "BM25 + dense with RRF, then reranking. Dense-only is a red flag",
+            ],
+            [
+              "Grounding and abstention",
+              "Citations verified against supplied IDs, a real 'not in the corpus' path",
+            ],
+            [
+              "Evaluation",
+              "Named metrics, a labelled set, CI gates. Unprompted mention scores well",
+            ],
+            [
+              "Cost model",
+              "Arithmetic on a napkin: tokens per request, cost per user per month, versus revenue",
+            ],
+            [
+              "Security",
+              "Prompt injection, the lethal trifecta, tool authorisation scoped to the session",
+            ],
+            [
+              "Operations",
+              "Tracing with chunk IDs and scores, versioned prompts, canary on quality metrics",
+            ],
+          ],
+        },
+        {
+          t: "note",
+          kind: "pro",
+          title: "Bring numbers, not preferences",
+          text: 'The difference between a mid and senior signal is arithmetic. "I\'d use hybrid search" is a preference. "Recall@5 was 41%, I added a cross-encoder over the top 50, it went to 78% for 95ms of added p95, and cost per request went from $0.021 to $0.023" is evidence. Memorise two or three such numbers from your own projects. Interviewers remember the candidate who quoted a measurement.',
+        },
+
+        { t: "h", text: "What gets people rejected" },
+        {
+          t: "compare",
+          left: {
+            title: "Strong signals",
+            kind: "good",
+            items: [
+              "Talks about failure modes unprompted",
+              "Distinguishes faithfulness from correctness",
+              "Says 'I'd measure that' and names the metric",
+              "Volunteers cost per request",
+              "Admits what they don't know cleanly",
+              "Prefers a workflow over an agent, and justifies it",
+            ],
+          },
+          right: {
+            title: "Rejection signals",
+            kind: "bad",
+            items: [
+              "Names frameworks instead of describing methods",
+              "Ranks models by leaderboard position",
+              "'We'd add evals once it's stable'",
+              "Never mentions cost or latency",
+              "Claims prompt injection is solved by sanitising input",
+              "Describes an agent where a chain would do",
+            ],
+          },
+        },
+        {
+          t: "note",
+          kind: "pitfall",
+          title: "The framework-name trap",
+          text: "Answering \"how would you build RAG?\" with a list of libraries is the most common way strong engineers underperform in these loops. The tools change every few months and the interviewer knows it; what they're testing is whether you understand chunking trade-offs, why hybrid beats dense, and how you'd know it worked. Describe the method, then mention the tool you'd reach for.",
+        },
+
+        { t: "h", text: "Your portfolio, and how it's actually read" },
+        {
+          t: "p",
+          text: "Recruiters spend seconds on a CV and engage substantially more with a repository containing runnable code or a live demo. That asymmetry is worth optimising for.",
+        },
+        {
+          t: "table",
+          head: ["Artefact", "Signal strength"],
+          rows: [
+            [
+              "Deployed system with real users **plus a write-up of what broke**",
+              "Strongest. Very few candidates have this.",
+            ],
+            [
+              "Eval harness with CI gates and published numbers",
+              "Very strong — reads as senior immediately",
+            ],
+            [
+              "RAG system with measured recall and faithfulness",
+              "Strong: shows you measure rather than assert",
+            ],
+            [
+              "Bounded agent with tracing, budgets, and trajectory evals",
+              "Strong, and directly relevant to the filtering round",
+            ],
+            [
+              "Tutorial-following project with no evaluation",
+              "Weak. Everyone has these.",
+            ],
+            ["A list of frameworks on your CV", "Near-zero"],
+          ],
+        },
+        {
+          t: "note",
+          kind: "money",
+          title: "Frame projects around outcomes, not tool lists",
+          text: 'A README that opens with "Built with LangChain, Pinecone, and FastAPI" is a shopping list. One that opens with "Answers questions over 4,000 pages of internal policy at 78% recall@5 and $0.002 per query; here\'s the eval harness and here\'s what I got wrong first" is an interview in advance. Lead with the measurement and the failure.',
+        },
+
+        { t: "h", text: "Practical preparation" },
+        {
+          t: "list",
+          ordered: true,
+          items: [
+            "**Write the eval harness for one of your projects.** Not a plan for one — an actual harness, with numbers you can quote. This is the single highest-return preparation task.",
+            "**Rehearse the RAG debugging procedure out loud.** Four stages, in order, with the metric at each. It should be fluent, not reconstructed.",
+            '**Prepare one honest failure story** with a real root cause and a real fix. "We shipped a prompt change that dropped faithfulness 9 points and we found out from a user" followed by what you changed structurally is a senior answer.',
+            "**Do the arithmetic on your own project** so cost per request and p95 latency are numbers you know, not numbers you'd have to look up.",
+            "**Have a position on agents versus workflows** and be able to defend it. Interviewers increasingly probe whether you reach for autonomy reflexively.",
+            "**Read your own traces before the interview.** If you can describe a specific surprising thing your traces revealed, you have credibility that no amount of theory buys.",
+          ],
+        },
+        {
+          t: "note",
+          kind: "insight",
+          title: "The compounding advantage",
+          text: "Everything on that list is also just good engineering practice. The preparation that makes you interview well is the same work that makes your systems work — which is unusual, and worth exploiting. Nothing here is interview theatre.",
+        },
+
+        {
+          t: "check",
+          key: "ip-1",
+          q: "An interviewer asks how you'd evaluate a support agent that looks up a customer, queries invoices, searches docs, and drafts a reply. What's the strongest opening?",
+          options: [
+            '"I\'d check whether the final reply is correct on a set of test cases."',
+            '"I\'d author 50–100 golden trajectories with required and forbidden calls plus step and cost budgets, score each step deterministically from the trace, and use a judge only for final-answer quality."',
+            '"I\'d use an LLM to judge the whole trajectory against a rubric."',
+            '"I\'d rely on production monitoring and user feedback."',
+          ],
+          answer: 1,
+          why: "It demonstrates the specific vocabulary and method of agent evaluation — goldens, route versus outcome, deterministic checks over the trace, cost as a pass/fail criterion, and judges confined to where they're actually needed. The first option is outcome-only grading, which misses lucky routes, unsafe routes, and 8× cost differences. The third reaches for a judge where code is more reliable. The fourth defers the problem to production.",
+        },
+      ],
+      takeaways: [
+        "The loop is roughly 40% retrieval/evals/agents, 30% production, 20% internals, 10% behavioural.",
+        "The evaluation round — especially agent evaluation — is what filters most candidates.",
+        "Answer with methods and measurements, never with framework names or leaderboard positions.",
+        "Memorise two or three real numbers from your own projects; arithmetic is the senior signal.",
+        "The strongest portfolio artefact is a deployed system plus a public write-up of what broke.",
+      ],
+      quiz: [
+        {
+          q: "Roughly how is a 2026 AI engineering loop weighted?",
+          options: [
+            "50% classical ML, 50% coding",
+            "~40% RAG/evals/agents, 30% production systems, 20% LLM internals, 10% behavioural",
+            "Mostly algorithms and data structures",
+            "Mostly model architecture and training",
+          ],
+          answer: 1,
+          why: "The role is wiring models into products, and the loop reflects that: applied retrieval, evaluation, and agent design dominate, with production engineering close behind. Classical ML and algorithm puzzles barely feature.",
+        },
+        {
+          q: '"When would you add a reranker?" — what makes an answer strong?',
+          options: [
+            '"Always, they improve quality"',
+            '"When recall@50 is high but recall@5 is low" — a measurement-driven trigger',
+            '"When the corpus exceeds a million documents"',
+            '"When using dense retrieval"',
+          ],
+          answer: 1,
+          why: "It shows you diagnose before prescribing. High recall@50 with low recall@5 means the right chunk is found but ranked too low to reach the model — precisely the precision problem a cross-encoder solves. Adding one reflexively is the same instinct the interviewer is testing for.",
+        },
+        {
+          q: "Which portfolio artefact carries the strongest hiring signal?",
+          options: [
+            "Five tutorial projects across different frameworks",
+            "A deployed system with real users plus a write-up of what broke and how you fixed it",
+            "A certificate from a well-known course",
+            "A CV listing every AI tool you've touched",
+          ],
+          answer: 1,
+          why: "Real users produce failures you didn't anticipate, and a write-up of diagnosing and fixing them demonstrates judgement that no tutorial can. It's also rare, which is exactly why it's the strongest signal.",
+        },
+        {
+          q: 'Why is answering "how would you build RAG?" with a list of libraries a weak response?',
+          options: [
+            "Interviewers don't know those libraries",
+            "Tooling churns and the question is testing whether you understand chunking trade-offs, hybrid retrieval, and how you'd measure success",
+            "Libraries are considered unprofessional",
+            "It takes too long to explain",
+          ],
+          answer: 1,
+          why: "The stack changes every few months and the interviewer knows it. What they're probing is method: why you'd chunk one way over another, why hybrid beats dense, how you'd detect that retrieval was the bottleneck. Describe the method, then name the tool as an implementation detail.",
+        },
+      ],
+      cards: [
+        {
+          f: "How is a 2026 AI engineering interview loop weighted?",
+          b: "~40% RAG/evals/agents, 30% production systems, 20% LLM internals, 10% behavioural. Almost no classical ML or algorithm puzzles.",
+        },
+        {
+          f: "Which interview round filters the most candidates?",
+          b: "Evaluation — especially agent evaluation. Candidates can describe RAG and write clean code but can't say how they'd evaluate an agent calling four tools in a loop.",
+        },
+        {
+          f: "Strong answer to 'when would you add a reranker?'",
+          b: "'When recall@50 is high but recall@5 is low.' A measurement-driven trigger, followed by the cost: ~50 candidates is the knee point, and an absolute score floor enables abstention.",
+        },
+        {
+          f: "What's the four-stage RAG debugging answer interviewers want?",
+          b: "Is it indexed at all → recall@50 (retrieval) → recall@5 (ranking) → generation with the correct chunk forced in. In that order, with the metric named at each stage.",
+        },
+        {
+          f: "How should a portfolio README open?",
+          b: "With the measurement and the failure — 'answers over 4,000 pages at 78% recall@5, $0.002/query, here's the eval harness and what I got wrong first' — not with a list of frameworks.",
+        },
+      ],
+      resources: [
+        {
+          title: "Hamel Husain — Your AI product needs evals",
+          url: "https://hamel.dev/blog/posts/evals/",
+          kind: "article",
+        },
+        {
+          title: "Confident AI — LLM agent evaluation guide",
+          url: "https://www.confident-ai.com/blog/llm-agent-evaluation-complete-guide",
+          kind: "article",
+        },
+      ],
+    },
+
+    /* ------------------------------------------------------ */
+    {
       id: "staying-current",
       phase: "frontier",
       title: "Staying Current & Building a Career",
@@ -1046,6 +1353,6 @@ async def handle(req):
           kind: "article",
         },
       ],
-    },
+    }
   );
 })(window);

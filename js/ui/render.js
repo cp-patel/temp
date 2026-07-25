@@ -298,7 +298,7 @@
           node = el(
             "blockquote",
             null,
-            md(b.text) + (b.by ? "<cite>" + esc(b.by) + "</cite>" : ""),
+            md(b.text) + (b.by ? "<cite>" + esc(b.by) + "</cite>" : "")
           );
           break;
         case "check":

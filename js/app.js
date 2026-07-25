@@ -94,6 +94,7 @@
 
   var NAV = [
     { href: "#/dashboard", icon: "home", label: "Dashboard" },
+    { href: "#/plan", icon: "compass", label: "My plan" },
     { href: "#/roadmap", icon: "map", label: "Roadmap" },
     { href: "#/library", icon: "grid", label: "Library" },
     { href: "#/labs", icon: "beaker", label: "Labs" },
@@ -265,11 +266,17 @@
     return bar;
   }
 
-  function paintTheme() {
+  /* The single place that reflects the stored theme preference into the
+     document. The store deliberately does not touch the DOM, so any code path
+     that changes the preference must end up here. */
+  function applyTheme() {
+    document.documentElement.setAttribute("data-theme", Store.theme());
     var b = U.q("#themebtn");
     if (b)
       b.innerHTML = Icons.get(Store.theme() === "dark" ? "sun" : "moon", 17);
   }
+
+  var paintTheme = applyTheme;
 
   function paintXp() {
     var n = U.q("#xpchip");
@@ -301,7 +308,7 @@
         parts.push(
           '<a href="#/roadmap" class="crumbs__hide">' +
             esc(p.n + " " + p.title.split("—")[0].trim()) +
-            "</a>",
+            "</a>"
         );
         parts.push('<span class="crumbs__sep">/</span>');
         parts.push('<span class="crumbs__now">' + esc(ch.title) + "</span>");
@@ -309,6 +316,7 @@
     } else {
       var titles = {
         dashboard: "Dashboard",
+        plan: "My plan",
         roadmap: "Roadmap",
         library: "Library",
         labs: "Labs",
@@ -321,7 +329,7 @@
       parts.push(
         '<span class="crumbs__now">' +
           esc(titles[route.name] || "Forge") +
-          "</span>",
+          "</span>"
       );
     }
     n.innerHTML = parts.join("");
@@ -421,6 +429,7 @@
 
   var COMMANDS = [
     { t: "Go to dashboard", icon: "home", go: "#/dashboard" },
+    { t: "Open my personalised plan", icon: "compass", go: "#/plan" },
     { t: "Open the roadmap", icon: "map", go: "#/roadmap" },
     { t: "Browse all labs", icon: "beaker", go: "#/labs" },
     { t: "Review flashcards", icon: "cards", go: "#/review" },
@@ -497,7 +506,7 @@
           ? Math.max(
               score(c.title, q) * 2,
               score(c.subtitle, q),
-              score((c.tags || []).join(" "), q),
+              score((c.tags || []).join(" "), q)
             )
           : 1;
         return { c: c, sc: sc };
@@ -614,6 +623,7 @@
     "": { name: "landing", render: Views.landing },
     "/": { name: "landing", render: Views.landing },
     "/dashboard": { name: "dashboard", render: Views.dashboard },
+    "/plan": { name: "plan", render: Views.plan },
     "/roadmap": { name: "roadmap", render: Views.roadmap },
     "/library": { name: "library", render: Views.library },
     "/labs": { name: "labs", render: Views.labs },
@@ -669,8 +679,8 @@
           "Something went wrong rendering this page",
           e.message,
           "#/roadmap",
-          "Back to roadmap",
-        ),
+          "Back to roadmap"
+        )
       );
       if (global.console) console.error(e);
     }
@@ -757,7 +767,7 @@
           f();
         });
       },
-      { passive: true },
+      { passive: true }
     );
 
     document.addEventListener("keydown", function (e) {
@@ -805,6 +815,7 @@
 
     Store.subscribe(function () {
       paintXp();
+      applyTheme();
     });
 
     // refresh sidebar counters when progress changes (debounced)
@@ -825,6 +836,23 @@
     }
 
     render();
+
+    // First visit: offer to personalise. Never blocks — the whole roadmap is
+    // usable without a profile, and the prompt is skippable and re-openable
+    // from Settings or the My Plan page.
+    if (!Store.isOnboarded() && global.Onboarding) {
+      setTimeout(function () {
+        // Re-check at fire time: the profile may have been set in the interim
+        // (imported progress, another tab, a direct visit to /plan).
+        if (Store.isOnboarded()) return;
+        Onboarding.open({
+          onDone: function (saved) {
+            refreshSidebar();
+            if (saved) App.go("#/plan");
+          },
+        });
+      }, 650);
+    }
   }
 
   global.App = App;

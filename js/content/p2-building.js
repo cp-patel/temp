@@ -1434,6 +1434,6 @@ docs = await vsearch(q_vec, allowed=perms)   # 120ms
           kind: "docs",
         },
       ],
-    },
+    }
   );
 })(window);

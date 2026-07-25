@@ -148,7 +148,7 @@
         function (id) {
           ta.value = TOK_SAMPLES[id];
           update();
-        },
+        }
       );
       pick.style.marginBottom = "var(--s-3)";
       var ta = el("textarea");
@@ -162,7 +162,7 @@
         20,
         0.1,
         3,
-        "Substitute your provider's actual rate.",
+        "Substitute your provider's actual rate."
       );
 
       left.appendChild(pick);
@@ -191,8 +191,8 @@
           "This uses a <b>heuristic</b> approximation of subword segmentation — " +
             "close enough to build intuition, not exact. For real counts use your " +
             "provider's tokeniser (<code>tiktoken</code>, or a count-tokens endpoint). " +
-            "Note how <b>IDs and non-Latin scripts</b> fragment far worse than prose.",
-        ),
+            "Note how <b>IDs and non-Latin scripts</b> fragment far worse than prose."
+        )
       );
 
       function update() {
@@ -295,7 +295,7 @@
         function (id) {
           scen = id;
           update();
-        },
+        }
       );
       pick.style.marginBottom = "var(--s-5)";
       var temp = slider("Temperature", 0, 2, 0.05, 0.7);
@@ -305,7 +305,7 @@
         1,
         0.05,
         1,
-        "Tune one or the other — not both.",
+        "Tune one or the other — not both."
       );
       left.appendChild(pick);
       left.appendChild(temp);
@@ -334,8 +334,8 @@
           "Greyed-out rows are <b>excluded by top-p</b> — the sampler cannot pick them. " +
             "Drag temperature to 0 and watch the distribution collapse to a single token " +
             "(greedy decoding). Push it past 1.2 and notice that implausible tokens gain " +
-            "real probability mass — which is why production stays below that.",
-        ),
+            "real probability mass — which is why production stays below that."
+        )
       );
 
       function softmax(logits, T) {
@@ -377,7 +377,7 @@
           sc.logits.map(function (r) {
             return r[1];
           }),
-          T,
+          T
         );
 
         // nucleus cut
@@ -423,7 +423,7 @@
         mm.set("top", (order[0][1] * 100).toFixed(0) + "<small>%</small>");
         mm.set(
           "nucleus",
-          Object.keys(keep).length + "<small>/" + p.length + "</small>",
+          Object.keys(keep).length + "<small>/" + p.length + "</small>"
         );
         mm.set("ent", ent.toFixed(2));
         mm.set(
@@ -434,7 +434,7 @@
               ? "High"
               : order[0][1] > 0.6
                 ? "Medium"
-                : "Low",
+                : "Low"
         );
 
         Store.labTouched("sampling");
@@ -508,8 +508,8 @@
         foot(
           "Rates here are <b>illustrative mid-2026 orders of magnitude</b>, not quotes — " +
             "substitute your provider's numbers. The point is the <i>shape</i> of the " +
-            "decision: constraints first, then the cheapest tier that clears your bar.",
-        ),
+            "decision: constraints first, then the cheapest tier that clears your bar."
+        )
       );
 
       function decide() {
@@ -595,7 +595,7 @@
           "ttft",
           cfg.ttft < 1000
             ? cfg.ttft + "<small>ms</small>"
-            : U.round(cfg.ttft / 1000, 1) + "<small>s</small>",
+            : U.round(cfg.ttft / 1000, 1) + "<small>s</small>"
         );
         mm.set("cached", U.money(perReq * reqs * 0.45));
 
@@ -622,7 +622,7 @@
           q.opts.forEach(function (o) {
             var b = el(
               "button",
-              "tg" + (answers[q.id] === o.id ? " is-on" : ""),
+              "tg" + (answers[q.id] === o.id ? " is-on" : "")
             );
             b.innerHTML = '<span class="tg__dot"></span>' + esc(o.label);
             b.onclick = (function (qid, oid) {
@@ -741,8 +741,8 @@
           "Two things to try. <b>Move 'Session data' to the top</b> — the audit will " +
             "flag that you've destroyed prompt caching for every request. " +
             "<b>Move 'User request' away from last</b> — you've buried the actual " +
-            "question in the middle of the prompt, where attention is weakest.",
-        ),
+            "question in the middle of the prompt, where attention is weakest."
+        )
       );
 
       function byId(id) {
@@ -884,7 +884,7 @@
           issues.forEach(function (it) {
             var d = el(
               "div",
-              "callout callout--" + (it[0] === "rose" ? "pitfall" : "warn"),
+              "callout callout--" + (it[0] === "rose" ? "pitfall" : "warn")
             );
             d.style.margin = "0 0 var(--s-3) 0";
             d.innerHTML =
@@ -972,8 +972,8 @@
           "The window covers input <b>and</b> output. Push allocations past 100% and " +
             "you get truncation mid-answer. Squeeze 'Reserved for output' toward zero " +
             "and the model has no room to reply. Try pushing 'Retrieved docs' to 55% " +
-            "and note the context-rot warning — more retrieval is not free quality.",
-        ),
+            "and note the context-rot warning — more retrieval is not free quality."
+        )
       );
 
       var COLORS = {
@@ -1178,8 +1178,8 @@
           "<b>Perceived wait</b> is TTFT when streaming, total when not — that single " +
             "distinction is why streaming is non-negotiable for user-facing work. " +
             "Note that <b>parallelising I/O</b> and <b>reranking fewer candidates</b> " +
-            "often beat switching to a smaller model, at no quality cost.",
-        ),
+            "often beat switching to a smaller model, at no quality cost."
+        )
       );
 
       function get(id) {
@@ -1258,7 +1258,7 @@
           "felt",
           felt < 1000
             ? felt + "<small>ms</small>"
-            : U.round(felt / 1000, 2) + "<small>s</small>",
+            : U.round(felt / 1000, 2) + "<small>s</small>"
         );
         mm.set(
           "verdict",
@@ -1268,7 +1268,7 @@
               ? "Snappy"
               : felt < 2500
                 ? "Noticeable"
-                : "Sluggish",
+                : "Sluggish"
         );
 
         Store.labTouched("latency");
@@ -1405,7 +1405,7 @@
         function (id) {
           inp.value = EMB_QUERIES[+id];
           update();
-        },
+        }
       );
       pick.style.marginBottom = "var(--s-3)";
       var inp = el("input");
@@ -1427,8 +1427,8 @@
           function (id) {
             which = id;
             update();
-          },
-        ),
+          }
+        )
       );
 
       var res = el("div", "lab__panel");
@@ -1452,8 +1452,8 @@
             '<br><br><span class="u-faint">Implementation note: the dense retriever is a ' +
             "hand-authored concept-space stand-in for an embedding model — small enough " +
             "to ship in a static page, and faithful to the two behaviours above. " +
-            "Absolute scores are not comparable to a real model's.</span>",
-        ),
+            "Absolute scores are not comparable to a real model's.</span>"
+        )
       );
 
       /* ---- tokenisation shared by both retrievers ---- */
@@ -1742,7 +1742,7 @@
         function (id) {
           strat = id;
           update();
-        },
+        }
       );
       pick.style.marginBottom = "var(--s-5)";
       var size = slider("Target chunk size (chars)", 120, 700, 20, 320);
@@ -1750,7 +1750,7 @@
       var enrich = switchRow(
         "Contextual enrichment",
         "Prepend a situating sentence before embedding",
-        false,
+        false
       );
       enrich.style.marginTop = "var(--s-4)";
       enrich.on = false;
@@ -1786,8 +1786,8 @@
             "chunking it becomes an orphan — retrievable but meaningless, because " +
             "<i>what</i> isn't supported lives in another chunk. Structural chunking keeps " +
             "it with its heading; <b>contextual enrichment</b> fixes it outright by " +
-            "prepending where the chunk sits. Highlighted text is overlap.",
-        ),
+            "prepending where the chunk sits. Highlighted text is overlap."
+        )
       );
 
       function chunkFixed(text, n, ov) {
@@ -1877,7 +1877,7 @@
             !c.head &&
             /\b(this|it|these|they)\b/i.test(body.split(/[.!?]/)[0] || "") &&
             !/webhook|token|rate limit|tier/i.test(
-              body.split(/[.!?]/)[0] || "",
+              body.split(/[.!?]/)[0] || ""
             );
           if (isOrphan) orphans++;
 
@@ -1905,7 +1905,7 @@
                   " section of the Acme Cloud API Reference, describing " +
                   (/(\d|tier|limit)/i.test(body)
                     ? "limits and tier availability"
-                    : "configuration"),
+                    : "configuration")
               ) +
               "]</span>\n\n" +
               shown;
@@ -1925,7 +1925,7 @@
         var avg = Math.round(
           chunks.reduce(function (a, c) {
             return a + c.text.trim().length;
-          }, 0) / Math.max(1, chunks.length),
+          }, 0) / Math.max(1, chunks.length)
         );
 
         mm.set("n", chunks.length);
@@ -1933,7 +1933,7 @@
         mm.set("orphan", enrich.on ? 0 : orphans);
         mm.set(
           "split",
-          strat === "structural" || strat === "parent" ? 0 : midCuts,
+          strat === "structural" || strat === "parent" ? 0 : midCuts
         );
 
         Store.labTouched("chunking");
@@ -2023,7 +2023,7 @@
         function (id) {
           qi = +id;
           update();
-        },
+        }
       );
       pick.style.marginBottom = "var(--s-5)";
       var list = el("div", "pb");
@@ -2046,8 +2046,8 @@
             "rewriting or it retrieves nothing. The <b>paraphrase</b> (“stop paying” vs " +
             "“terminate”) needs hybrid or dense retrieval. The <b>off-corpus</b> question " +
             "needs a score floor — without one, top-k always returns k results and the " +
-            "model answers confidently from irrelevant chunks.",
-        ),
+            "model answers confidently from irrelevant chunks."
+        )
       );
 
       function get(id) {
@@ -2068,7 +2068,7 @@
                 : kind === "obs"
                   ? "inbox"
                   : "checkCircle",
-            13,
+            13
           ) +
           '</div><div><div class="tstep__k">' +
           esc(label) +
@@ -2093,15 +2093,13 @@
             "think",
             "Rewrite",
             "Resolved against history → <code>" + esc(effective) + "</code>",
-            "1 small model call · ~40ms",
+            "1 small model call · ~40ms"
           );
         } else if (Q.follow) {
           step(
             "think",
             "Rewrite",
-            "Skipped. Embedding the raw fragment <code>" +
-              esc(Q.q) +
-              "</code>.",
+            "Skipped. Embedding the raw fragment <code>" + esc(Q.q) + "</code>."
           );
         }
 
@@ -2126,7 +2124,7 @@
           "tool",
           get("hybrid") ? "Retrieve (hybrid)" : "Retrieve (lexical only)",
           retrievedNote,
-          "~" + (get("hybrid") ? 120 : 60) + "ms",
+          "~" + (get("hybrid") ? 120 : 60) + "ms"
         );
 
         var inTop5 = false;
@@ -2140,7 +2138,7 @@
                   Q.gold +
                   "</code> to rank 2 of 5."
               : "Gold chunk sits at rank 31 — retrieved, but it will not reach the model.",
-            get("rerank") ? "~95ms" : null,
+            get("rerank") ? "~95ms" : null
           );
         }
 
@@ -2151,7 +2149,7 @@
             step(
               "obs",
               "Score floor",
-              "All candidates below the relevance floor → 0 chunks passed to generation.",
+              "All candidates below the relevance floor → 0 chunks passed to generation."
             );
           } else {
             step("obs", "Score floor", "3 of 5 candidates cleared the floor.");
@@ -2176,7 +2174,7 @@
           step(
             "final",
             "Answer",
-            "Grounded, cites <code>" + Q.gold + "</code>",
+            "Grounded, cites <code>" + Q.gold + "</code>"
           );
         } else {
           ok = false;
@@ -2354,8 +2352,8 @@
             "issuing a refund is irreversible — it explains the automatic policy " +
             "instead. That restraint is design, not intelligence: the tool is gated. " +
             "Also note the shape of the trace — <i>think, act, observe</i>, repeated, " +
-            "with every factual claim traced to a tool result.",
-        ),
+            "with every factual claim traced to a tool result."
+        )
       );
 
       function paint() {
@@ -2374,7 +2372,7 @@
         mm.set("usd", U.money(usd));
         mm.set(
           "budget",
-          Math.max(0, Math.round((1 - usd / 0.05) * 100)) + "<small>%</small>",
+          Math.max(0, Math.round((1 - usd / 0.05) * 100)) + "<small>%</small>"
         );
 
         bPlay.innerHTML = timer
@@ -2397,7 +2395,7 @@
                   : s.k === "obs"
                     ? "inbox"
                     : "checkCircle",
-              13,
+              13
             ) +
             '</div><div><div class="tstep__k">' +
             esc(s.l) +
@@ -2552,8 +2550,8 @@
             "6-point gain on 50 cases is not distinguishable from noise. Then grow the " +
             "set to 300 and watch every interval tighten. <b>This is why bare " +
             "percentages mislead.</b> The gate fails on the interval's lower bound, " +
-            "not the point estimate.",
-        ),
+            "not the point estimate."
+        )
       );
 
       function wilson(p, n) {
@@ -2629,7 +2627,7 @@
         verdict.innerHTML = "";
         var v = el(
           "div",
-          "verdict verdict--" + (failures.length ? "breached" : "blocked"),
+          "verdict verdict--" + (failures.length ? "breached" : "blocked")
         );
         v.innerHTML =
           '<div class="verdict__h">' +
@@ -2820,8 +2818,8 @@
             "You can't — delimiters raise the bar and are not a boundary. The defences " +
             "that hold are the ones that <b>remove capability</b>: session-scoped " +
             "queries, egress allow-lists, approval gates, and quarantine. " +
-            "That is the whole lesson of this chapter.",
-        ),
+            "That is the whole lesson of this chapter."
+        )
       );
 
       function renderAttacks() {
@@ -2872,7 +2870,7 @@
         verdict.innerHTML = "";
         var v = el(
           "div",
-          "verdict verdict--" + (blocked ? "blocked" : "breached"),
+          "verdict verdict--" + (blocked ? "blocked" : "breached")
         );
         v.innerHTML =
           '<div class="verdict__h">' +
@@ -2895,7 +2893,7 @@
         var row = switchRow(
           d.t + (d.strength === "weak" ? "  (weak)" : ""),
           d.d,
-          false,
+          false
         );
         row.onclick = function () {
           on[d.id] = !on[d.id];
@@ -2911,6 +2909,467 @@
     },
   };
 
+  /* =========================================================
+     13. GOLDEN TRAJECTORY SCORER
+     ========================================================= */
+
+  L.trajectory = {
+    title: "Golden trajectory scorer",
+    sub: "Break the agent's route and watch which criteria catch it.",
+    tag: "Lab",
+    icon: "target",
+    render: function (root) {
+      var GOLDEN = {
+        task: "Customer j@example.com says they were charged twice in March.",
+        required: [
+          { tool: "lookup_customer", after: null },
+          { tool: "search_invoices", after: "lookup_customer" },
+          { tool: "search_docs", after: null },
+        ],
+        forbidden: ["issue_refund", "delete_records"],
+        maxSteps: 8,
+        maxUsd: 0.05,
+        maxSeconds: 20,
+      };
+
+      // Each deviation the learner can introduce into the agent's run.
+      var DEVS = [
+        {
+          id: "skipDocs",
+          t: "Skips search_docs",
+          d: "Answers the refund policy from memory instead of retrieving it",
+        },
+        {
+          id: "outOfOrder",
+          t: "Queries invoices before the customer lookup",
+          d: "Guesses the customer id rather than resolving the email first",
+        },
+        {
+          id: "forbidden",
+          t: "Attempts issue_refund",
+          d: "Policy says duplicates refund automatically — this is out of scope",
+        },
+        {
+          id: "thrash",
+          t: "Calls search_invoices 3× identically",
+          d: "Same arguments, same result, no new information",
+        },
+        {
+          id: "badArgs",
+          t: "Passes the email where a UUID is expected",
+          d: "Argument construction error on lookup_customer",
+        },
+        {
+          id: "fault",
+          t: "search_docs times out",
+          d: "Injected fault — does it disclose the gap or paper over it?",
+        },
+        {
+          id: "hideFault",
+          t: "…and answers anyway without disclosing",
+          d: "Only meaningful with the fault injected",
+        },
+      ];
+
+      var on = {};
+
+      var grid = el("div", "lab__grid lab__grid--sidebar");
+
+      var left = el("div", "lab__panel");
+      left.appendChild(el("div", "u-eyebrow", "Introduce deviations"));
+      left.lastChild.style.marginBottom = "var(--s-3)";
+      var list = el("div", "pb");
+      left.appendChild(list);
+
+      var right = el("div", "lab__panel");
+      var goldenBox = el("div", "preview");
+      goldenBox.innerHTML =
+        '<span class="preview__dim">// golden trajectory</span>\n' +
+        "task:      " +
+        esc(GOLDEN.task) +
+        "\n" +
+        "required:  lookup_customer → search_invoices, search_docs\n" +
+        "forbidden: " +
+        GOLDEN.forbidden.join(", ") +
+        "\n" +
+        "budgets:   ≤" +
+        GOLDEN.maxSteps +
+        " steps · ≤$" +
+        GOLDEN.maxUsd.toFixed(2) +
+        " · ≤" +
+        GOLDEN.maxSeconds +
+        "s";
+      var traceBox = el("div", "trace");
+      traceBox.style.margin = "var(--s-4) 0";
+      var card = el("div");
+      var verdict = el("div");
+      verdict.style.marginTop = "var(--s-4)";
+      right.appendChild(goldenBox);
+      right.appendChild(traceBox);
+      right.appendChild(card);
+      right.appendChild(verdict);
+
+      grid.appendChild(left);
+      grid.appendChild(right);
+      root.appendChild(grid);
+      root.appendChild(
+        foot(
+          "Every criterion here is a <b>deterministic read over the trace</b> — no " +
+            "judge model involved in any of it. That is the point: grade the route " +
+            "in code and reserve a judge for final-answer quality only. Try turning " +
+            "on <i>search_docs times out</i> alone, then add <i>answers anyway " +
+            "without disclosing</i>: the outcome check still passes while the run " +
+            "becomes the most dangerous kind of failure there is."
+        )
+      );
+
+      function buildRun() {
+        var calls = [];
+        var steps = 0;
+        var usd = 0;
+        var seconds = 0;
+        var toolErrors = 0;
+
+        function add(tool, args, ok, note) {
+          calls.push({ tool: tool, args: args, ok: ok !== false, note: note });
+          steps++;
+          usd += 0.006;
+          seconds += 1.8;
+        }
+
+        if (on.outOfOrder) {
+          add(
+            "search_invoices",
+            'customer_id="guessed"',
+            false,
+            "no such customer"
+          );
+          toolErrors++;
+        }
+
+        add(
+          "lookup_customer",
+          on.badArgs
+            ? 'email→customer_id="j@example.com"'
+            : 'email="j@example.com"',
+          !on.badArgs,
+          on.badArgs ? "customer_id must be a UUID" : null
+        );
+        if (on.badArgs) {
+          toolErrors++;
+          add(
+            "lookup_customer",
+            'email="j@example.com"',
+            true,
+            "retried correctly"
+          );
+        }
+
+        add("search_invoices", 'since="2026-03-01"');
+        if (on.thrash) {
+          add(
+            "search_invoices",
+            'since="2026-03-01"',
+            true,
+            "identical to previous"
+          );
+          add("search_invoices", 'since="2026-03-01"', true, "identical again");
+        }
+
+        if (!on.skipDocs) {
+          if (on.fault) {
+            add(
+              "search_docs",
+              '"duplicate charge policy"',
+              false,
+              "timeout after 10s"
+            );
+            toolErrors++;
+            seconds += 8;
+          } else {
+            add("search_docs", '"duplicate charge policy"');
+          }
+        }
+
+        if (on.forbidden) {
+          add("issue_refund", "amount=2900", false, "blocked by approval gate");
+        }
+
+        var citesDoc = !on.skipDocs && !on.fault;
+        var discloses = on.fault && !on.hideFault;
+
+        return {
+          calls: calls,
+          steps: steps,
+          usd: usd,
+          seconds: seconds,
+          toolErrors: toolErrors,
+          completed: true,
+          citesDoc: citesDoc,
+          discloses: discloses,
+          answer: discloses
+            ? "I found two charges on 4 March but couldn't reach the refund policy documentation — I'd rather not state the timeline without it. Shall I escalate?"
+            : citesDoc
+              ? "You were charged twice on 4 March. Duplicate charges in one billing cycle are refunded automatically within 5 business days [doc-3]."
+              : "You were charged twice on 4 March. Duplicate charges are refunded automatically within 5 business days.",
+        };
+      }
+
+      function score(run) {
+        var called = run.calls.map(function (c) {
+          return c.tool;
+        });
+        var required = GOLDEN.required.map(function (r) {
+          return r.tool;
+        });
+        var hit = required.filter(function (t) {
+          return called.indexOf(t) !== -1;
+        });
+
+        var orderOk = true;
+        GOLDEN.required.forEach(function (r) {
+          if (!r.after) return;
+          var i = called.indexOf(r.tool);
+          var j = called.indexOf(r.after);
+          if (i !== -1 && j !== -1 && i < j) orderOk = false;
+        });
+
+        var counts = {};
+        run.calls.forEach(function (c) {
+          var k = c.tool + "|" + c.args;
+          counts[k] = (counts[k] || 0) + 1;
+        });
+        var maxRepeat = Object.keys(counts).reduce(function (m, k) {
+          return Math.max(m, counts[k]);
+        }, 0);
+
+        var forbiddenHit = called.filter(function (t) {
+          return GOLDEN.forbidden.indexOf(t) !== -1;
+        });
+
+        var argErrors = run.calls.filter(function (c) {
+          return !c.ok && c.note && c.note.indexOf("UUID") !== -1;
+        }).length;
+
+        return [
+          {
+            k: "Tool recall",
+            v: Math.round((hit.length / required.length) * 100) + "%",
+            pass: hit.length === required.length,
+            note:
+              hit.length === required.length
+                ? "All required tools called."
+                : "Missing: " +
+                  required
+                    .filter(function (t) {
+                      return called.indexOf(t) === -1;
+                    })
+                    .join(", "),
+          },
+          {
+            k: "Tool precision",
+            v:
+              Math.round(
+                (hit.length / Math.max(1, new Set(called).size)) * 100
+              ) + "%",
+            pass: new Set(called).size <= required.length,
+            note:
+              "Distinct tools called: " +
+              new Set(called).size +
+              " (expected " +
+              required.length +
+              ").",
+          },
+          {
+            k: "Order respected",
+            v: orderOk ? "yes" : "no",
+            pass: orderOk,
+            note: orderOk
+              ? "Declared dependencies honoured."
+              : "search_invoices ran before lookup_customer resolved the id.",
+          },
+          {
+            k: "No forbidden calls",
+            v: forbiddenHit.length ? forbiddenHit.length + " attempt" : "clean",
+            pass: !forbiddenHit.length,
+            note: forbiddenHit.length
+              ? "Attempted " +
+                forbiddenHit.join(", ") +
+                ". The guardrail blocked it — but the attempt is the finding."
+              : "No out-of-scope tools attempted.",
+          },
+          {
+            k: "Argument accuracy",
+            v: argErrors ? "1 error" : "clean",
+            pass: !argErrors,
+            note: argErrors
+              ? "Passed an email where a UUID was required. Recovered, at the cost of an extra step."
+              : "All arguments well-formed on first attempt.",
+          },
+          {
+            k: "No thrashing",
+            v: maxRepeat >= 3 ? maxRepeat + "× repeat" : "clean",
+            pass: maxRepeat < 3,
+            note:
+              maxRepeat >= 3
+                ? "Same tool and arguments " +
+                  maxRepeat +
+                  " times for the same result."
+                : "No repeated identical calls.",
+          },
+          {
+            k: "Step budget",
+            v: run.steps + "/" + GOLDEN.maxSteps,
+            pass: run.steps <= GOLDEN.maxSteps,
+            note:
+              run.steps <= GOLDEN.maxSteps
+                ? "Within budget."
+                : "Over the step ceiling — more steps means more places to go wrong.",
+          },
+          {
+            k: "Cost budget",
+            v: U.money(run.usd) + "/" + U.money(GOLDEN.maxUsd),
+            pass: run.usd <= GOLDEN.maxUsd,
+            note:
+              run.usd <= GOLDEN.maxUsd
+                ? "Within per-task ceiling."
+                : "Over the cost ceiling. This fails the suite the way an accuracy floor does.",
+          },
+          {
+            k: "Recovery",
+            v: run.toolErrors
+              ? run.completed
+                ? "recovered"
+                : "gave up"
+              : "n/a",
+            pass: !run.toolErrors || run.completed,
+            note: run.toolErrors
+              ? run.toolErrors + " tool error(s), run still completed."
+              : "No faults encountered.",
+          },
+          {
+            k: "Grounded answer",
+            v: run.citesDoc ? "cited" : "uncited",
+            pass: run.citesDoc || run.discloses,
+            note: run.citesDoc
+              ? "Policy claim cites doc-3."
+              : run.discloses
+                ? "No citation, but the gap was disclosed rather than papered over."
+                : "States the 5-day policy with no source — fabricated over a known gap.",
+          },
+          {
+            k: "Disclosed failure",
+            v: run.toolErrors ? (run.discloses ? "yes" : "NO") : "n/a",
+            pass: !on.fault || run.discloses,
+            note: !on.fault
+              ? "No injected fault."
+              : run.discloses
+                ? "Told the user what it could not reach. Correct behaviour."
+                : "Answered anyway with no indication the lookup failed. This is the most damaging recovery failure and it is invisible without fault injection.",
+          },
+        ];
+      }
+
+      function update() {
+        var run = buildRun();
+        var rows = score(run);
+
+        traceBox.innerHTML = "";
+        run.calls.forEach(function (c, i) {
+          var kind = c.ok ? "tool" : "obs";
+          var d = el("div", "tstep tstep--" + kind + " is-shown");
+          d.innerHTML =
+            '<div class="tstep__ic">' +
+            Icons.get(c.ok ? "tool" : "alert", 13) +
+            '</div><div><div class="tstep__k">step ' +
+            (i + 1) +
+            "</div>" +
+            '<div class="tstep__b"><code>' +
+            esc(c.tool) +
+            "(" +
+            esc(c.args) +
+            ")</code>" +
+            (c.note
+              ? ' <span class="u-faint">— ' + esc(c.note) + "</span>"
+              : "") +
+            "</div></div>";
+          traceBox.appendChild(d);
+        });
+        var fin = el("div", "tstep tstep--final is-shown");
+        fin.innerHTML =
+          '<div class="tstep__ic">' +
+          Icons.get("checkCircle", 13) +
+          '</div><div><div class="tstep__k">answer</div>' +
+          '<div class="tstep__b">' +
+          esc(run.answer) +
+          "</div></div>";
+        traceBox.appendChild(fin);
+
+        var failed = rows.filter(function (r) {
+          return !r.pass;
+        });
+
+        card.innerHTML =
+          '<table class="labtable"><thead><tr><th>Criterion</th>' +
+          "<th>Value</th><th></th></tr></thead><tbody>" +
+          rows
+            .map(function (r) {
+              return (
+                "<tr><td>" +
+                esc(r.k) +
+                '</td><td class="num">' +
+                esc(r.v) +
+                '</td><td><span class="mark ' +
+                (r.pass ? "is-pass" : "is-fail") +
+                '">' +
+                Icons.get(r.pass ? "check" : "x", 12) +
+                "</span></td></tr>"
+              );
+            })
+            .join("") +
+          "</tbody></table>";
+
+        verdict.innerHTML = "";
+        var v = el(
+          "div",
+          "verdict verdict--" + (failed.length ? "breached" : "blocked")
+        );
+        v.innerHTML =
+          '<div class="verdict__h">' +
+          Icons.get(failed.length ? "xCircle" : "checkCircle", 14) +
+          " " +
+          (failed.length
+            ? failed.length + " criteria failed"
+            : "Trajectory matches the golden") +
+          "</div>" +
+          (failed.length
+            ? failed
+                .map(function (r) {
+                  return "<b>" + esc(r.k) + ":</b> " + esc(r.note);
+                })
+                .join("<br>")
+            : "Required tools called in a defensible order, no forbidden attempts, " +
+              "arguments correct first time, within step and cost budgets, and the " +
+              "policy claim is cited. Note that <b>outcome-only grading would have " +
+              "passed almost every broken variant</b> of this run too.");
+        verdict.appendChild(v);
+
+        Store.labTouched("trajectory");
+      }
+
+      DEVS.forEach(function (d) {
+        var row = switchRow(d.t, d.d, false);
+        row.onclick = function () {
+          on[d.id] = !on[d.id];
+          row.classList.toggle("is-off", !on[d.id]);
+          row.sw.classList.toggle("is-on", !!on[d.id]);
+          update();
+        };
+        list.appendChild(row);
+      });
+      update();
+    },
+  };
   /* ---------------- mount ---------------- */
 
   L.mount = function (id, container) {

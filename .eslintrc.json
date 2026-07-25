@@ -1,0 +1,35 @@
+{
+  "root": true,
+  "env": { "browser": true, "es2021": true },
+  "parserOptions": { "ecmaVersion": 2021, "sourceType": "script" },
+  "globals": {
+    "U": "writable",
+    "Store": "writable",
+    "Icons": "writable",
+    "Curriculum": "writable",
+    "Labs": "writable",
+    "Render": "writable",
+    "Views": "writable",
+    "App": "writable",
+    "Toast": "writable",
+    "Onboarding": "writable"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "args": "none" }],
+    "no-undef": "error",
+    "no-redeclare": "error",
+    "eqeqeq": ["warn", "smart"]
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**/*.mjs", "tests/**/*.mjs"],
+      "env": { "node": true, "browser": false },
+      "parserOptions": { "sourceType": "module" },
+      "globals": {
+        "Store": "readonly",
+        "Curriculum": "readonly",
+        "Labs": "readonly"
+      }
+    }
+  ]
+}

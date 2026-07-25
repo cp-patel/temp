@@ -20,6 +20,8 @@
     streak: { n: 0, last: null, best: 0 },
     recent: [], // recently opened chapter ids
     open: {}, // phaseId -> bool (roadmap accordion)
+    profile: null, // personalisation: { track, skills[], hoursPerWeek, goal }
+    onboarded: false,
     started: null,
   };
 
@@ -112,7 +114,7 @@
           "Level up — " + S.level().name,
           "You crossed " + U.commas(LEVELS[afterLevel].at) + " XP",
           "win",
-          "trophy",
+          "trophy"
         );
       } else if (reason) {
         Toast.show("+" + amount + " XP", reason, "xp", "spark");
@@ -145,15 +147,16 @@
 
   S.theme = function () {
     if (state.theme) return state.theme;
-    return global.matchMedia &&
-      global.matchMedia("(prefers-color-scheme: light)").matches
-      ? "light"
-      : "dark";
+    var mq = global.matchMedia;
+    if (typeof mq !== "function") return "dark";
+    return mq("(prefers-color-scheme: light)").matches ? "light" : "dark";
   };
 
+  /* Persists the preference only. Applying it to the document is the app
+     layer's job — keeping the DOM out of the store makes it testable and
+     usable from any host (including Node, for the test suite). */
   S.setTheme = function (t) {
     state.theme = t;
-    document.documentElement.setAttribute("data-theme", S.theme());
     save();
   };
 
@@ -322,6 +325,36 @@
     if (val) state.open[pid] = true;
     else delete state.open[pid];
     save();
+  };
+
+  /* ---- profile / personalisation ---- */
+
+  S.profile = function () {
+    return state.profile;
+  };
+
+  S.setProfile = function (p) {
+    state.profile = p;
+    state.onboarded = true;
+    save();
+  };
+
+  S.isOnboarded = function () {
+    return !!state.onboarded;
+  };
+
+  S.skipOnboarding = function () {
+    state.onboarded = true;
+    save();
+  };
+
+  /* The generated plan is derived, never stored — so editing the profile or
+     adding chapters recomputes it rather than leaving a stale copy behind. */
+  S.plan = function () {
+    if (!state.profile || !global.Curriculum || !global.Curriculum.planFor) {
+      return null;
+    }
+    return global.Curriculum.planFor(state.profile);
   };
 
   /* ---- level ---- */

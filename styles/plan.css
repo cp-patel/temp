@@ -1,0 +1,552 @@
+/* ============================================================
+   Onboarding + personalised plan
+   ============================================================ */
+
+/* ---------------- onboarding modal ---------------- */
+
+.ob__box {
+  max-width: 620px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.ob__dots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--s-5);
+}
+
+.ob__dot {
+  height: 3px;
+  flex: 1;
+  border-radius: var(--r-full);
+  background: var(--surface-4);
+  transition: background var(--dur) var(--ease);
+}
+
+.ob__dot.is-done {
+  background: var(--accent-lo);
+}
+
+.ob__dot.is-on {
+  background: var(--accent);
+}
+
+.ob__head h3 {
+  font-size: var(--t-xl);
+  margin-bottom: var(--s-2);
+}
+
+.ob__head p {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.6;
+  margin-bottom: var(--s-5);
+}
+
+.ob__opts {
+  display: grid;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.ob__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  width: 100%;
+  padding: var(--s-4);
+  text-align: left;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.ob__opt:hover {
+  border-color: var(--line-strong);
+  transform: translateX(2px);
+}
+
+.ob__opt.is-sel {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.ob__opt-ic {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.ob__opt.is-sel .ob__opt-ic {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ob__opt-t {
+  display: block;
+  font-size: var(--t-base);
+  font-weight: 620;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.ob__opt-d {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin-top: 3px;
+}
+
+.ob__opt-check {
+  flex: none;
+  color: transparent;
+  margin-top: 8px;
+}
+
+.ob__opt.is-sel .ob__opt-check {
+  color: var(--accent);
+}
+
+/* ---------------- skills grid ---------------- */
+
+.ob__skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.ob__skill {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  text-align: left;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.ob__skill:hover {
+  border-color: var(--line-strong);
+}
+
+.ob__skill.is-on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.ob__skill-box {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 5px;
+  border: 1.5px solid var(--line-strong);
+  color: transparent;
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.ob__skill.is-on .ob__skill-box {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.ob__skill-t {
+  display: block;
+  font-size: var(--t-sm);
+  font-weight: 580;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.ob__skill-d {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--ink-3);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+
+/* ---------------- pills ---------------- */
+
+.ob__pills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--s-2);
+  margin: var(--s-3) 0 0;
+}
+
+.ob__pill {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.ob__pill span {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.ob__pill:hover {
+  border-color: var(--line-strong);
+}
+
+.ob__pill.is-on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ob__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--cyan-soft);
+  border: 1px solid color-mix(in oklab, var(--cyan) 24%, transparent);
+  font-size: var(--t-xs);
+  line-height: 1.62;
+  color: var(--ink-1);
+}
+
+.ob__note svg {
+  flex: none;
+  color: var(--cyan);
+  margin-top: 2px;
+}
+
+.ob__note b {
+  color: var(--ink);
+}
+
+/* ============================================================
+   Plan view
+   ============================================================ */
+
+.planhero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-6);
+  padding: var(--s-6);
+  margin-bottom: var(--s-8);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--accent-line);
+  background:
+    radial-gradient(
+      ellipse 90% 140% at 0% 0%,
+      hsl(var(--hue-violet) 90% 55% / 0.14),
+      transparent 66%
+    ),
+    var(--surface-1);
+}
+
+@media (max-width: 780px) {
+  .planhero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.planhero h2 {
+  font-size: var(--t-xl);
+  margin: var(--s-2) 0;
+}
+
+.planhero p {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.65;
+  max-width: 68ch;
+}
+
+/* mode legend */
+.modelegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  margin-bottom: var(--s-6);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+}
+
+.modelegend b {
+  color: var(--ink);
+}
+
+/* mode chip */
+.mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.18em 0.5em;
+  border-radius: var(--r-full);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex: none;
+}
+
+.mode--deep {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+.mode--study {
+  color: var(--ink-2);
+  background: var(--surface-3);
+}
+
+.mode--skim {
+  color: var(--emerald);
+  background: var(--emerald-soft);
+}
+
+/* weeks */
+.weeks {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.week {
+  border-radius: var(--r-xl);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.week__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--line-faint);
+  background: var(--surface-2);
+}
+
+.week__n {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
+  font-weight: 700;
+}
+
+.week__t {
+  display: block;
+  font-size: var(--t-base);
+  font-weight: 640;
+  color: var(--ink);
+}
+
+.week__s {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.week__ring {
+  margin-left: auto;
+  flex: none;
+}
+
+.week__body {
+  padding: var(--s-3) var(--s-4) var(--s-4);
+}
+
+.planrow {
+  display: grid;
+  grid-template-columns: 26px 1fr auto auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  text-align: left;
+  width: 100%;
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.planrow:hover {
+  background: var(--surface-raised);
+}
+
+.planrow__dot {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.planrow.is-done .planrow__dot {
+  background: var(--emerald);
+  border-color: var(--emerald);
+  color: #04120c;
+}
+
+.planrow__t {
+  display: block;
+  font-size: var(--t-sm);
+  font-weight: 560;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.planrow.is-done .planrow__t {
+  color: var(--ink-3);
+}
+
+.planrow__why {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.55;
+  margin-top: 3px;
+}
+
+.planrow__why code {
+  padding: 0.1em 0.32em;
+  font-size: 0.9em;
+  background: var(--surface-3);
+  border-radius: 4px;
+  color: var(--ink-1);
+}
+
+.planrow__min {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  flex: none;
+}
+
+.week__proj {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: var(--s-3) var(--s-1) 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--amber-soft);
+  border: 1px solid color-mix(in oklab, var(--amber) 24%, transparent);
+  font-size: var(--t-xs);
+  color: var(--ink-1);
+}
+
+.week__proj svg {
+  flex: none;
+  color: var(--amber);
+}
+
+.week__proj b {
+  color: var(--ink);
+}
+
+/* ---------------- delta callout in the reader ---------------- */
+
+.delta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  margin-bottom: var(--s-8);
+  border-radius: var(--r-lg);
+  border: 1px solid color-mix(in oklab, var(--emerald) 26%, transparent);
+  background: var(--emerald-soft);
+}
+
+.delta--deep {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.delta__ic {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-md);
+  background: color-mix(in oklab, var(--emerald) 22%, transparent);
+  color: var(--emerald);
+}
+
+.delta--deep .delta__ic {
+  background: var(--accent);
+  color: #fff;
+}
+
+.delta__t {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-sm);
+  font-weight: 680;
+  color: var(--emerald);
+  margin-bottom: var(--s-2);
+}
+
+.delta--deep .delta__t {
+  color: var(--accent);
+}
+
+.delta__b {
+  font-size: var(--t-sm);
+  line-height: 1.68;
+  color: var(--ink-1);
+}
+
+.delta__b strong {
+  color: var(--ink);
+}
+
+.delta__b code {
+  padding: 0.12em 0.36em;
+  font-size: 0.88em;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  white-space: nowrap;
+}
