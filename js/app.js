@@ -164,9 +164,7 @@
         '<span class="u-truncate u-grow">' +
         esc(p.title.split("—")[0].trim()) +
         "</span>" +
-        '<span class="phaselink__bar bar bar--thin"><span class="bar__fill" style="width:' +
-        prog.pct +
-        '%"></span></span>';
+        U.bar(prog.pct, { cls: "phaselink__bar bar--thin", inline: true });
       g2.appendChild(a);
     });
     scroll.appendChild(g2);
@@ -643,6 +641,21 @@
     return { name: "landing", render: Views.landing };
   }
 
+  /* Which children of each view get the staggered scroll reveal. Chosen per
+     view so the stagger follows reading order rather than DOM accident. */
+  var REVEAL = {
+    landing: ".hero__inner > *, .lsection, .lfoot",
+    dashboard: ".page-head, .dgrid > *, .dcols > div > *",
+    plan: ".planhero, .modelegend, .week",
+    roadmap: ".page-head, .rm__legend, .phase",
+    library: ".page-head, .filters, .libcard",
+    labs: ".page-head, .lab",
+    projects: ".page-head, .proj",
+    glossary: ".page-head, .searchfield, .alpha, .gterm",
+    settings: ".page-head, .card",
+    chapter: null,
+  };
+
   var mainHost;
 
   function render() {
@@ -690,6 +703,13 @@
     paintXp();
     paintTheme();
 
+    // Per-view motion: animate progress from zero, run any counters, and
+    // reveal the view's top-level blocks in reading order.
+    if (global.Motion) {
+      Motion.reset();
+      Motion.enterView(page, { reveal: REVEAL[route.name], step: 55 });
+    }
+
     // hash anchors inside a chapter shouldn't reset scroll
     if (!location.hash.match(/#s-/)) window.scrollTo(0, 0);
     document.title =
@@ -722,13 +742,20 @@
   function boot() {
     document.documentElement.setAttribute("data-theme", Store.theme());
 
+    // Atmospheric layers, back to front: aurora wash, faint grid, film grain.
+    var aurora = el("div", "aurora");
+    aurora.innerHTML =
+      '<div class="aurora__band aurora__band--1"></div>' +
+      '<div class="aurora__band aurora__band--2"></div>' +
+      '<div class="aurora__band aurora__band--3"></div>' +
+      '<div class="aurora__band aurora__band--4"></div>';
+    document.body.appendChild(aurora);
+
     var ambient = el("div", "ambient");
-    ambient.innerHTML =
-      '<div class="ambient__grid"></div>' +
-      '<div class="ambient__blob ambient__blob--a"></div>' +
-      '<div class="ambient__blob ambient__blob--b"></div>' +
-      '<div class="ambient__blob ambient__blob--c"></div>';
+    ambient.innerHTML = '<div class="ambient__grid"></div>';
     document.body.appendChild(ambient);
+
+    document.body.appendChild(el("div", "grain"));
 
     var app = el("div", "app");
     app.appendChild(buildSidebar());

@@ -31,40 +31,6 @@
   );
 }
 
-.ambient__blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  will-change: transform;
-}
-
-.ambient__blob--a {
-  top: -22vh;
-  left: 8vw;
-  width: 46vw;
-  height: 46vw;
-  background: var(--mesh-1);
-  animation: float-slow 26s var(--ease) infinite;
-}
-
-.ambient__blob--b {
-  top: -8vh;
-  right: -6vw;
-  width: 38vw;
-  height: 38vw;
-  background: var(--mesh-2);
-  animation: float-slow 34s var(--ease) infinite reverse;
-}
-
-.ambient__blob--c {
-  top: 42vh;
-  left: 40vw;
-  width: 30vw;
-  height: 30vw;
-  background: var(--mesh-3);
-  animation: float-slow 42s var(--ease) infinite;
-}
-
 /* ---------------- Layout ---------------- */
 
 .app {

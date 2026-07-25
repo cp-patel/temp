@@ -483,6 +483,10 @@ kbd {
 
 .bar {
   position: relative;
+  /* Explicit, because several bars are <span>s sitting in inline flow. An
+     inline box ignores height and gives the absolutely-positioned fill a
+     zero-size containing block, so the bar renders as nothing at all. */
+  display: block;
   height: 6px;
   background: var(--surface-3);
   border-radius: var(--r-full);

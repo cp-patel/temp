@@ -121,10 +121,11 @@
     hsl(var(--hue-cyan) 88% 62%) 100%
   );
   --grad-text: linear-gradient(
-    100deg,
-    #fff 0%,
-    hsl(var(--hue-violet) 95% 84%) 44%,
-    hsl(var(--hue-cyan) 92% 76%) 100%
+    98deg,
+    hsl(var(--hue-violet) 98% 78%) 0%,
+    hsl(268 100% 74%) 26%,
+    hsl(218 100% 70%) 58%,
+    hsl(var(--hue-cyan) 100% 66%) 100%
   );
   --grad-surface: linear-gradient(
     165deg,
@@ -138,6 +139,38 @@
   --shadow-glow:
     0 0 0 1px var(--accent-line),
     0 12px 44px -14px hsl(var(--hue-violet) 90% 55% / 0.5);
+
+  /* Elevation: each level pairs a surface, a hairline, a shadow and a top
+     highlight, so "raise this" is one decision rather than four. */
+  --e1-line: rgba(255, 255, 255, 0.075);
+  --e1-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 2px 6px -2px rgba(0, 0, 0, 0.5);
+  --e2-line: rgba(255, 255, 255, 0.1);
+  --e2-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.055) inset,
+    0 10px 26px -10px rgba(0, 0, 0, 0.7);
+  --e3-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.07) inset,
+    0 22px 50px -18px rgba(0, 0, 0, 0.82);
+  --sheen: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.045),
+    rgba(255, 255, 255, 0) 42%
+  );
+
+  /* Film grain. Low enough to read as texture rather than noise. */
+  --grain-opacity: 0.055;
+  --grain-blend: overlay;
+
+  /* Aurora wash behind the page. */
+  --aurora-1: hsl(var(--hue-violet) 92% 58% / 0.13);
+  --aurora-2: hsl(var(--hue-cyan) 92% 54% / 0.085);
+  --aurora-3: hsl(310 90% 60% / 0.06);
+  --aurora-4: hsl(215 95% 62% / 0.07);
+
+  /* Scrim under the hero copy, so headline contrast doesn't depend on where
+     the aurora happens to be. */
+  --hero-scrim: hsl(250 40% 4% / 0.46);
 
   --code-bg: #0b0b12;
   --code-line: rgba(255, 255, 255, 0.06);
@@ -202,10 +235,11 @@
     hsl(var(--hue-cyan) 82% 44%) 100%
   );
   --grad-text: linear-gradient(
-    100deg,
-    #171a30 0%,
-    hsl(var(--hue-violet) 72% 46%) 50%,
-    hsl(var(--hue-cyan) 78% 36%) 100%
+    98deg,
+    hsl(var(--hue-violet) 82% 54%) 0%,
+    hsl(266 84% 50%) 30%,
+    hsl(216 88% 46%) 62%,
+    hsl(var(--hue-cyan) 88% 38%) 100%
   );
   --grad-surface: linear-gradient(
     165deg,
@@ -219,6 +253,28 @@
   --shadow-glow:
     0 0 0 1px var(--accent-line),
     0 12px 40px -16px hsl(var(--hue-violet) 80% 50% / 0.34);
+
+  --e1-line: rgba(16, 20, 50, 0.09);
+  --e1-shadow: 0 1px 2px rgba(20, 23, 60, 0.05);
+  --e2-line: rgba(16, 20, 50, 0.11);
+  --e2-shadow: 0 8px 24px -12px rgba(20, 23, 60, 0.16);
+  --e3-shadow: 0 20px 44px -18px rgba(20, 23, 60, 0.2);
+  --sheen: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(255, 255, 255, 0) 42%
+  );
+
+  /* Grain is far more visible on light surfaces — dial it right down. */
+  --grain-opacity: 0.028;
+  --grain-blend: multiply;
+
+  --aurora-1: hsl(var(--hue-violet) 92% 68% / 0.11);
+  --aurora-2: hsl(var(--hue-cyan) 92% 62% / 0.075);
+  --aurora-3: hsl(310 92% 70% / 0.055);
+  --aurora-4: hsl(215 95% 70% / 0.06);
+
+  --hero-scrim: hsl(0 0% 100% / 0.7);
 
   --code-bg: #14161f;
   --code-line: rgba(255, 255, 255, 0.07);

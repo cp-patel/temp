@@ -1,0 +1,333 @@
+/* ============================================================
+   Ambient depth + motion
+
+   Two jobs. First, the atmospheric layer behind the page: an aurora wash and a
+   film-grain overlay that give flat surfaces something to sit on. Second, the
+   reveal and emphasis motion that makes the interface feel responsive rather
+   than merely rendered.
+
+   Everything here is opacity/transform only, so it composites on the GPU and
+   never triggers layout. All of it collapses under prefers-reduced-motion.
+   ============================================================ */
+
+/* ---------------- film grain ---------------- */
+
+/* One inline SVG turbulence tile, no network request. Fixed so it doesn't
+   scroll with content — grain that moves reads as dirt on the screen. */
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: var(--grain-blend);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  will-change: transform;
+  animation: grain-drift 8s steps(6) infinite;
+}
+
+/* Sub-pixel jitter keeps the grain from looking like a static texture map. */
+@keyframes grain-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  16% {
+    transform: translate(-1.5%, 1%);
+  }
+  33% {
+    transform: translate(1%, -1.5%);
+  }
+  50% {
+    transform: translate(-1%, -1%);
+  }
+  66% {
+    transform: translate(1.5%, 0.5%);
+  }
+  83% {
+    transform: translate(-0.5%, 1.5%);
+  }
+}
+
+/* ---------------- aurora ---------------- */
+
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.aurora__band {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(clamp(60px, 9vw, 130px));
+  will-change: transform;
+}
+
+.aurora__band--1 {
+  top: -30vh;
+  left: -8vw;
+  width: 62vw;
+  height: 58vh;
+  background: var(--aurora-1);
+  animation: aurora-a 34s var(--ease) infinite;
+}
+
+.aurora__band--2 {
+  top: -22vh;
+  right: -12vw;
+  width: 54vw;
+  height: 52vh;
+  background: var(--aurora-2);
+  animation: aurora-b 44s var(--ease) infinite;
+}
+
+.aurora__band--3 {
+  top: 24vh;
+  left: 26vw;
+  width: 46vw;
+  height: 44vh;
+  background: var(--aurora-3);
+  animation: aurora-c 56s var(--ease) infinite;
+}
+
+.aurora__band--4 {
+  top: 4vh;
+  left: 34vw;
+  width: 38vw;
+  height: 38vh;
+  background: var(--aurora-4);
+  animation: aurora-a 48s var(--ease) infinite reverse;
+}
+
+@keyframes aurora-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, 4%, 0) scale(1.14);
+  }
+}
+
+@keyframes aurora-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.06);
+  }
+  50% {
+    transform: translate3d(-7%, 6%, 0) scale(0.94);
+  }
+}
+
+@keyframes aurora-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(0.96);
+  }
+  50% {
+    transform: translate3d(4%, -6%, 0) scale(1.12);
+  }
+}
+
+/* The aurora is strongest behind the hero and page headers and falls off
+   under dense content so it never fights text. A radial mask does this without
+   painting the visible horizontal edge a linear fade-to-background produces. */
+.aurora {
+  mask-image: radial-gradient(
+    ellipse 120% 82% at 50% 0%,
+    #000 0%,
+    rgba(0, 0, 0, 0.55) 42%,
+    transparent 78%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 120% 82% at 50% 0%,
+    #000 0%,
+    rgba(0, 0, 0, 0.55) 42%,
+    transparent 78%
+  );
+}
+
+/* ---------------- scroll reveal ---------------- */
+
+/* Applied by js/core/motion.js. The initial state is set from JS rather than
+   in CSS so that content is never invisible if the script fails to run. */
+.rv {
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  transition:
+    opacity 0.62s var(--ease-out),
+    transform 0.62s var(--ease-out);
+  transition-delay: var(--rv-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.rv.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Once revealed, drop the compositing hint. */
+.rv.is-done {
+  will-change: auto;
+}
+
+/* ---------------- number count-up ---------------- */
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- interactive depth ---------------- */
+
+/* A single hover treatment so every raiseable surface behaves identically. */
+.lift {
+  transition:
+    transform var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease-out);
+}
+
+.lift:hover {
+  transform: translate3d(0, -3px, 0);
+  border-color: var(--line-strong);
+  box-shadow: var(--e2-shadow);
+}
+
+.lift:active {
+  transform: translate3d(0, -1px, 0);
+}
+
+/* Accent glow for the primary surface on a page. */
+.glow-hover {
+  transition:
+    transform var(--dur) var(--ease-out),
+    box-shadow var(--dur-slow) var(--ease-out);
+}
+
+.glow-hover:hover {
+  transform: translate3d(0, -3px, 0);
+  box-shadow:
+    0 0 0 1px var(--accent-line),
+    0 18px 46px -20px hsl(var(--hue-violet) 90% 55% / 0.55);
+}
+
+/* A moving specular highlight on the hero and CTA surfaces. Purely
+   decorative, so it sits behind content and ignores pointer events. */
+.sheen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--sheen);
+  pointer-events: none;
+}
+
+/* ---------------- kinetic type ---------------- */
+
+/* Word-by-word reveal for display headings. The mask means words rise out of
+   nothing rather than fading in place, which reads as intentional. */
+.kin {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.08em;
+}
+
+.kin__w {
+  display: inline-block;
+  transform: translate3d(0, 108%, 0);
+  animation: kin-rise 0.86s var(--ease-out) forwards;
+  animation-delay: var(--kin-delay, 0ms);
+}
+
+@keyframes kin-rise {
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* ---------------- progress animation ---------------- */
+
+/* Bars and rings animate from zero on mount, so progress reads as earned
+   rather than as a static value that was always there. */
+.bar__fill {
+  transition: width 1.1s var(--ease-out);
+}
+
+.ring {
+  transition: background 1.1s var(--ease-out);
+}
+
+/* Zero-progress is a distinct state, not a bar that failed to render. A dashed
+   ghost track says "nothing yet" where a flat grey line just looks broken.
+   Drawn as a background pattern rather than a border so it reads the same on
+   the 4px sidebar bars and the 9px level bar, and doesn't alter the box. */
+.bar[data-empty="1"] {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--line-strong) 0 4px,
+    transparent 4px 9px
+  );
+  opacity: 0.62;
+}
+
+.bar[data-empty="1"] .bar__fill {
+  display: none;
+}
+
+/* ---------------- focus ---------------- */
+
+/* A ring that reads clearly on both themes and doesn't shift layout. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.card:focus-visible,
+.lift:focus-visible {
+  outline-offset: 3px;
+}
+
+/* ---------------- reduced motion ---------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .grain {
+    animation: none;
+  }
+
+  .aurora__band {
+    animation: none;
+  }
+
+  .rv {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .kin__w {
+    transform: none;
+    animation: none;
+  }
+
+  .bar__fill,
+  .ring {
+    transition: none;
+  }
+
+  .lift:hover,
+  .glow-hover:hover {
+    transform: none;
+  }
+}

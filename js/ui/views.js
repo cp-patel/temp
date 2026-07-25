@@ -104,6 +104,75 @@
      LANDING
      ========================================================= */
 
+  /* A stat that counts up when it scrolls into view. */
+  function heroStat(n, label, suffix) {
+    return (
+      '<div><div class="hstat__n tnum" data-count="' +
+      n +
+      '"' +
+      (suffix ? ' data-count-suffix="' + suffix + '"' : "") +
+      ">0" +
+      (suffix || "") +
+      '</div><div class="hstat__l">' +
+      esc(label) +
+      "</div></div>"
+    );
+  }
+
+  /* The eight-phase rail in the hero. Built from real phase data — hues, icons
+     and titles all come from the curriculum, so it cannot drift. */
+  function pathRailHtml() {
+    var stops = C.phases
+      .map(function (p, i) {
+        return (
+          "hsl(" +
+          p.hue +
+          " 88% 62%) " +
+          Math.round((i / (C.phases.length - 1)) * 100) +
+          "%"
+        );
+      })
+      .join(", ");
+
+    var dots = C.phases
+      .map(function (p) {
+        return (
+          '<a class="pathdot" href="#/roadmap" data-phase-hue="' +
+          p.hue +
+          '" data-phase-title="' +
+          U.attr(p.title) +
+          '" data-phase-blurb="' +
+          U.attr(
+            U.plural(chaptersOf(p.id).length, "chapter") + " · " + p.weeks
+          ) +
+          '" style="--pc: hsl(' +
+          p.hue +
+          ' 88% 62%)">' +
+          '<span class="pathdot__disc">' +
+          Icons.get(p.icon, 18) +
+          "</span>" +
+          '<span class="pathdot__n">' +
+          p.n +
+          "</span></a>"
+        );
+      })
+      .join("");
+
+    return (
+      '<div class="pathrail" style="--rail-gradient: linear-gradient(90deg, ' +
+      stops +
+      ')">' +
+      '<div class="pathrail__line"></div>' +
+      '<div class="pathrail__row">' +
+      dots +
+      "</div>" +
+      '<div class="pathrail__label" data-rail-label>' +
+      "<b>Eight phases, in a deliberate order</b>" +
+      "Hover a phase to see what it covers." +
+      "</div></div>"
+    );
+  }
+
   V.landing = function (root) {
     document.body.classList.add("is-landing");
     var labCount = Object.keys(Labs).filter(function (k) {
@@ -132,22 +201,14 @@
       " Start chapter 1</a>" +
       "</div>" +
       '<div class="hero__stats">' +
-      '<div><div class="hstat__n">' +
-      C.phases.length +
-      '</div><div class="hstat__l">Phases</div></div>' +
-      '<div><div class="hstat__n">' +
-      C.chapters.length +
-      '</div><div class="hstat__l">Chapters</div></div>' +
-      '<div><div class="hstat__n">' +
-      labCount +
-      '</div><div class="hstat__l">Interactive labs</div></div>' +
-      '<div><div class="hstat__n">' +
-      C.projects.length +
-      '</div><div class="hstat__l">Projects</div></div>' +
-      '<div><div class="hstat__n">' +
-      Math.round(totalMinutes() / 60) +
-      'h</div><div class="hstat__l">Reading time</div></div>' +
-      "</div></div>" +
+      heroStat(C.phases.length, "Phases") +
+      heroStat(C.chapters.length, "Chapters") +
+      heroStat(labCount, "Interactive labs") +
+      heroStat(C.projects.length, "Projects") +
+      heroStat(Math.round(totalMinutes() / 60), "Reading time", "h") +
+      "</div>" +
+      pathRailHtml() +
+      "</div>" +
       '<div class="hero__scroll">' +
       Icons.get("arrowDown", 16) +
       "<span>What's inside</span></div>";
@@ -258,6 +319,33 @@
     root.appendChild(path);
     root.appendChild(cta);
     root.appendChild(foot);
+
+    /* Kinetic headline: words rise out of a mask, in reading order. */
+    if (global.Motion) {
+      Motion.kinetic(hero.querySelector("h1"), { step: 58, delay: 90 });
+    }
+
+    /* One shared label slot for the rail, so eight phase titles don't have to
+       compete for horizontal space. */
+    var label = hero.querySelector("[data-rail-label]");
+    var defaultLabel = label ? label.innerHTML : "";
+    U.qa(".pathdot", hero).forEach(function (dot) {
+      var show = function () {
+        label.innerHTML =
+          "<b>" +
+          esc(dot.dataset.phaseTitle) +
+          "</b>" +
+          esc(dot.dataset.phaseBlurb);
+      };
+      dot.addEventListener("mouseenter", show);
+      dot.addEventListener("focus", show);
+      dot.addEventListener("mouseleave", function () {
+        label.innerHTML = defaultLabel;
+      });
+      dot.addEventListener("blur", function () {
+        label.innerHTML = defaultLabel;
+      });
+    });
   };
 
   /* =========================================================
@@ -273,7 +361,11 @@
     head.innerHTML =
       '<div class="u-eyebrow">Learning path</div>' +
       "<h1>The roadmap</h1>" +
-      "<p>Forty-one chapters across eight phases. Work top to bottom, or jump to " +
+      "<p>" +
+      U.words(C.chapters.length, true) +
+      " chapters across " +
+      U.words(C.phases.length) +
+      " phases. Work top to bottom, or jump to " +
       "what you need — every chapter stands on its own. " +
       "<strong>" +
       o.done +
@@ -311,51 +403,64 @@
       '<div class="rmleg"><span class="rmleg__sw rmleg__sw--next"></span>Not started</div>' +
       '<div class="u-grow"></div>' +
       '<div class="u-row" style="min-width:190px">' +
-      '<div class="bar u-grow"><div class="bar__fill" style="width:' +
-      o.pct +
-      '%"></div></div>' +
+      U.bar(o.pct, { cls: "u-grow" }) +
       '<span class="u-mono u-dim" style="font-size:var(--t-xs)">' +
       Math.round(o.pct) +
       "%</span></div>";
 
     var track = el("div", "track");
 
+    var currentPhase = next ? next.phase : null;
+
     C.phases.forEach(function (p) {
       var prog = phaseProgress(p.id);
       var complete = prog.done === prog.total;
+      var isCurrent = p.id === currentPhase;
       var open =
-        Store.phaseOpen(p.id) ||
-        (next && next.phase === p.id && !Store.state().open.__touched);
+        Store.phaseOpen(p.id) || (isCurrent && !Store.state().open.__touched);
 
-      var node = el("section", "phase" + (open ? " is-open" : ""));
+      var node = el("section", "phase");
       node.style.cssText = phaseVars(p);
+      node.className =
+        "phase" +
+        (open ? " is-open" : "") +
+        (complete ? " is-complete" : "") +
+        (isCurrent && !complete ? " is-current" : "");
+
+      /* --- rail: medallion + spine --- */
+      var rail = el("div", "phase__rail");
+      var badge = el("div", "phase__badge");
+      badge.style.setProperty("--pct", String(prog.pct));
+      badge.innerHTML =
+        Icons.get(complete ? "check" : p.icon, 20) +
+        '<span class="phase__num">' +
+        p.n +
+        "</span>";
+      rail.appendChild(badge);
+      node.appendChild(rail);
+
+      /* --- card --- */
+      var card = el("div", "phase__card");
 
       var headBtn = el("button", "phase__head");
       headBtn.type = "button";
       headBtn.setAttribute("aria-expanded", open ? "true" : "false");
       headBtn.innerHTML =
-        '<div class="phase__badge' +
-        (complete ? " phase__badge--done" : "") +
-        '">' +
-        Icons.get(complete ? "check" : p.icon, 22) +
-        '<span class="phase__num">' +
-        p.n +
-        "</span></div>" +
         '<div class="phase__title"><h3>' +
         esc(p.title) +
         "</h3><p>" +
         esc(p.blurb) +
         "</p></div>" +
         '<div class="phase__meta">' +
-        '<div class="phase__prog"><div class="bar u-grow"><div class="bar__fill" style="width:' +
-        prog.pct +
-        '%"></div></div><span class="phase__pct">' +
+        '<div class="phase__prog">' +
+        U.bar(prog.pct, { cls: "u-grow" }) +
+        '<span class="phase__pct">' +
         prog.done +
         "/" +
         prog.total +
         "</span></div>" +
         '<div class="phase__caret">' +
-        Icons.get("chevDown", 18) +
+        Icons.get("chevDown", 16) +
         "</div></div>";
 
       var bodyWrap = el("div", "phase__body");
@@ -446,8 +551,9 @@
 
       inner.appendChild(content);
       bodyWrap.appendChild(inner);
-      node.appendChild(headBtn);
-      node.appendChild(bodyWrap);
+      card.appendChild(headBtn);
+      card.appendChild(bodyWrap);
+      node.appendChild(card);
       track.appendChild(node);
 
       headBtn.onclick = function () {
@@ -456,6 +562,8 @@
         Store.phaseOpen(p.id, isOpen);
         Store.state().open.__touched = true;
         Store.save();
+        // Newly-revealed bars should animate rather than appear filled.
+        if (isOpen && global.Motion) Motion.progress(content);
       };
     });
 
@@ -1028,10 +1136,10 @@
         ? " · " + U.commas(lvl.next - s.xp) + " to " + esc(lvl.nextName)
         : " · top level reached") +
       "</p>" +
-      '<div class="bar bar--tall" style="max-width:420px;margin-top:var(--s-4)">' +
-      '<div class="bar__fill" style="width:' +
-      lvl.pct +
-      '%"></div></div>';
+      U.bar(lvl.pct, {
+        cls: "bar--tall",
+        style: "max-width:420px;margin-top:var(--s-4)",
+      });
 
     var stats = el("div", "dgrid");
     [
@@ -1049,10 +1157,15 @@
       ],
       [
         "Quiz accuracy",
-        (quizTotal ? Math.round((quizRight / quizTotal) * 100) : 0) +
-          "<small>%</small>",
+        /* An untaken quiz is not a failed one: 0% would read as "you got
+           everything wrong" on a fresh install. */
+        quizTotal
+          ? Math.round((quizRight / quizTotal) * 100) + "<small>%</small>"
+          : '<span class="stat__none">—</span>',
         "target",
-        quizzed + " of " + o.total + " quizzes taken",
+        quizTotal
+          ? quizzed + " of " + o.total + " quizzes taken"
+          : "No quizzes taken yet",
       ],
       [
         "Cards learned",
@@ -1170,9 +1283,12 @@
         '<span class="u-grow"><span class="mrow__t">' +
         esc(p.title.split("—")[0].trim()) +
         "</span>" +
-        '<span class="bar bar--thin" style="margin-top:5px"><span class="bar__fill" style="width:' +
-        prog.pct +
-        '%"></span></span></span>' +
+        U.bar(prog.pct, {
+          cls: "bar--thin",
+          style: "margin-top:5px",
+          inline: true,
+        }) +
+        "</span>" +
         '<span class="mrow__v">' +
         prog.done +
         "/" +
@@ -1601,9 +1717,7 @@
           "/" +
           pr.tasks.length +
           "</span></div>" +
-          '<div class="bar"><div class="bar__fill" style="width:' +
-          pct +
-          '%"></div></div>' +
+          U.bar(pct) +
           (n === pr.tasks.length
             ? '<div class="chip chip--emerald" style="margin-top:var(--s-3)">' +
               Icons.get("trophy", 12) +
@@ -1663,7 +1777,9 @@
 
     var meta = el("div", "fcmeta");
     var ctrl = el("div", "fcctrl");
+    var sess = el("div", "fcsess");
 
+    stage.appendChild(sess);
     stage.appendChild(meta);
     stage.appendChild(card);
     stage.appendChild(ctrl);
@@ -1697,6 +1813,9 @@
       var c = deck[at];
       var st = Store.card(c.id);
       card.classList.remove("is-flipped");
+      /* Drives the ghost cards stacked behind this one, so the pile visibly
+         thins out as the session runs down. */
+      card.dataset.remain = String(Math.min(3, deck.length - at));
       inner.innerHTML =
         '<div class="fcface"><div class="fcface__q">' +
         md(c.f) +
@@ -1709,6 +1828,10 @@
         esc(c.ch.title) +
         "</div></div>";
 
+      sess.innerHTML = U.bar((at / deck.length) * 100, { cls: "bar--thin" });
+
+      /* The source chapter is deliberately not shown until the card is
+         flipped — on the front it's a hint, and hints defeat recall practice. */
       meta.innerHTML =
         "<span>Card <b>" +
         (at + 1) +
@@ -1720,10 +1843,7 @@
         "</b>/5</span>" +
         "<span>Recalled <b>" +
         got +
-        "</b></span>" +
-        "<span>" +
-        esc(c.ch.title) +
-        "</span>";
+        "</b></span>";
 
       ctrl.innerHTML = "";
       var flip = el("button", "btn btn--outline");

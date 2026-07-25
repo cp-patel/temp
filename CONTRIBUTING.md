@@ -19,6 +19,13 @@ npm run test:e2e   # real browser, all routes, all chapters, all labs
 `npm run test:all` runs everything. CI runs the same commands, so a green local
 run means a green CI run.
 
+If Playwright can't find its browser — common on machines with a shared
+Chromium rather than Playwright's own download — point the runner at one:
+
+```bash
+CHROMIUM_PATH=/path/to/chromium npm run test:e2e
+```
+
 ## Adding a chapter
 
 ```bash
@@ -150,6 +157,19 @@ normalisation, why the toast stack is capped) and leaves the obvious alone.
 subtitle using nested `<span>` elements need an explicit `display: block`, or
 the two lines overlap. This has been fixed four times. If text overlaps, that's
 why.
+
+The same root cause bites differently on sized boxes: a `<span>` styled as a
+bar, swatch, or ring is inline until told otherwise, so its `height` is ignored
+_and_ any absolutely-positioned child gets a zero-size containing block — the
+element renders as literally nothing. The phase-mastery progress bars were
+invisible for exactly this reason. `.bar` now sets `display: block` itself.
+Anything with a height should do the same rather than relying on its parent
+happening to be a flex or grid container.
+
+**Emit progress bars through `U.bar(pct, opts)`**, not by hand. Zero progress is
+its own state — a dashed ghost track, not a flat grey line that reads as a bar
+that failed to draw — and there are six call sites that would each have to
+remember that.
 
 ## Adding a block type
 

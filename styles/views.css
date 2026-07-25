@@ -16,7 +16,27 @@
 
 .hero__inner {
   position: relative;
+  /* Own stacking context, so the scrim below sits behind this block's text but
+     still in front of the fixed aurora layer rather than under it. */
+  isolation: isolate;
   max-width: 900px;
+}
+
+/* Separates the hero copy from the aurora behind it. This is a scrim rather
+   than a text-shadow on the headline because the kinetic word masks clip to
+   each word's box, which turns a wide blur into a row of hard-edged
+   rectangles — obvious on the light theme. */
+.hero__inner::before {
+  content: "";
+  position: absolute;
+  inset: -12% -8%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 62% 46% at 50% 34%,
+    var(--hero-scrim) 0%,
+    transparent 72%
+  );
 }
 
 .hero__badge {
@@ -349,92 +369,202 @@
   border: 1px solid var(--line-strong);
 }
 
-/* Phase track */
+/* ============================================================
+   Phase track — the roadmap reads as a journey, not a list.
+
+   Layout is a two-column grid per phase: a rail carrying the medallion and a
+   continuous spine, and a card hanging off it. The spine is drawn by each
+   phase's rail rather than one absolutely-positioned line, so it survives
+   accordion expansion and reflow without measurement.
+   ============================================================ */
+
 .track {
   position: relative;
   display: grid;
-  gap: var(--s-4);
-  padding-left: 0;
+  gap: var(--s-3);
 }
 
 .phase {
   position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-1);
+}
+
+/* ---- the rail ---- */
+
+.phase__rail {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  padding-top: var(--s-5);
+}
+
+/* Spine segment. Runs from under the medallion to the bottom of the phase and
+   into the next one, so consecutive segments form one unbroken line. */
+.phase__rail::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--s-5) + 48px);
+  bottom: calc(var(--s-3) * -1 - 2px);
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: var(--r-full);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--phase-color) 55%, transparent),
+    var(--line)
+  );
+  opacity: 0.55;
+}
+
+.phase:last-child .phase__rail::after {
+  display: none;
+}
+
+/* A completed phase lights its whole segment in the phase colour. */
+.phase.is-complete .phase__rail::after {
+  background: linear-gradient(
+    to bottom,
+    var(--phase-color),
+    color-mix(in oklab, var(--phase-color) 40%, transparent)
+  );
+  opacity: 0.9;
+}
+
+/* ---- medallion ---- */
+
+.phase__badge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 50%;
+  /* Conic ring shows phase progress around the glyph. */
+  background: conic-gradient(
+    var(--phase-color) calc(var(--pct, 0) * 1%),
+    color-mix(in oklab, var(--phase-color) 16%, transparent) 0
+  );
+  transition: background var(--dur-slow) var(--ease-out);
+  z-index: 1;
+}
+
+/* Inner disc, so the conic gradient reads as a ring. */
+.phase__badge::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklab, var(--phase-color) 22%, transparent);
+}
+
+.phase__badge svg {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  color: var(--phase-color);
+}
+
+.phase.is-complete .phase__badge svg {
+  color: var(--emerald);
+}
+
+.phase.is-complete .phase__badge {
+  background: var(--emerald);
+}
+
+.phase.is-complete .phase__badge::before {
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklab, var(--emerald) 34%, transparent);
+}
+
+/* The phase currently in progress gets a soft halo so the eye lands on it. */
+.phase.is-current .phase__badge {
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--phase-color) 14%, transparent),
+    0 0 26px -4px color-mix(in oklab, var(--phase-color) 55%, transparent);
+}
+
+.phase__num {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--surface-3);
   border: 1px solid var(--line);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.phase.is-complete .phase__num {
+  background: var(--emerald);
+  border-color: transparent;
+  color: #04120c;
+}
+
+/* ---- card ---- */
+
+.phase__card {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--e1-line);
   border-radius: var(--r-xl);
   background: var(--surface-1);
+  box-shadow: var(--e1-shadow);
   overflow: hidden;
-  transition: border-color var(--dur) var(--ease);
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 
-.phase.is-open {
+.phase.is-open .phase__card {
   border-color: var(--line-strong);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--e2-shadow);
 }
 
-.phase::after {
+/* A hairline of phase colour along the card's leading edge ties it to the rail. */
+.phase__card::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--phase-color, var(--accent));
-  opacity: 0.7;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    var(--phase-color),
+    color-mix(in oklab, var(--phase-color) 25%, transparent)
+  );
+  opacity: 0.5;
 }
 
 .phase__head {
+  position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--s-5);
   width: 100%;
-  padding: var(--s-5) var(--s-6);
+  padding: var(--s-5) var(--s-5) var(--s-5) var(--s-6);
   text-align: left;
   transition: background var(--dur-fast) var(--ease);
 }
 
 .phase__head:hover {
   background: var(--surface-raised);
-}
-
-.phase__badge {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 50px;
-  height: 50px;
-  flex: none;
-  border-radius: var(--r-lg);
-  background: color-mix(in oklab, var(--phase-color) 15%, transparent);
-  color: var(--phase-color);
-  border: 1px solid color-mix(in oklab, var(--phase-color) 34%, transparent);
-}
-
-.phase__badge svg {
-  width: 22px;
-  height: 22px;
-}
-
-.phase__badge--done {
-  background: var(--emerald-soft);
-  color: var(--emerald);
-  border-color: transparent;
-}
-
-.phase__num {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  display: grid;
-  place-items: center;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 4px;
-  border-radius: var(--r-full);
-  background: var(--surface-4);
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  font-weight: 700;
 }
 
 .phase__title {
@@ -447,7 +577,7 @@
 }
 
 .phase__title p {
-  margin-top: 3px;
+  margin-top: 4px;
   font-size: var(--t-sm);
   color: var(--ink-2);
   max-width: 66ch;
@@ -457,16 +587,17 @@
   display: flex;
   align-items: center;
   gap: var(--s-4);
+  flex: none;
 }
 
 .phase__prog {
   display: none;
   align-items: center;
   gap: var(--s-3);
-  min-width: 150px;
+  min-width: 132px;
 }
 
-@media (min-width: 760px) {
+@media (min-width: 820px) {
   .phase__prog {
     display: flex;
   }
@@ -481,18 +612,31 @@
   font-weight: 680;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
-  min-width: 34px;
+  min-width: 32px;
   text-align: right;
 }
 
 .phase__caret {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-md);
   color: var(--ink-3);
-  transition: transform var(--dur) var(--ease);
+  background: var(--surface-2);
+  border: 1px solid var(--line-faint);
+  transition:
+    transform var(--dur) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.phase__head:hover .phase__caret {
+  color: var(--ink);
 }
 
 .phase__caret svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 .phase.is-open .phase__caret {
@@ -514,10 +658,8 @@
 }
 
 .phase__content {
-  padding: 0 var(--s-6) var(--s-6);
+  padding: var(--s-5) var(--s-5) var(--s-6) var(--s-6);
   border-top: 1px solid var(--line-faint);
-  margin-top: var(--s-1);
-  padding-top: var(--s-5);
 }
 
 .phase__outcomes {
@@ -525,6 +667,34 @@
   flex-wrap: wrap;
   gap: var(--s-2);
   margin-bottom: var(--s-5);
+}
+
+@media (max-width: 640px) {
+  .phase {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .phase__badge {
+    width: 36px;
+    height: 36px;
+  }
+
+  .phase__badge svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .phase__rail::after {
+    top: calc(var(--s-5) + 36px);
+  }
+
+  .phase__head {
+    padding: var(--s-4) var(--s-4) var(--s-4) var(--s-5);
+  }
+
+  .phase__content {
+    padding: var(--s-4) var(--s-4) var(--s-5) var(--s-5);
+  }
 }
 
 /* Chapter nodes */
@@ -745,6 +915,12 @@
   color: var(--ink-3);
   letter-spacing: 0;
   margin-left: 0.25em;
+}
+
+/* "No data yet" reads as absence, not as a value, so it is dimmed. */
+.stat__none {
+  color: var(--ink-3);
+  font-weight: 500;
 }
 
 .stat__sub {
@@ -1271,6 +1447,11 @@
   padding: var(--s-6) 0;
 }
 
+.fcsess {
+  width: 100%;
+  max-width: 620px;
+}
+
 .fcard3d {
   position: relative;
   width: 100%;
@@ -1278,6 +1459,45 @@
   min-height: 300px;
   perspective: 1600px;
   cursor: pointer;
+}
+
+/* Two ghost cards behind the live one, so the deck reads as a pile with more
+   to come rather than a single floating panel. They drop away as the pile
+   actually runs down, so the depth and the counter never disagree.
+   `perspective` above already makes this a stacking context, so z-index -1
+   stays inside the card rather than sliding under the page. */
+.fcard3d::before,
+.fcard3d::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--r-2xl);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  transition:
+    transform var(--dur-slow) var(--ease-out),
+    opacity var(--dur-slow) var(--ease);
+}
+
+/* The visible peek is (translate − shrink/2), so the translate has to run well
+   ahead of the scale or the pile hides entirely behind the live card. */
+.fcard3d::before {
+  transform: translate3d(0, 17px, 0) scale(0.972);
+  border-color: var(--line-strong);
+  opacity: 0.85;
+}
+
+.fcard3d::after {
+  transform: translate3d(0, 33px, 0) scale(0.944);
+  opacity: 0.5;
+}
+
+.fcard3d[data-remain="1"]::before,
+.fcard3d[data-remain="1"]::after,
+.fcard3d[data-remain="2"]::after {
+  transform: none;
+  opacity: 0;
 }
 
 .fcard3d__inner {
@@ -1417,4 +1637,126 @@
   color: var(--ink);
   background: var(--surface-1);
   box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   Hero phase-path preview
+
+   Eight medallions on a rail whose gradient runs through every phase hue. It
+   fills what was dead space in the hero with something that both previews the
+   product's central feature and is built from the real curriculum data, so it
+   cannot drift out of sync with it.
+   ============================================================ */
+
+.pathrail {
+  position: relative;
+  margin: var(--s-12) auto 0;
+  max-width: 720px;
+  padding: 0 var(--s-2);
+}
+
+.pathrail__line {
+  position: absolute;
+  top: 21px;
+  left: 8%;
+  right: 8%;
+  height: 2px;
+  border-radius: var(--r-full);
+  background: var(--rail-gradient);
+  opacity: 0.5;
+}
+
+.pathrail__row {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--s-2);
+}
+
+.pathdot {
+  display: grid;
+  justify-items: center;
+  gap: var(--s-2);
+  padding: 0;
+  color: var(--ink-3);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.pathdot__disc {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  border: 1px solid color-mix(in oklab, var(--pc) 42%, transparent);
+  color: var(--pc);
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--pc) 7%, transparent),
+    0 6px 18px -8px color-mix(in oklab, var(--pc) 60%, transparent);
+  transition:
+    transform var(--dur) var(--ease-spring),
+    box-shadow var(--dur) var(--ease);
+}
+
+.pathdot__disc svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pathdot__n {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.pathdot:hover {
+  color: var(--ink);
+}
+
+.pathdot:hover .pathdot__disc {
+  transform: translateY(-4px) scale(1.08);
+  box-shadow:
+    0 0 0 5px color-mix(in oklab, var(--pc) 13%, transparent),
+    0 12px 26px -8px color-mix(in oklab, var(--pc) 75%, transparent);
+}
+
+/* The hovered phase's title, shown in one shared slot so eight labels don't
+   have to compete for horizontal room. */
+.pathrail__label {
+  margin-top: var(--s-5);
+  min-height: 2.6em;
+  text-align: center;
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.5;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.pathrail__label b {
+  display: block;
+  color: var(--ink);
+  font-size: var(--t-base);
+  font-weight: 640;
+  letter-spacing: var(--tr-tight);
+}
+
+@media (max-width: 640px) {
+  .pathrail__row {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-columns: auto;
+    gap: var(--s-4) var(--s-2);
+  }
+
+  .pathrail__line {
+    display: none;
+  }
+
+  .pathdot__disc {
+    width: 38px;
+    height: 38px;
+  }
 }
