@@ -197,6 +197,23 @@ connection failing — the reason is on stderr, naming the variable to fix.
 
 ## Tools
 
+All six return compact, pre-digested JSON. List tools share the envelope
+`{ items, total_found, has_more }`, plus `warnings` (upstream failures) and `notes`
+(server-side truncation) when relevant.
+
+### `whats_blocked` — start here
+
+Takes no parameters. Answers "what am I blocked on, and what am I blocking?" in one call,
+which is the question this whole server exists to answer. Returns three labelled sections plus
+a `summary` line computed in code:
+
+- `waiting_on_reviewers` — your PRs open >3 days with no approval, or with changes requested
+  that you have not pushed for since.
+- `blocked_issues` — your Linear issues that are genuinely stuck.
+- `you_are_blocking` — PRs awaiting *your* review for >5 days.
+
+Every item carries a `reason` explaining why it qualified.
+
 ### `get_my_review_queue`
 
 Open PRs where you are a requested reviewer, oldest first.
@@ -206,12 +223,83 @@ Open PRs where you are a requested reviewer, oldest first.
 | `scope` | `"work" \| "personal" \| "both"` | `"both"` | `"both"` queries each account separately and tags results |
 | `max_results` | integer 1–30 | `15` | Oldest-first, so a small cap keeps the stalest reviews |
 
-Returns `{ items, total_found, has_more }`, plus `warnings` / `notes` when relevant. Each
-item carries `repo`, `number`, `title`, `author`, `age_days`, `additions`, `deletions`,
-`changed_files`, `ci`, `draft`, `url` and `source`.
+Each item: `repo`, `number`, `title`, `author`, `age_days`, `additions`, `deletions`,
+`changed_files`, `ci`, `draft`, `url`, `source`.
 
 `ci` is normalised to one short vocabulary: `passing (n)`, `failing (n/m)`, `pending (n/m)`,
 `mixed (n)`, `none`, or `unknown` when enrichment failed for that row.
+
+### `get_my_open_prs`
+
+The mirror image: open PRs *you* authored, oldest first, with the review state rolled up.
+Same inputs as above. Adds `approvals`, `changes_requested`, `pushed_since_review`,
+`awaiting` (requested reviewers who have not responded) and `days_since_activity`.
+
+`pushed_since_review` answers "have I addressed the feedback yet?" — it compares the PR's head
+commit against the most recent changes-requested review.
+
+### `get_pr_context`
+
+One PR in depth, as a single bundle.
+
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `scope` | `"work" \| "personal"` | — | **Required.** No default: guessing could reach for the wrong credential |
+| `repo` | `"owner/name"` | — | Exactly as returned in other tools' `repo` field |
+| `number` | integer | — | PR number |
+| `include_diff_stats` | boolean | `true` | Set false to skip per-file stats and save a request |
+
+Returns title, truncated body (1,500 chars), author, state, per-check CI, each reviewer's
+latest state, the last 5 review comments, and per-file additions/deletions capped at 25 files
+with a `files_omitted` count.
+
+**Never returns the raw diff.** Per-file line counts only. To read actual code changes, open
+the PR's files page in a browser.
+
+### `get_my_linear_issues`
+
+Linear issues assigned to you, most-stalled first.
+
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `state_filter` | `"active" \| "blocked" \| "all"` | `"active"` | `"active"` excludes completed/cancelled |
+| `max_results` | integer 1–50 | `15` | |
+
+Each item: `identifier`, `title`, `state`, `priority`, `project`, `days_in_state`, `url`, and
+`reason` when filtering to blocked.
+
+### `search_my_work`
+
+Free-text search across GitHub PR titles/bodies and Linear issue titles at once — the escape
+hatch when the specific tools do not fit.
+
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `query` | string, 2–200 chars | — | Plain words; qualifiers are neither needed nor honoured |
+| `scope` | `"work" \| "personal" \| "both"` | `"both"` | Linear is always searched |
+| `max_results` | integer 1–25 | `10` | |
+
+Unlike the other tools this is **not** restricted to your own items — only to what your tokens
+can see. Results are interleaved across sources so one prolific upstream cannot crowd out the
+others.
+
+## How "blocked" is decided
+
+Linear has **no native blocked state** — `WorkflowState.type` is only
+`triage | backlog | unstarted | started | completed | canceled | duplicate`. So an issue counts
+as blocked when either:
+
+1. its workflow state is *named* like "Blocked" (matched case-insensitively), or
+2. another issue blocks it via an inverse `blocks` relation.
+
+Blockers that are already completed or cancelled are ignored — a closed blocker no longer
+blocks anything, and counting it would keep issues "blocked" forever. When both signals are
+present, the concrete blocker is reported, since naming `ENG-123` beats restating the column.
+
+`days_in_state` prefers the real workflow transition from the issue's history. If that is
+unavailable it falls back to the state's dedicated timestamp (`startedAt`, `triagedAt`,
+`completedAt`, `canceledAt`), and finally to `createdAt` — deliberately *not* `updatedAt`,
+which moves on any edit and would make a long-stalled issue look freshly touched.
 
 ## Behaviour notes
 
@@ -220,11 +308,21 @@ item carries `repo`, `number`, `title`, `author`, `age_days`, `additions`, `dele
 - **Rate limits.** On a GitHub 403/429 with rate-limit headers, the server reports minutes
   until reset rather than retrying in a loop.
 - **Enrichment cost.** GitHub's REST search returns neither diff stats nor CI state, so each
-  PR needs follow-up calls. These run with bounded concurrency, and the search results are
-  merged, sorted and trimmed *before* enrichment, so `scope: "both"` with `max_results: 15`
-  enriches 15 PRs rather than 30.
+  PR needs follow-up calls. Three things keep that bounded:
+  - search results are merged, sorted and trimmed *before* enrichment, so `scope: "both"` with
+    `max_results: 15` enriches 15 PRs rather than 30;
+  - follow-ups run with bounded concurrency (5 in flight) rather than all at once, which also
+    avoids GitHub's secondary rate limits;
+  - `whats_blocked` skips enrichment entirely on its review-queue side (age and draft status
+    come free with the search) and skips CI on its authored side (no staleness rule consults
+    it), cutting roughly two thirds of the follow-up requests it would otherwise make.
 - **Degradation.** If enrichment fails for one PR, that PR is still listed with
   `ci: "unknown"` and no diff stats. One bad row never sinks the call.
+- **Commit freshness** comes from the PR's head commit, fetched by SHA — not from
+  `pulls.listCommits`, which pages through up to 250 commits in a fixed order and would
+  report the *oldest* commits for a long-lived PR, making a freshly pushed branch look stale.
+- **A missing Linear payload is an error, not an empty list.** A GraphQL response with
+  `data: null` is reported as a warning rather than silently answering "you have no issues".
 
 ## Development
 
@@ -247,6 +345,7 @@ src/
     format.ts       shared item shapes, envelope, budget enforcement
     errors.ts       structured upstream failures, secret scrubbing
     github.ts       shared GitHub helpers (CI status normalisation)
+    linear.ts       Linear GraphQL queries, blocked detection, issue mapping
     concurrency.ts  bounded-concurrency map
 test/
 ```

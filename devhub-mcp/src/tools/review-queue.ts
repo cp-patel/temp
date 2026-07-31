@@ -66,7 +66,7 @@ export interface ReviewQueueArgs {
 }
 
 /** A search hit plus the timestamp we sort on, before enrichment. */
-interface Candidate {
+export interface Candidate {
   readonly scope: GithubScope;
   readonly createdAtMs: number;
   readonly item: GithubSearchItem;
@@ -87,7 +87,7 @@ function normalizeArgs(args: ReviewQueueArgs): { scope: Scope; maxResults: numbe
  * `archived:false` is accepted (an invalid qualifier returns 422). `advanced_search` is
  * required since GitHub's 2025 issues-search migration.
  */
-async function searchScope(
+export async function searchScope(
   ctx: ToolContext,
   scope: GithubScope,
   perPage: number,
@@ -158,6 +158,51 @@ async function enrich(api: GithubApi, candidate: Candidate, now: number): Promis
   }
 }
 
+export interface ReviewQueueCandidates {
+  readonly candidates: Candidate[];
+  readonly totalFound: number;
+  readonly warnings: UpstreamFailure[];
+}
+
+/**
+ * Search every requested scope and merge the hits, oldest first — without enrichment.
+ *
+ * Exported so `whats_blocked` can reuse the search without paying for follow-up requests: its
+ * "you are blocking others" rule depends only on age and draft status, both of which the
+ * search response already carries.
+ */
+export async function collectReviewQueue(
+  ctx: ToolContext,
+  scope: Scope,
+  maxResults: number,
+): Promise<ReviewQueueCandidates> {
+  const scopes = resolveScopes(scope);
+  const warnings: UpstreamFailure[] = [];
+  const candidates: Candidate[] = [];
+  let totalFound = 0;
+
+  // Partial failure must not sink the whole call (ground rule: warnings, not exceptions).
+  const searches = await Promise.all(
+    scopes.map(async (current) => {
+      try {
+        return await searchScope(ctx, current, maxResults);
+      } catch (error: unknown) {
+        warnings.push(describeFailure(githubUpstream(current), error, ctx.now()));
+        return undefined;
+      }
+    }),
+  );
+
+  for (const search of searches) {
+    if (search === undefined) continue;
+    totalFound += search.total;
+    candidates.push(...search.candidates);
+  }
+
+  candidates.sort((a, b) => a.createdAtMs - b.createdAtMs);
+  return { candidates: candidates.slice(0, maxResults), totalFound, warnings };
+}
+
 /**
  * Build the review queue.
  *
@@ -168,32 +213,7 @@ export async function getMyReviewQueue(ctx: ToolContext, args: ReviewQueueArgs):
   const { scope, maxResults } = normalizeArgs(args);
 
   return ctx.cache.wrap(cacheKey(TOOL_NAME, { scope, maxResults }), async () => {
-    const scopes = resolveScopes(scope);
-    const warnings: UpstreamFailure[] = [];
-    const candidates: Candidate[] = [];
-    let totalFound = 0;
-
-    // Partial failure must not sink the whole call (ground rule: warnings, not exceptions).
-    const searches = await Promise.all(
-      scopes.map(async (current) => {
-        try {
-          return { scope: current, result: await searchScope(ctx, current, maxResults) };
-        } catch (error: unknown) {
-          warnings.push(describeFailure(githubUpstream(current), error, ctx.now()));
-          return undefined;
-        }
-      }),
-    );
-
-    for (const search of searches) {
-      if (search === undefined) continue;
-      totalFound += search.result.total;
-      candidates.push(...search.result.candidates);
-    }
-
-    candidates.sort((a, b) => a.createdAtMs - b.createdAtMs);
-    const selected = candidates.slice(0, maxResults);
-
+    const { candidates: selected, totalFound, warnings } = await collectReviewQueue(ctx, scope, maxResults);
     const now = ctx.now();
     const items = await mapLimit(selected, DEFAULT_CONCURRENCY, (candidate) =>
       enrich(ctx.clients.github(candidate.scope), candidate, now),

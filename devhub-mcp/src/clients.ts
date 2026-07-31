@@ -99,9 +99,6 @@ export interface GithubApi {
     listFiles(params: { owner: string; repo: string; pull_number: number; per_page?: number }): Promise<{
       data: readonly { filename: string; additions: number; deletions: number }[];
     }>;
-    listCommits(params: { owner: string; repo: string; pull_number: number; per_page?: number }): Promise<{
-      data: readonly { commit: { committer: { date?: string | undefined } | null } }[];
-    }>;
   };
   readonly checks: {
     listForRef(params: { owner: string; repo: string; ref: string; per_page?: number }): Promise<{
@@ -114,6 +111,22 @@ export interface GithubApi {
   readonly repos: {
     getCombinedStatusForRef(params: { owner: string; repo: string; ref: string }): Promise<{
       data: { state: string; total_count: number };
+    }>;
+    /**
+     * Used to date a PR's newest commit via its head SHA.
+     *
+     * Deliberately not `pulls.listCommits`: that endpoint pages through up to 250 commits in
+     * a documented order, so page 1 of a 150-commit PR would yield the *oldest* commits and
+     * make a freshly-pushed PR look stale. The head SHA is the branch tip by definition, so
+     * this is correct regardless of any ordering guarantee.
+     */
+    getCommit(params: { owner: string; repo: string; ref: string }): Promise<{
+      data: {
+        commit: {
+          author?: { date?: string | undefined } | null | undefined;
+          committer?: { date?: string | undefined } | null | undefined;
+        };
+      };
     }>;
   };
   readonly users: {
@@ -280,7 +293,11 @@ export function scopeQualifier(config: DevhubConfig, scope: GithubScope): string
 }
 
 interface ViewerQueryResult {
-  readonly viewer: { readonly id: string; readonly name: string; readonly email: string } | null;
+  readonly viewer: {
+    readonly id: string;
+    readonly name: string;
+    readonly email: string | null;
+  } | null;
 }
 
 const VIEWER_QUERY = `query DevhubViewer { viewer { id name email } }`;
@@ -335,6 +352,17 @@ export async function validateStartup(clients: DevhubClients): Promise<Identity>
   // Narrowing for TypeScript: every failure path above throws.
   if (!work.ok || !personal.ok || !linear.ok || linear.viewer === null) {
     throw new StartupError('Credential validation failed', variables);
+  }
+
+  // A LINEAR_USER_EMAIL that does not match the key's own account is not an auth failure, but
+  // it would make every "my issues" filter match nothing. Warn loudly rather than fail: the
+  // account may legitimately use an alias, and the other five tools still work.
+  const viewerEmail = linear.viewer.email;
+  if (viewerEmail !== null && viewerEmail.toLowerCase() !== clients.config.linearUserEmail.toLowerCase()) {
+    process.stderr.write(
+      `devhub-mcp: WARNING LINEAR_USER_EMAIL does not match the account behind LINEAR_API_KEY. ` +
+        `Linear tools resolve "my issues" by that email and will return nothing if it is wrong.\n`,
+    );
   }
 
   return {

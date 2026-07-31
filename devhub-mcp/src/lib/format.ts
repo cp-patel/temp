@@ -31,6 +31,12 @@ export interface PrItem {
   /** Review roll-up, present on authored-PR listings. */
   approvals?: number;
   changes_requested?: boolean;
+  /**
+   * Whether the author pushed after the most recent changes-requested review. Only present
+   * when changes were requested and the head commit's date is known — it answers "have I
+   * addressed the feedback yet?" without guessing from coarse activity timestamps.
+   */
+  pushed_since_review?: boolean;
   awaiting?: string[];
   days_since_activity?: number;
   /** Why this item appears in a `whats_blocked` section. */
@@ -91,6 +97,14 @@ interface EnvelopeInput<T> {
   totalFound: number;
   warnings?: readonly UpstreamFailure[];
   notes?: readonly string[];
+  /**
+   * Force `has_more` on when the upstream cannot give an exact total.
+   *
+   * Linear's `issues` connection reports only `pageInfo.hasNextPage`, so `total_found` there
+   * is "matches we actually saw" rather than a true total. Rather than inventing a count,
+   * the flag says "there is more" honestly.
+   */
+  forceHasMore?: boolean;
 }
 
 /**
@@ -111,7 +125,7 @@ export function buildEnvelope<T>(input: EnvelopeInput<T>, maxChars: number = MAX
       total_found: input.totalFound,
       // `total_found` is the upstream match count, so this stays correct whether items were
       // capped by max_results or trimmed for budget.
-      has_more: input.totalFound > currentItems.length,
+      has_more: input.forceHasMore === true || input.totalFound > currentItems.length,
     };
     if (warnings.length > 0) envelope.warnings = [...warnings];
     if (currentNotes.length > 0) envelope.notes = [...currentNotes];

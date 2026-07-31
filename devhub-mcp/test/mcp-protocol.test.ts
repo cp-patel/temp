@@ -30,6 +30,169 @@ function firstText(result: { content?: unknown }): string {
   return block.text;
 }
 
+const ALL_TOOLS = [
+  'get_my_review_queue',
+  'get_my_open_prs',
+  'get_pr_context',
+  'get_my_linear_issues',
+  'whats_blocked',
+  'search_my_work',
+] as const;
+
+describe('tool surface', () => {
+  it('registers exactly the six specified tools', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const { tools } = await client.listTools();
+    expect(tools.map((tool) => tool.name).sort()).toEqual([...ALL_TOOLS].sort());
+
+    await client.close();
+  });
+
+  it('marks every tool read-only, since nothing here mutates', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const { tools } = await client.listTools();
+    for (const tool of tools) {
+      expect(tool.annotations?.readOnlyHint, `${tool.name} must be read-only`).toBe(true);
+    }
+
+    await client.close();
+  });
+
+  it('gives every tool a substantial description with an example', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const { tools } = await client.listTools();
+    for (const tool of tools) {
+      const description = tool.description ?? '';
+      expect(description.length, `${tool.name} description too short`).toBeGreaterThan(200);
+      expect(description, `${tool.name} needs an example invocation`).toMatch(/Example:/);
+    }
+
+    await client.close();
+  });
+
+  it('cross-references sibling tools so an LLM can choose between them', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const { tools } = await client.listTools();
+    const byName = new Map(tools.map((tool) => [tool.name, tool.description ?? '']));
+
+    // Each listing tool must point at its nearest neighbour, or a model will pick by luck.
+    expect(byName.get('get_my_review_queue')).toContain('get_my_open_prs');
+    expect(byName.get('get_my_open_prs')).toContain('get_my_review_queue');
+    expect(byName.get('get_my_linear_issues')).toContain('whats_blocked');
+    expect(byName.get('search_my_work')).toContain('whats_blocked');
+    expect(byName.get('whats_blocked')).toContain('get_my_open_prs');
+
+    await client.close();
+  });
+
+  it('exposes whats_blocked as a zero-parameter tool', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const { tools } = await client.listTools();
+    const schema = tools.find((tool) => tool.name === 'whats_blocked')?.inputSchema as {
+      properties?: Record<string, unknown>;
+      required?: string[];
+    };
+
+    expect(Object.keys(schema.properties ?? {})).toEqual([]);
+    expect(schema.required ?? []).toEqual([]);
+
+    await client.close();
+  });
+
+  it('requires scope, repo and number on get_pr_context', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const { tools } = await client.listTools();
+    const schema = tools.find((tool) => tool.name === 'get_pr_context')?.inputSchema as {
+      required?: string[];
+    };
+
+    // scope has no default on purpose: guessing it could hit the wrong credential.
+    expect((schema.required ?? []).sort()).toEqual(['number', 'repo', 'scope']);
+
+    await client.close();
+  });
+});
+
+describe('end-to-end tool calls', () => {
+  it('answers whats_blocked in one call', async () => {
+    const { ctx } = createFakeContext({
+      work: { searchItems: [searchItem({ number: 5, created_at: '2026-06-01T00:00:00.000Z' })] },
+      personal: { searchItems: [] },
+    });
+    const client = await connect(ctx);
+
+    const result = await client.callTool({ name: 'whats_blocked', arguments: {} });
+    const payload = JSON.parse(firstText(result)) as {
+      summary: string;
+      waiting_on_reviewers: unknown[];
+      you_are_blocking: unknown[];
+      blocked_issues: unknown[];
+    };
+
+    expect(result.isError).not.toBe(true);
+    expect(payload.summary).toMatch(/waiting on reviewers/);
+    expect(Array.isArray(payload.waiting_on_reviewers)).toBe(true);
+    expect(Array.isArray(payload.you_are_blocking)).toBe(true);
+    expect(Array.isArray(payload.blocked_issues)).toBe(true);
+
+    await client.close();
+  });
+
+  it('surfaces a get_pr_context input error as a tool error, not a crash', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const result = await client.callTool({
+      name: 'get_pr_context',
+      arguments: { scope: 'work', repo: 'malformed', number: 1 },
+    });
+
+    expect(result.isError).toBe(true);
+    // The structured error must not be double-wrapped into a JSON string of a JSON object.
+    expect(JSON.parse(firstText(result))).toMatchObject({ error: 'upstream_failure' });
+
+    await client.close();
+  });
+
+  it('rejects an unknown scope value at the schema boundary', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const result = await client.callTool({
+      name: 'get_my_open_prs',
+      arguments: { scope: 'everything' },
+    });
+
+    expect(result.isError).toBe(true);
+
+    await client.close();
+  });
+
+  it('keeps the server alive after a tool error', async () => {
+    const { ctx } = createFakeContext({ work: { searchItems: [searchItem()] } });
+    const client = await connect(ctx);
+
+    await client.callTool({ name: 'get_pr_context', arguments: { scope: 'work', repo: 'bad', number: 1 } });
+    // A failed call must not take the session down with it.
+    const after = await client.callTool({ name: 'get_my_review_queue', arguments: { scope: 'work' } });
+    expect(after.isError).not.toBe(true);
+
+    await client.close();
+  });
+});
+
 describe('MCP server wiring', () => {
   it('lists get_my_review_queue with a usable schema', async () => {
     const { ctx } = createFakeContext();

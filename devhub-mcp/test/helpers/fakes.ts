@@ -14,6 +14,7 @@ import type {
   LinearApi,
   ToolContext,
 } from '../../src/clients.js';
+import type { LinearIssueNode } from '../../src/lib/linear.js';
 import { TtlCache } from '../../src/lib/cache.js';
 
 export const FIXED_NOW = Date.parse('2026-07-31T12:00:00.000Z');
@@ -33,6 +34,8 @@ export interface FakeGithubOptions {
   readonly changedFiles?: number;
   readonly checkRuns?: readonly { name: string; status: string; conclusion: string | null }[];
   readonly login?: string;
+  /** Date of the PR head commit, used for staleness and "pushed since review". */
+  readonly headCommitDate?: string;
 }
 
 /** Build a search hit with sensible defaults. */
@@ -96,10 +99,6 @@ export function createFakeGithub(scope: GithubScope, options: FakeGithubOptions 
         record(`pulls.listFiles(#${params.pull_number})`);
         return { data: [] };
       },
-      listCommits: async (params) => {
-        record(`pulls.listCommits(#${params.pull_number})`);
-        return { data: [] };
-      },
     },
     checks: {
       listForRef: async (params) => {
@@ -113,6 +112,10 @@ export function createFakeGithub(scope: GithubScope, options: FakeGithubOptions 
         record(`repos.getCombinedStatusForRef(${params.ref})`);
         return { data: { state: 'success', total_count: 1 } };
       },
+      getCommit: async (params) => {
+        record(`repos.getCommit(${params.ref})`);
+        return { data: { commit: { committer: { date: options.headCommitDate ?? '2026-07-28T00:00:00.000Z' } } } };
+      },
     },
     users: {
       getAuthenticated: async () => {
@@ -123,6 +126,56 @@ export function createFakeGithub(scope: GithubScope, options: FakeGithubOptions 
   };
 
   return Object.assign(api, { calls });
+}
+
+/** Build a Linear issue node with sensible defaults. */
+export function linearIssueNode(overrides: Partial<LinearIssueNode> = {}): LinearIssueNode {
+  return {
+    identifier: 'ENG-1',
+    title: 'Investigate checkout timeout',
+    priority: 2,
+    priorityLabel: 'High',
+    url: 'https://linear.app/acme/issue/ENG-1',
+    createdAt: '2026-07-10T00:00:00.000Z',
+    updatedAt: '2026-07-28T00:00:00.000Z',
+    state: { name: 'In Progress', type: 'started' },
+    project: { name: 'Checkout' },
+    startedAt: '2026-07-21T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export interface LinearHandlerOptions {
+  readonly issues?: readonly LinearIssueNode[];
+  readonly hasNextPage?: boolean;
+  readonly search?: readonly LinearIssueNode[];
+  readonly searchTotal?: number;
+  /** Reject any query containing `history`, to exercise the reduced-query fallback. */
+  readonly rejectHistory?: boolean;
+  /** Reject everything, to exercise upstream-failure handling. */
+  readonly rejectAll?: unknown;
+}
+
+/** Route the two Linear documents this server sends to canned responses. */
+export function linearHandlerFor(
+  options: LinearHandlerOptions,
+): (query: string, variables: Record<string, unknown> | undefined) => unknown {
+  return (query: string) => {
+    if (options.rejectAll !== undefined) throw options.rejectAll;
+    if (query.includes('searchIssues')) {
+      const nodes = options.search ?? [];
+      return { searchIssues: { totalCount: options.searchTotal ?? nodes.length, nodes } };
+    }
+    if (query.includes('history') && options.rejectHistory === true) {
+      throw Object.assign(new Error('Field "history" is not valid'), { status: 400 });
+    }
+    return {
+      issues: {
+        pageInfo: { hasNextPage: options.hasNextPage ?? false },
+        nodes: options.issues ?? [],
+      },
+    };
+  };
 }
 
 export function createFakeLinear(
