@@ -215,6 +215,49 @@ describe('get_my_linear_issues', () => {
     expect(result.notes?.join(' ')).toMatch(/days_in_state is approximate/);
   });
 
+  it('asks for an explicit sort direction rather than inheriting a default', async () => {
+    const captured: string[] = [];
+    const { ctx } = createFakeContext({
+      linearHandler: (query) => {
+        captured.push(query);
+        return { issues: { pageInfo: { hasNextPage: false }, nodes: [] } };
+      },
+    });
+
+    await getMyLinearIssues(ctx, {});
+
+    // The direction decides which issues a capped scan sees, so it must be stated.
+    expect(captured[0]).toContain('sort: $sort');
+    expect(captured[0]).toContain('$sort: [IssueSortInput!]');
+  });
+
+  it('falls back to orderBy if the workspace rejects sort', async () => {
+    const { ctx, linear } = createFakeContext({
+      linearHandler: linearHandlerFor({
+        issues: [linearIssueNode({ identifier: 'ENG-77' })],
+        rejectSort: true,
+      }),
+    });
+
+    const result = await getMyLinearIssues(ctx, {});
+
+    // Two sort-based attempts rejected, then the orderBy rung succeeds.
+    expect(linear.calls).toHaveLength(3);
+    expect(result.items.map((item) => item.identifier)).toEqual(['ENG-77']);
+  });
+
+  it('reports the original failure, not the last fallback failure', async () => {
+    const { ctx } = createFakeContext({
+      linearHandler: linearHandlerFor({
+        rejectAll: Object.assign(new Error('unauthorized'), { status: 401 }),
+      }),
+    });
+
+    const result = await getMyLinearIssues(ctx, {});
+    // A 401 is the real cause; reporting a downstream schema symptom would misdirect the fix.
+    expect(result.warnings?.[0]?.status).toBe(401);
+  });
+
   it('reports a Linear outage as a warning rather than throwing', async () => {
     const { ctx } = createFakeContext({
       linearHandler: linearHandlerFor({

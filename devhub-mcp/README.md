@@ -299,7 +299,13 @@ present, the concrete blocker is reported, since naming `ENG-123` beats restatin
 `days_in_state` prefers the real workflow transition from the issue's history. If that is
 unavailable it falls back to the state's dedicated timestamp (`startedAt`, `triagedAt`,
 `completedAt`, `canceledAt`), and finally to `createdAt` — deliberately *not* `updatedAt`,
-which moves on any edit and would make a long-stalled issue look freshly touched.
+which moves on any edit and would make a long-stalled issue look freshly touched. When the
+exact transition is unavailable the response says so in `notes`.
+
+Because "blocked" is decided client-side, finding blocked issues means fetching active ones and
+testing each. That scan is capped at 100 issues, ordered most-recently-updated first with the
+direction stated explicitly rather than inherited from a Linear default. If the cap is reached,
+the response says which issues were not examined — it never implies the list is complete.
 
 ## Behaviour notes
 

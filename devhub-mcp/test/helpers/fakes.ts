@@ -152,6 +152,8 @@ export interface LinearHandlerOptions {
   readonly searchTotal?: number;
   /** Reject any query containing `history`, to exercise the reduced-query fallback. */
   readonly rejectHistory?: boolean;
+  /** Reject any query using `sort:`, to exercise the final orderBy fallback rung. */
+  readonly rejectSort?: boolean;
   /** Reject everything, to exercise upstream-failure handling. */
   readonly rejectAll?: unknown;
 }
@@ -168,6 +170,9 @@ export function linearHandlerFor(
     }
     if (query.includes('history') && options.rejectHistory === true) {
       throw Object.assign(new Error('Field "history" is not valid'), { status: 400 });
+    }
+    if (query.includes('sort: $sort') && options.rejectSort === true) {
+      throw Object.assign(new Error('Unknown argument "sort"'), { status: 400 });
     }
     return {
       issues: {

@@ -92,11 +92,17 @@ const ISSUE_FIELDS = `
     }`;
 
 /**
- * Primary query. `history(last: 20)` is what makes `days_in_state` exact, by finding the
- * most recent workflow-state transition.
+ * Primary query.
+ *
+ * Two things here are deliberate:
+ *  - `history(last: 20)` is what makes `days_in_state` exact, by finding the most recent
+ *    workflow-state transition.
+ *  - `$sort: [IssueSortInput!]` states the direction explicitly. `orderBy: PaginationOrderBy`
+ *    names only a field, leaving the direction to Linear's default — and the direction decides
+ *    *which* issues a capped scan sees, so it should not be left implicit.
  */
-const MY_ISSUES_QUERY = `query DevhubMyIssues($filter: IssueFilter!, $first: Int!, $orderBy: PaginationOrderBy) {
-  issues(filter: $filter, first: $first, orderBy: $orderBy) {
+const MY_ISSUES_QUERY = `query DevhubMyIssues($filter: IssueFilter!, $first: Int!, $sort: [IssueSortInput!]) {
+  issues(filter: $filter, first: $first, sort: $sort) {
     pageInfo { hasNextPage }
     nodes {${ISSUE_FIELDS}
       history(last: 20) {
@@ -106,14 +112,23 @@ const MY_ISSUES_QUERY = `query DevhubMyIssues($filter: IssueFilter!, $first: Int
   }
 }`;
 
+/** Same, minus `history` — see the fallback ladder in `fetchAssignedIssues`. */
+const MY_ISSUES_QUERY_NO_HISTORY = `query DevhubMyIssuesBasic($filter: IssueFilter!, $first: Int!, $sort: [IssueSortInput!]) {
+  issues(filter: $filter, first: $first, sort: $sort) {
+    pageInfo { hasNextPage }
+    nodes {${ISSUE_FIELDS}
+    }
+  }
+}`;
+
 /**
- * Reduced query used if the primary one is rejected.
+ * Last-resort variant using `orderBy` instead of `sort`.
  *
- * `history` is the only part of the document that could not be exercised against a live API
- * during development, so a schema disagreement there degrades `days_in_state` to a
- * timestamp-derived approximation instead of failing the whole tool.
+ * `orderBy` is the older, narrower parameter. If a workspace's schema rejects `sort` or
+ * `IssueSortInput`, this still returns the right issues — just with Linear's default ordering
+ * rather than an ordering we chose.
  */
-const MY_ISSUES_QUERY_NO_HISTORY = `query DevhubMyIssuesBasic($filter: IssueFilter!, $first: Int!, $orderBy: PaginationOrderBy) {
+const MY_ISSUES_QUERY_ORDER_BY = `query DevhubMyIssuesOrdered($filter: IssueFilter!, $first: Int!, $orderBy: PaginationOrderBy) {
   issues(filter: $filter, first: $first, orderBy: $orderBy) {
     pageInfo { hasNextPage }
     nodes {${ISSUE_FIELDS}
@@ -179,18 +194,34 @@ export async function fetchAssignedIssues(
   filter: Record<string, unknown>,
   first: number,
 ): Promise<FetchIssuesResult> {
-  const variables = { filter, first, orderBy: 'updatedAt' };
-  try {
-    const response = await linear.rawRequest<IssuesQueryResult>(MY_ISSUES_QUERY, variables);
-    return { ...readIssuesPayload(response), degraded: false };
-  } catch (primaryError: unknown) {
+  // Most recently updated first, stated explicitly rather than inherited from a default.
+  const sortVariables = { filter, first, sort: [{ updatedAt: { order: 'Descending' } }] };
+  const orderByVariables = { filter, first, orderBy: 'updatedAt' };
+
+  /**
+   * Attempts, best first. Only the failure path costs extra requests, so the happy path stays
+   * at exactly one round trip. `history` and `sort` are the two parts of the document that
+   * could not be exercised against a live API during development, so each has a rung below it:
+   * a schema disagreement degrades a single field rather than failing the whole tool.
+   */
+  const attempts: readonly { query: string; variables: Record<string, unknown>; degraded: boolean }[] = [
+    { query: MY_ISSUES_QUERY, variables: sortVariables, degraded: false },
+    { query: MY_ISSUES_QUERY_NO_HISTORY, variables: sortVariables, degraded: true },
+    { query: MY_ISSUES_QUERY_ORDER_BY, variables: orderByVariables, degraded: true },
+  ];
+
+  let firstError: unknown;
+  for (const attempt of attempts) {
     try {
-      const response = await linear.rawRequest<IssuesQueryResult>(MY_ISSUES_QUERY_NO_HISTORY, variables);
-      return { ...readIssuesPayload(response), degraded: true };
-    } catch {
-      throw primaryError;
+      const response = await linear.rawRequest<IssuesQueryResult>(attempt.query, attempt.variables);
+      return { ...readIssuesPayload(response), degraded: attempt.degraded };
+    } catch (error: unknown) {
+      // Report the first failure, not the last: it describes the real cause (auth, rate limit)
+      // rather than the symptom of a fallback that was never going to work either.
+      if (firstError === undefined) firstError = error;
     }
   }
+  throw firstError;
 }
 
 /** Free-text issue search. `searchIssues` reports a real `totalCount`, unlike `issues`. */
