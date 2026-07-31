@@ -71,21 +71,12 @@
        it finds and there is nothing in the box until then. */
     var release = null;
 
+    /* Closing releases the trap, which is also what dismisses this dialog when the
+       user navigates away — see U.trap. */
     function close() {
       if (release) release();
-      global.removeEventListener("hashchange", onNavigate);
       if (scrim.parentNode) scrim.parentNode.removeChild(scrim);
     }
-
-    /* The dialog lives on document.body, not inside the view the router replaces,
-       so navigating away used to leave it floating over a different page. Reachable
-       in ordinary use: the command palette opens on "/" from anywhere, including
-       from behind this scrim. Treat leaving as dismissal — the same as the scrim
-       click and Escape. */
-    function onNavigate() {
-      dismiss();
-    }
-    global.addEventListener("hashchange", onNavigate);
 
     function trackById(id) {
       return C.tracks.filter(function (t) {

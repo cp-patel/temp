@@ -1381,6 +1381,101 @@ async function main() {
     await cctx.close();
   }
 
+  /* ---------------- no dialog outlives the page it opened on ---------------- */
+  /* All three dialogs mount on document.body rather than inside the view the
+     router replaces. The command palette showed what that costs: open it, press
+     the browser Back button, and it stays — on top of the new page, swallowing
+     every click until you happen to guess Escape. U.trap treats leaving as a
+     dismissal, so a fourth dialog gets the behaviour for free. */
+  section("dialogs and navigation");
+  {
+    const gctx = await browser.newContext({
+      viewport: { width: 1440, height: 950 },
+      colorScheme: "dark",
+    });
+    const gp = await gctx.newPage();
+    gp.on("pageerror", (e) => errors.push(`dialogs pageerror: ${e.message}`));
+    gp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`dialogs console: ${m.text()}`);
+    });
+    const gGo = async (hash) => {
+      await gp.goto(BASE + hash, { waitUntil: "networkidle" });
+      await gp.addStyleTag({
+        content: "html{scroll-behavior:auto !important}",
+      });
+      await gp.evaluate(() => Store.skipOnboarding());
+      await gp.waitForTimeout(150);
+    };
+
+    // Real history, so Back means something.
+    await gGo("#/glossary");
+    await gp.goto(BASE + "#/roadmap", { waitUntil: "networkidle" });
+    await gp.goto(BASE + "#/library", { waitUntil: "networkidle" });
+    await gp.waitForTimeout(250);
+
+    await gp.keyboard.press("/");
+    await gp.waitForTimeout(350);
+    const palWasOpen = await gp.evaluate(
+      () => !document.getElementById("palette").hidden
+    );
+    await gp.goBack();
+    await gp.waitForTimeout(600);
+    check(
+      "the command palette closes on the browser Back button",
+      palWasOpen &&
+        (await gp.evaluate(() => document.getElementById("palette").hidden)),
+      `open before: ${palWasOpen}`
+    );
+
+    /* And the page underneath is usable again — the failure mode was not the
+       stray dialog but everything it blocked. */
+    check(
+      "the page underneath takes clicks again",
+      await gp
+        .locator(".navlink")
+        .first()
+        .click({ timeout: 4000 })
+        .then(() => true)
+        .catch(() => false)
+    );
+
+    await gGo("#/settings");
+    await gp.waitForTimeout(300);
+    await gp
+      .locator(".setrow", { hasText: "Reset" })
+      .locator("button")
+      .first()
+      .click();
+    await gp.waitForTimeout(350);
+    const confirmWasOpen = (await gp.locator(".modal").count()) === 1;
+    await gp.evaluate(() => {
+      location.hash = "#/roadmap";
+    });
+    await gp.waitForTimeout(500);
+    check(
+      "the confirm dialog closes when the route changes",
+      confirmWasOpen && (await gp.locator(".modal").count()) === 0,
+      `open before: ${confirmWasOpen}`
+    );
+
+    /* Closing on navigation must not break the palette's own reason to navigate. */
+    await gGo("#/labs");
+    await gp.waitForTimeout(250);
+    await gp.keyboard.press("/");
+    await gp.waitForTimeout(300);
+    await gp.keyboard.type("token");
+    await gp.waitForTimeout(400);
+    await gp.keyboard.press("Enter");
+    await gp.waitForTimeout(600);
+    check(
+      "selecting a palette result still navigates and closes",
+      (await gp.evaluate(() => location.hash)).startsWith("#/chapter/") &&
+        (await gp.evaluate(() => document.getElementById("palette").hidden)),
+      await gp.evaluate(() => location.hash)
+    );
+    await gctx.close();
+  }
+
   /* ---------------- a shared link is not an invitation to onboard ---------------- */
   /* Someone links a colleague to Hybrid Search & Reranking. The chapter used to
      render and then get covered, 650ms later, by a four-question survey — with
