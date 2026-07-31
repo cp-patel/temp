@@ -427,6 +427,106 @@ async function main() {
     await page.evaluate(() => document.getElementById("palette").hidden)
   );
 
+  /* Keyboard-only operation, which no earlier pass had driven. Nine nav links,
+     eight phase links, a brand and a search button sit before the content: 24
+     tab stops to reach a chapter's first paragraph, which WCAG 2.4.1 exists to
+     prevent. */
+  await go("#/chapter/tokens");
+  await page.keyboard.press("Tab");
+  // It slides in on focus, so wait for the transition rather than guessing at it.
+  await page
+    .waitForFunction(
+      () => {
+        const e = document.activeElement;
+        return (
+          e &&
+          e.classList.contains("skiplink") &&
+          e.getBoundingClientRect().top >= 0
+        );
+      },
+      { timeout: 2500 }
+    )
+    .catch(() => {});
+  const skip = await page.evaluate(() => {
+    const e = document.activeElement;
+    return {
+      cls: (e.className || "").toString(),
+      onscreen: e.getBoundingClientRect().top >= 0,
+      top: Math.round(e.getBoundingClientRect().top),
+    };
+  });
+  check(
+    "the first tab stop is a visible skip link",
+    skip.cls.includes("skiplink") && skip.onscreen,
+    JSON.stringify(skip)
+  );
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(200);
+  await page.keyboard.press("Tab");
+  check(
+    "the skip link lands you inside the content",
+    await page.evaluate(() => !!document.activeElement.closest("#main"))
+  );
+
+  /* Six labs build toggle rows from switchRow. The row is the pointer target, so
+     the switch inside it has to be a real button or the control does not exist to
+     a keyboard at all — which is what a div with an onclick amounts to. */
+  await go("#/labs");
+  await page.waitForTimeout(700);
+  const swState = await page.evaluate(() => {
+    const s = document.querySelector(".sw");
+    s.scrollIntoView({ block: "center" });
+    return {
+      tag: s.tagName.toLowerCase(),
+      role: s.getAttribute("role"),
+      checked: s.getAttribute("aria-checked"),
+      labelled: !!s.getAttribute("aria-label"),
+    };
+  });
+  await page.locator(".sw").first().focus();
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(300);
+  const swAfter = await page.evaluate(() =>
+    document.querySelector(".sw").getAttribute("aria-checked")
+  );
+  check(
+    "lab toggles are real switches, operable by keyboard",
+    swState.tag === "button" &&
+      swState.role === "switch" &&
+      swState.labelled &&
+      swAfter !== swState.checked,
+    `${JSON.stringify(swState)} → aria-checked=${swAfter}`
+  );
+
+  /* A dialog that leaves focus on <body> does not exist to the keyboard: the
+     first Tab went to the skip link *behind* the scrim, and Escape did nothing. */
+  await page.evaluate(() => Store.reset());
+  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.waitForSelector(".ob", { timeout: 3000 });
+  await page.waitForTimeout(400);
+  const obFocus = await page.evaluate(
+    () => !!document.activeElement.closest(".ob")
+  );
+  let obLeak = false;
+  for (let i = 0; i < 10; i++) {
+    await page.keyboard.press("Tab");
+    if (!(await page.evaluate(() => !!document.activeElement.closest(".ob")))) {
+      obLeak = true;
+      break;
+    }
+  }
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  const obClosed = (await page.locator(".ob").count()) === 0;
+  check(
+    "the onboarding dialog takes focus, keeps it, and closes on Escape",
+    obFocus && !obLeak && obClosed,
+    `focus=${obFocus} trapped=${!obLeak} escape=${obClosed}`
+  );
+
+  // Restore state for the sections that follow this one.
+  await page.evaluate(() => Store.skipOnboarding());
+
   /* ---------------- reading measure ---------------- */
   /* Line length is the single biggest lever on whether long-form text is
      comfortable, and it is easy to break without noticing because nothing looks
@@ -769,6 +869,14 @@ async function main() {
         .forEach((e) => {
           const box = e.getBoundingClientRect();
           if (box.width < 4 || box.height < 4) return;
+          /* 2.5.8 does not count a small control whose action is also available
+             on a larger target. The lab switches are 34x19 on purpose — they are
+             the keyboard handle, while the whole row is the pointer target. */
+          const alt = e.parentElement && e.parentElement.closest(".pbrow");
+          if (alt && typeof alt.onclick === "function") {
+            const ab = alt.getBoundingClientRect();
+            if (ab.height >= 24 && ab.width >= 24) return;
+          }
           if (box.height < 24 || box.width < 24)
             out.push(
               `${e.tagName.toLowerCase()}.${(e.className || "?").toString().split(" ")[0]} ` +

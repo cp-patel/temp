@@ -732,6 +732,31 @@ body.is-landing .topbar {
 
 /* ---------------- Mobile ---------------- */
 
+/* Visible only when focused — the standard skip-link pattern. Positioned rather
+   than clipped so it lands over the topbar instead of shifting layout. */
+.skiplink {
+  position: fixed;
+  top: -100px;
+  left: var(--s-4);
+  z-index: 100;
+  padding: 0.55rem 0.9rem;
+  font-size: var(--t-sm);
+  font-weight: 620;
+  color: var(--ink-inv);
+  background: var(--accent);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  transition: top var(--dur-fast) var(--ease-out);
+}
+
+.skiplink:focus,
+.skiplink:focus-visible {
+  top: var(--s-3);
+  color: var(--ink-inv);
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 .scrim {
   position: fixed;
   inset: 0;

@@ -76,7 +76,13 @@
       '<button class="btn btn--ghost" data-a="no">Cancel</button>' +
       '<button class="btn btn--primary" data-a="yes">Confirm</button></div></div>';
     document.body.appendChild(m);
+    var box = m.querySelector(".modal__box");
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    box.setAttribute("aria-label", title);
+    var release = null;
     function close() {
+      if (release) release();
       if (m.parentNode) m.parentNode.removeChild(m);
     }
     m.addEventListener("click", function (e) {
@@ -86,6 +92,9 @@
         onYes();
       }
     });
+    /* Escape cancels — the safe half of a destructive prompt, and the behaviour
+       every other dialog in the app now has. */
+    release = U.trap(box, close);
   };
 
   /* =========================================================
@@ -355,7 +364,8 @@
     p.id = "palette";
     p.hidden = true;
     p.innerHTML =
-      '<div class="palette__box" role="dialog" aria-label="Search">' +
+      '<div class="palette__box" role="dialog" aria-modal="true" ' +
+      'aria-label="Search">' +
       '<div class="palette__input">' +
       Icons.get("search", 17) +
       '<input type="text" placeholder="Search chapters, labs, glossary, commands…" aria-label="Search">' +
@@ -402,16 +412,26 @@
     return p;
   }
 
+  var palRelease = null;
+
   Palette.open = function () {
     palNode.hidden = false;
     palInput.value = "";
-    palInput.focus();
     search("");
+    /* Escape is handled on the input already; the trap adds the two halves that
+       were missing — Tab cannot wander onto the page behind the scrim, and
+       closing puts focus back on whatever opened it instead of on <body>. */
+    palRelease = U.trap(palNode.querySelector(".palette__box"), Palette.close);
+    palInput.focus();
   };
 
   Palette.close = function () {
     palNode.hidden = true;
     palInput.blur();
+    if (palRelease) {
+      palRelease();
+      palRelease = null;
+    }
   };
 
   function moveCursor(d) {
@@ -757,12 +777,32 @@
 
     document.body.appendChild(el("div", "grain"));
 
+    /* WCAG 2.4.1 Bypass Blocks. Nine nav links, eight phase links, a brand and a
+       search button sit before the content on every page — 24 tab stops to reach
+       the first paragraph of a chapter. This is the first focusable thing in the
+       document and gets you there in one. */
+    var skip = el("a", "skiplink", "Skip to content");
+    skip.href = "#main";
+    skip.onclick = function (e) {
+      e.preventDefault();
+      var host = document.getElementById("main");
+      if (!host) return;
+      host.focus();
+      host.scrollIntoView({ block: "start" });
+    };
+    document.body.appendChild(skip);
+
     var app = el("div", "app");
     app.appendChild(buildSidebar());
 
     var main = el("div", "main");
     main.appendChild(buildTopbar());
     mainHost = el("div", "u-grow");
+    mainHost.id = "main";
+    /* -1 so it is not a tab stop of its own, but can still receive focus from the
+       skip link — which is what makes the next Tab continue from the content. */
+    mainHost.tabIndex = -1;
+    mainHost.setAttribute("role", "main");
     mainHost.style.display = "flex";
     mainHost.style.flexDirection = "column";
     main.appendChild(mainHost);

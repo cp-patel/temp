@@ -116,6 +116,8 @@ paraphrase matching_ — the lab's entire point — so it was rebuilt.
 - XP, levels, streaks, per-phase mastery, milestone badges, activity heatmap
 - Per-chapter notes, project milestone checklists
 - Command palette (`⌘K` / `Ctrl+K` / `/`) over chapters, labs, glossary, commands
+- Keyboard-operable throughout: a skip link, focus-trapped dialogs that close on
+  Escape and restore focus, and lab toggles that are real `role="switch"` buttons
 
 Everything is stored in `localStorage` under one key. **No network requests after
 page load** — no analytics, no backend, no telemetry. Export and import your
@@ -132,7 +134,7 @@ js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
 tests/unit/                 78 assertions — util, store, plan engine
-tests/e2e/                  99 checks in real Chromium, incl. a full first-visitor walkthrough
+tests/e2e/                  103 checks in real Chromium, incl. a full first-visitor walkthrough
                             and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```

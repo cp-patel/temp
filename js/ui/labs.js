@@ -48,6 +48,11 @@
     return wrap;
   }
 
+  /* The row is the pointer target — big and forgiving. The switch inside it is a
+     real <button role="switch">, which is the keyboard target: Enter and Space
+     work natively and it sits in the tab order, neither of which a div with an
+     onclick has ever done. Six labs build their toggles from this, so the two
+     targets are set up here rather than at each call site. */
   function switchRow(title, desc, on) {
     var row = el("div", "pbrow" + (on ? "" : " is-off"));
     row.innerHTML =
@@ -59,10 +64,31 @@
       '</div><div class="pbrow__d">' +
       esc(desc) +
       "</div></div>" +
-      '<div class="sw' +
+      '<button type="button" class="sw' +
       (on ? " is-on" : "") +
-      '"></div>';
+      '" role="switch" aria-checked="' +
+      (on ? "true" : "false") +
+      '" aria-label="' +
+      U.attr(title) +
+      '"></button>';
     row.sw = row.querySelector(".sw");
+    /* Forward and stop: without this, a click on the switch would also bubble to
+       the row and toggle twice. */
+    row.sw.onclick = function (e) {
+      e.stopPropagation();
+      if (typeof row.onclick === "function") row.onclick(e);
+    };
+    /* Callers flip `is-on` on the switch; mirror it into aria on the next frame,
+       after their handler has run. Registration order means this listener fires
+       before an onclick assigned later, so it cannot read the state inline. */
+    row.addEventListener("click", function () {
+      requestAnimationFrame(function () {
+        row.sw.setAttribute(
+          "aria-checked",
+          row.sw.classList.contains("is-on") ? "true" : "false"
+        );
+      });
+    });
     return row;
   }
 

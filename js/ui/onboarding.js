@@ -61,10 +61,18 @@
 
     var scrim = el("div", "modal ob");
     var box = el("div", "modal__box ob__box");
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-modal", "true");
+    box.setAttribute("aria-label", "Personalise your roadmap");
     scrim.appendChild(box);
     document.body.appendChild(scrim);
 
+    /* Armed after the first render(), because the trap focuses the first control
+       it finds and there is nothing in the box until then. */
+    var release = null;
+
     function close() {
+      if (release) release();
       if (scrim.parentNode) scrim.parentNode.removeChild(scrim);
     }
 
@@ -336,15 +344,22 @@
       box.appendChild(actions);
     }
 
+    function dismiss() {
+      Store.skipOnboarding();
+      close();
+      if (opts.onDone) opts.onDone(false);
+    }
+
     scrim.addEventListener("click", function (e) {
-      if (e.target === scrim && step === 0) {
-        Store.skipOnboarding();
-        close();
-        if (opts.onDone) opts.onDone(false);
-      }
+      if (e.target === scrim && step === 0) dismiss();
     });
 
     render();
+
+    /* Escape does what "Skip for now" and a scrim click already do: dismiss
+       without saving, and stop the prompt reappearing on every load. It stays
+       re-openable from Settings and from My Plan, so this loses nothing. */
+    release = U.trap(box, dismiss);
   };
 
   global.Onboarding = O;
