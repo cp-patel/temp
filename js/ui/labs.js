@@ -3618,6 +3618,357 @@
     },
   };
 
+  /* =========================================================
+     15. COMPOUNDING RELIABILITY
+
+     The multi-agent chapter's central argument is arithmetic: adding an agent
+     multiplies rather than adds, so a chain of individually reliable agents is
+     an unreliable system. Readers nod at 0.95^5 and then design six-agent
+     pipelines anyway. Letting them move both numbers and watch the result is
+     more persuasive than the sentence.
+     ========================================================= */
+
+  L.compounding = {
+    title: "Why chains of agents fail",
+    sub: "Move the reliability and the agent count. Watch the product, not the average.",
+    tag: "Lab",
+    icon: "split",
+    render: function (root) {
+      var per = 95; // per-agent reliability, %
+      var n = 5; // agents in the chain
+      var shape = "chain";
+
+      var grid = el("div", "lab__grid lab__grid--split");
+      var left = el("div", "lab__panel");
+
+      var shapes = toggles(
+        [
+          { id: "chain", label: "Sequential chain" },
+          { id: "orch", label: "Orchestrator + workers" },
+        ],
+        "chain",
+        function (id) {
+          shape = id;
+          update();
+        }
+      );
+      left.appendChild(shapes);
+      var sp = el("div");
+      sp.style.height = "var(--s-4)";
+      left.appendChild(sp);
+
+      var relS = slider(
+        "Reliability per agent",
+        70,
+        99,
+        1,
+        per,
+        "How often one agent does its own job correctly."
+      );
+      var nS = slider("Agents involved", 1, 8, 1, n, null);
+      relS.input.addEventListener("input", function () {
+        per = +relS.input.value;
+        update();
+      });
+      nS.input.addEventListener("input", function () {
+        n = +nS.input.value;
+        update();
+      });
+      left.appendChild(relS);
+      left.appendChild(nS);
+
+      var mm = metrics([
+        { k: "end", l: "End-to-end success" },
+        { k: "fail", l: "Runs that fail" },
+        { k: "naive", l: "What people assume" },
+      ]);
+      left.appendChild(mm);
+
+      var right = el("div", "lab__panel");
+      var chart = el("div", "ccurve");
+      chart.innerHTML =
+        '<div class="ccurve__head">' +
+        '<span class="ccurve__ylab">end-to-end success</span>' +
+        '<span class="ccurve__read" data-read>hover a count</span>' +
+        "</div>" +
+        '<div class="ccurve__plot ccurve__plot--emphasis" data-plot></div>' +
+        '<div class="ccurve__xlab">1 agent → 8 agents</div>';
+      var verdict = el("div");
+      verdict.style.marginTop = "var(--s-4)";
+      right.appendChild(chart);
+      right.appendChild(verdict);
+
+      grid.appendChild(left);
+      grid.appendChild(right);
+      root.appendChild(grid);
+      root.appendChild(
+        foot(
+          "A <b>sequential chain</b> multiplies: every agent must succeed, so reliability " +
+            "is <code>r^n</code>. An <b>orchestrator</b> with isolated workers only needs the " +
+            "lead and one worker to succeed for a given subtask, so it degrades far more " +
+            "slowly — which is why it is the topology that survives production. Try 95% " +
+            "across five agents in a chain: individually excellent, collectively a coin " +
+            "flip you would not ship."
+        )
+      );
+
+      /* Chain: every step must succeed. Orchestrator: the lead must succeed and
+         each worker's failure costs only its own subtask, so the expected share
+         of completed work degrades linearly rather than geometrically. */
+      function successAt(count) {
+        var r = per / 100;
+        if (shape === "chain") return Math.pow(r, count);
+        if (count <= 1) return r;
+        return r * (1 - (1 - r) / 2);
+      }
+
+      function update() {
+        relS.out.textContent = per + "%";
+        nS.out.textContent = String(n);
+
+        var end = successAt(n);
+        mm.set("end", Math.round(end * 100) + "<small>%</small>");
+        mm.set(
+          "fail",
+          "1 in " + Math.max(1, Math.round(1 / Math.max(1e-6, 1 - end)))
+        );
+        mm.set("naive", per + "<small>%</small>");
+
+        var plot = chart.querySelector("[data-plot]");
+        plot.innerHTML = "";
+        for (var i = 1; i <= 8; i++) {
+          var v = successAt(i);
+          var col = el("div", "ccol" + (i === n ? " is-focus" : ""));
+          col.style.setProperty("--h", v * 100 + "%");
+          col.setAttribute(
+            "title",
+            i + (i === 1 ? " agent: " : " agents: ") + Math.round(v * 100) + "%"
+          );
+          (function (i2, v2) {
+            col.onmouseenter = function () {
+              chart.querySelector("[data-read]").innerHTML =
+                "<b>" +
+                i2 +
+                "</b> " +
+                (i2 === 1 ? "agent" : "agents") +
+                " · <b>" +
+                Math.round(v2 * 100) +
+                "%</b> succeed";
+            };
+            col.onmouseleave = function () {
+              chart.querySelector("[data-read]").innerHTML = "hover a count";
+            };
+          })(i, v);
+          plot.appendChild(col);
+        }
+
+        var tone = end >= 0.9 ? "good" : end >= 0.75 ? "warn" : "bad";
+        var msg =
+          tone === "good"
+            ? "Acceptable — but check whether you needed the agents at all."
+            : tone === "warn"
+              ? "One run in " +
+                Math.round(1 / (1 - end)) +
+                " fails. Fine for a draft, not for anything irreversible."
+              : "This ships broken. Remove agents, or make the failures recoverable.";
+        verdict.innerHTML =
+          '<div class="verdict verdict--' +
+          (tone === "good" ? "held" : "breached") +
+          '"><div class="verdict__h">' +
+          Icons.get(tone === "good" ? "checkCircle" : "alert", 14) +
+          " " +
+          (tone === "good"
+            ? "Survivable"
+            : tone === "warn"
+              ? "Marginal"
+              : "Not shippable") +
+          "</div>" +
+          esc(msg) +
+          "</div>";
+
+        L.touched("compounding");
+      }
+
+      update();
+    },
+  };
+
+  /* =========================================================
+     16. FINE-TUNING BREAK-EVEN
+
+     "Does it pay for itself?" is an arithmetic question the chapter answers with
+     a worked example. A worked example is one point on a curve; the reader needs
+     to know where *their* volume sits relative to the crossing point.
+     ========================================================= */
+
+  L.breakeven = {
+    title: "Does fine-tuning pay for itself?",
+    sub: "One fixed cost, a cheaper per-call rate. Find the crossing point.",
+    tag: "Tool",
+    icon: "scale",
+    render: function (root) {
+      var reqPerDay = 20000;
+      var fixed = 3000; // training + eval + iteration, USD
+      // A blended input+output rate per million tokens for a mid-tier model.
+      // Illustrative, and the slider below is what actually varies.
+      var basePer = 5.0;
+      var tokensPerReq = 900;
+
+      var grid = el("div", "lab__grid lab__grid--split");
+      var left = el("div", "lab__panel");
+
+      var vol = slider(
+        "Requests per day",
+        100,
+        200000,
+        100,
+        reqPerDay,
+        "Fine-tuning is a fixed cost amortised over volume. Volume decides it."
+      );
+      var fx = slider(
+        "One-off cost ($)",
+        500,
+        20000,
+        500,
+        fixed,
+        "Training runs, the eval set, and the iterations you will need."
+      );
+      var sav = slider(
+        "Per-request saving (%)",
+        20,
+        90,
+        5,
+        75,
+        "A smaller tuned model serving the same task."
+      );
+      [vol, fx, sav].forEach(function (c) {
+        c.input.addEventListener("input", update);
+        left.appendChild(c);
+      });
+
+      var mm = metrics([
+        { k: "days", l: "Break-even" },
+        { k: "month", l: "Saved per month", tone: "emerald" },
+        { k: "verdict", l: "Worth it?" },
+      ]);
+      left.appendChild(mm);
+
+      var right = el("div", "lab__panel");
+      var chart = el("div", "ccurve");
+      chart.innerHTML =
+        '<div class="ccurve__head">' +
+        '<span class="ccurve__ylab">cumulative saving vs baseline</span>' +
+        '<span class="ccurve__read" data-read>hover a month</span>' +
+        "</div>" +
+        '<div class="ccurve__plot ccurve__plot--signed" data-plot></div>' +
+        '<div class="ccurve__xlab">month 1 → month 12 · the baseline is break-even</div>';
+      right.appendChild(chart);
+
+      grid.appendChild(left);
+      grid.appendChild(right);
+      root.appendChild(grid);
+      root.appendChild(
+        foot(
+          "Bars below the line are months where you are still paying off the one-off " +
+            "cost; above it you are ahead. Drag the volume down to a few hundred requests " +
+            "a day and the crossing never arrives inside a year — which is the honest " +
+            "answer for most teams, and the reason <b>distillation at high volume</b> is the " +
+            "one fine-tuning pattern that reliably earns its keep. Rates are illustrative."
+        )
+      );
+
+      function update() {
+        reqPerDay = +vol.input.value;
+        fixed = +fx.input.value;
+        var savePct = +sav.input.value / 100;
+        vol.out.textContent = U.commas(reqPerDay) + "/day";
+        fx.out.textContent = "$" + U.commas(fixed);
+        sav.out.textContent = Math.round(savePct * 100) + "%";
+
+        var perReqBase = (tokensPerReq * basePer) / 1e6;
+        var savedPerReq = perReqBase * savePct;
+        var savedPerDay = savedPerReq * reqPerDay;
+        var savedPerMonth = savedPerDay * 30;
+        var days = savedPerDay > 0 ? fixed / savedPerDay : Infinity;
+
+        mm.set(
+          "days",
+          days > 3650
+            ? '<span class="metric__none">never</span>'
+            : days < 60
+              ? Math.round(days) + "<small>d</small>"
+              : Math.round(days / 30) + "<small>mo</small>"
+        );
+        mm.set("month", "$" + U.commas(Math.round(savedPerMonth)));
+        mm.set(
+          "verdict",
+          days <= 90
+            ? "yes"
+            : days <= 365
+              ? "maybe"
+              : '<span class="metric__none">no</span>'
+        );
+
+        var rows = [];
+        for (var m = 1; m <= 12; m++) rows.push(savedPerMonth * m - fixed);
+        var peak = Math.max.apply(
+          null,
+          rows.map(function (v) {
+            return Math.abs(v);
+          })
+        );
+        peak = peak || 1;
+
+        var plot = chart.querySelector("[data-plot]");
+        plot.innerHTML = "";
+        rows.forEach(function (v, i) {
+          /* Two stacked halves per month: the upper one bottom-anchored so a
+             positive bar grows up off the baseline, the lower one top-anchored so
+             a negative bar grows down from it. Trying to do this with a single
+             bar and auto margins put the positive bars at the top of the plot
+             instead of on the midline. */
+          var cell = el("div", "csign");
+          var up = el("div", "csign__up");
+          var down = el("div", "csign__down");
+          var bar = el("div", "csign__bar" + (v >= 0 ? " is-pos" : " is-neg"));
+          bar.style.height = (Math.abs(v) / peak) * 100 + "%";
+          (v >= 0 ? up : down).appendChild(bar);
+          cell.appendChild(up);
+          cell.appendChild(down);
+          cell.setAttribute(
+            "title",
+            "Month " +
+              (i + 1) +
+              ": " +
+              (v >= 0 ? "+" : "−") +
+              "$" +
+              U.commas(Math.abs(Math.round(v)))
+          );
+          (function (i2, v2) {
+            cell.onmouseenter = function () {
+              chart.querySelector("[data-read]").innerHTML =
+                "month <b>" +
+                (i2 + 1) +
+                "</b> · <b>" +
+                (v2 >= 0 ? "+" : "−") +
+                "$" +
+                U.commas(Math.abs(Math.round(v2))) +
+                "</b>";
+            };
+            cell.onmouseleave = function () {
+              chart.querySelector("[data-read]").innerHTML = "hover a month";
+            };
+          })(i, v);
+          plot.appendChild(cell);
+        });
+
+        L.touched("breakeven");
+      }
+
+      update();
+    },
+  };
+
   /* ---------------- mount ---------------- */
 
   /* Labs record use from their update() function, which also runs once on

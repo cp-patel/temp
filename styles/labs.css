@@ -1302,3 +1302,88 @@ input[type="range"]::-moz-range-thumb {
   color: var(--ink-3);
   font-weight: 500;
 }
+
+/* Emphasis, done the documented way round: the selected bar keeps the series
+   colour and the rest recede. Brightening the one bar instead left it barely
+   distinguishable, because every bar was already the accent.
+
+   An explicit modifier rather than :has(.is-focus) — :has() takes the
+   specificity of its argument, so the muting rule outweighed the focus rule and
+   every bar came out muted. */
+.ccurve__plot--emphasis .ccol {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.ccurve__plot--emphasis .ccol.is-focus {
+  background: var(--accent);
+}
+
+/* The signed plot is symmetric about its baseline so the zero line stays put as
+   the sliders move. When the data is mostly positive that leaves the lower half
+   quiet, so it gets less height than the single-direction plot. */
+.ccurve__plot--signed {
+  height: 150px;
+}
+
+/* ---- Signed bars (break-even) ----
+   One series that crosses zero, so the baseline sits mid-plot and a bar grows up
+   or down from it. Not a diverging colour scale: the two directions mean "behind"
+   and "ahead", which is status, so they take the status palette with the sign in
+   the tooltip and the table doing the labelling. */
+
+.ccurve__plot--signed {
+  align-items: center;
+  border-bottom: 0;
+  position: relative;
+}
+
+.ccurve__plot--signed::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--line);
+}
+
+.csign {
+  flex: 1 1 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Equal halves, so the shared edge between them *is* the baseline. */
+.csign__up,
+.csign__down {
+  flex: 1 1 50%;
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+}
+
+.csign__up {
+  align-items: flex-end;
+}
+
+.csign__down {
+  align-items: flex-start;
+}
+
+.csign__bar {
+  width: 100%;
+  max-width: 24px;
+  transition: height var(--dur) var(--ease-out);
+}
+
+.csign__bar.is-pos {
+  border-radius: 4px 4px 0 0;
+  background: var(--emerald);
+}
+
+.csign__bar.is-neg {
+  border-radius: 0 0 4px 4px;
+  background: var(--rose);
+}

@@ -997,6 +997,7 @@ to inspect further."""))
       minutes: 20,
       difficulty: "advanced",
       tags: ["multi-agent", "orchestration"],
+      lab: "compounding",
       objectives: [
         "Decide whether multiple agents are justified",
         "Choose an orchestration topology",
@@ -1041,6 +1042,7 @@ to inspect further."""))
           text: "Five agents each 95% reliable, chained in sequence, gives roughly 0.95^5 ≈ 77% end-to-end. Adding agents multiplies failure probability unless each handoff is validated. Independent parallel agents whose results you aggregate are much safer than a serial chain — prefer fan-out over pipelines.",
         },
 
+        { t: "lab", id: "compounding" },
         { t: "h", text: "Topologies" },
         {
           t: "p",

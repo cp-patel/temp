@@ -4,7 +4,7 @@ An interactive, opinionated curriculum for becoming an **AI application
 engineer**: the person who ships products on top of models someone else trained,
 and can prove the result works.
 
-**44 chapters · 8 phases · 14 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
+**44 chapters · 8 phases · 16 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
 ~68,000 words · zero dependencies**
 
 It adapts to you. Tell it you're a backend engineer and it marks the ten chapters
@@ -41,7 +41,7 @@ Eight phases in a deliberate order. Each ends with a project.
 | 08 · Frontier & Career               | Fine-tuning decisions, multimodal, local inference, **interviewing**, staying current                               |
 
 Every chapter has learning objectives, prose with code/tables/callouts/diagrams,
-an inline knowledge check, key takeaways, a scored quiz with per-answer
+two inline knowledge checks, key takeaways, a scored quiz with per-answer
 explanations, flashcards, and further reading.
 
 ### Personalised plan
@@ -78,24 +78,26 @@ number that nobody should believe.
 
 ### Interactive labs
 
-Fourteen labs, each making one idea manipulable rather than described.
+Sixteen labs, each making one idea manipulable rather than described.
 
-| Lab                          | Teaches                                                                      |
-| ---------------------------- | ---------------------------------------------------------------------------- |
-| Tokenizer & cost visualiser  | How text fragments, and why IDs and non-Latin scripts are expensive          |
-| Temperature & top-p sandbox  | What sampling parameters do to the probability distribution                  |
-| Model routing decision tool  | Constraint-driven model selection with cost estimates                        |
-| Prompt anatomy builder       | Reorder prompt blocks; an audit flags broken caching and buried instructions |
-| Context budget allocator     | Six consumers, one window, and what happens with no output reserve           |
-| Latency waterfall            | Which optimisations move TTFT, and which don't                               |
-| Dense vs lexical vs hybrid   | Where each retriever fails — demonstrated, not asserted                      |
-| Chunking playground          | Four strategies on one document, with orphan and mid-sentence-cut detection  |
-| RAG pipeline simulator       | Toggle stages; see which specific failure each one causes                    |
-| Agent loop stepper           | Step a ReAct trace while the budget drains                                   |
-| Eval scorecard & CI gate     | Confidence intervals, and why a 4-point move on 50 cases is noise            |
-| **Golden trajectory scorer** | Break an agent's route and watch which criteria catch it                     |
-| Prompt injection sandbox     | Which defences hold (delimiters don't; capability removal does)              |
-| **Conversation cost curve**  | Why a 20-turn chat bills quadratically, and what flattens it                 |
+| Lab                           | Teaches                                                                      |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| Tokenizer & cost visualiser   | How text fragments, and why IDs and non-Latin scripts are expensive          |
+| Temperature & top-p sandbox   | What sampling parameters do to the probability distribution                  |
+| Model routing decision tool   | Constraint-driven model selection with cost estimates                        |
+| Prompt anatomy builder        | Reorder prompt blocks; an audit flags broken caching and buried instructions |
+| Context budget allocator      | Six consumers, one window, and what happens with no output reserve           |
+| Latency waterfall             | Which optimisations move TTFT, and which don't                               |
+| Dense vs lexical vs hybrid    | Where each retriever fails — demonstrated, not asserted                      |
+| Chunking playground           | Four strategies on one document, with orphan and mid-sentence-cut detection  |
+| RAG pipeline simulator        | Toggle stages; see which specific failure each one causes                    |
+| Agent loop stepper            | Step a ReAct trace while the budget drains                                   |
+| Eval scorecard & CI gate      | Confidence intervals, and why a 4-point move on 50 cases is noise            |
+| **Golden trajectory scorer**  | Break an agent's route and watch which criteria catch it                     |
+| Prompt injection sandbox      | Which defences hold (delimiters don't; capability removal does)              |
+| **Conversation cost curve**   | Why a 20-turn chat bills quadratically, and what flattens it                 |
+| **Why chains of agents fail** | Move reliability and agent count; watch the product, not the average         |
+| **Fine-tuning break-even**    | One fixed cost against a cheaper rate — find the crossing point              |
 
 Two labs use deliberate simplifications, stated in their own UI: the tokenizer
 approximates subword segmentation heuristically, and the retrieval lab's dense

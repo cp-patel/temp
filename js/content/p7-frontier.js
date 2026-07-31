@@ -16,6 +16,7 @@
       minutes: 20,
       difficulty: "advanced",
       tags: ["fine-tuning", "decisions"],
+      lab: "breakeven",
       objectives: [
         "Route a problem to the right technique with a clear rule",
         "Know what fine-tuning genuinely delivers and what it can't",
@@ -216,6 +217,7 @@ Worked example
           text: "Fine-tuning is a fixed cost amortised over requests. Under roughly 50k requests/month on a stable task, the engineering time almost never pays back — and the maintenance burden (retraining on every base-model upgrade and task change) is a recurring tax people forget to count. Ship prompted first, measure real volume, then revisit.",
         },
 
+        { t: "lab", id: "breakeven" },
         { t: "h", text: "If you do fine-tune" },
         {
           t: "p",
