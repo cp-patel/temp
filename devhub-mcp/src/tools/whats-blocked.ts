@@ -12,7 +12,7 @@ import { MAX_RESPONSE_CHARS, payloadChars } from '../lib/truncate.js';
 import { blockedReason, buildIssueFilter, fetchAssignedIssues, toIssueItem } from '../lib/linear.js';
 import { describeFailure } from '../lib/errors.js';
 import type { IssueItem, PrItem } from '../lib/format.js';
-import { getMyOpenPrs, toUnenrichedItem } from './my-prs.js';
+import { collectAuthoredPrs, toUnenrichedItem } from './my-prs.js';
 import { collectReviewQueue } from './review-queue.js';
 import type { ToolContext } from '../clients.js';
 
@@ -136,7 +136,7 @@ export async function whatsBlocked(ctx: ToolContext): Promise<BlockedSections> {
     //  - the authored side skips CI, because no staleness rule consults it.
     // Together those remove roughly two thirds of the follow-up requests.
     const [authored, reviewQueue, linearIssues] = await Promise.all([
-      getMyOpenPrs(ctx, { scope: 'both', max_results: SCAN_LIMIT }, { includeCi: false }),
+      collectAuthoredPrs(ctx, 'both', SCAN_LIMIT, { includeCi: false }),
       collectReviewQueue(ctx, 'both', SCAN_LIMIT),
       (async () => {
         try {
@@ -154,7 +154,7 @@ export async function whatsBlocked(ctx: ToolContext): Promise<BlockedSections> {
     ]);
 
     // Re-surface warnings from the composed calls rather than swallowing them.
-    for (const warning of [...(authored.warnings ?? []), ...reviewQueue.warnings]) {
+    for (const warning of [...authored.warnings, ...reviewQueue.warnings]) {
       warnings.push(warning);
     }
 

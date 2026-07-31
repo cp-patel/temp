@@ -230,6 +230,33 @@ describe('whats_blocked', () => {
     expect(ciCalls).toBe(0);
   });
 
+  it('examines every fetched PR, not just those that fit an output budget', async () => {
+    // Regression: whats_blocked used to compose get_my_open_prs, whose envelope is trimmed to
+    // ~8,000 characters. With verbose PRs a 30-item fetch trims to 14, so more than half were
+    // invisible to the blocked-detection rules. The response budget governs what is returned to
+    // a client; it must never govern intermediate data.
+    const verbose = Array.from({ length: 30 }, (_unused, index) =>
+      searchItem({
+        number: index + 1,
+        title: `refactor(${'subsystem'.repeat(5)}): ${'a deliberately long pull request title '.repeat(4)}`,
+        repository_url: `https://api.github.com/repos/acme/${'long-repository-name-segment-'.repeat(3)}${index}`,
+        html_url: `https://github.com/acme/${'long-repository-name-segment-'.repeat(3)}${index}/pull/${index + 1}`,
+        created_at: '2026-05-01T00:00:00.000Z',
+        user: { login: 'a-rather-long-github-username-here' },
+      }),
+    );
+    const { ctx, work } = createFakeContext({
+      work: { searchItems: verbose },
+      personal: { searchItems: [] },
+      linearHandler: linearHandlerFor({ issues: [] }),
+    });
+
+    await whatsBlocked(ctx);
+
+    // All 30 must have been enriched and therefore assessed.
+    expect(work.calls.filter((call) => call.includes('pulls.get(')).length).toBe(30);
+  });
+
   it('takes no parameters', () => {
     expect(whatsBlockedDescription).toMatch(/Takes no parameters/);
   });

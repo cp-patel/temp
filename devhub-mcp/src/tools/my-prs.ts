@@ -282,6 +282,60 @@ async function enrich(
   }
 }
 
+export interface AuthoredPrs {
+  readonly items: PrItem[];
+  readonly totalFound: number;
+  readonly warnings: UpstreamFailure[];
+}
+
+/**
+ * Search and enrich the PRs I authored, WITHOUT applying the response budget.
+ *
+ * Kept separate from `getMyOpenPrs` on purpose. The ~8,000-character budget governs what is
+ * returned to a client; it must not govern intermediate data. `whats_blocked` composes this
+ * list and then filters it, so trimming here would silently hide blocked PRs — measured, a
+ * saturated 30-PR fetch trims to 14 items, which would have made over half of them invisible
+ * to the blocked-detection rules.
+ */
+export async function collectAuthoredPrs(
+  ctx: ToolContext,
+  scope: Scope,
+  maxResults: number,
+  options: EnrichOptions,
+): Promise<AuthoredPrs> {
+  const scopes = resolveScopes(scope);
+  const warnings: UpstreamFailure[] = [];
+  const candidates: Candidate[] = [];
+  let totalFound = 0;
+
+  const searches = await Promise.all(
+    scopes.map(async (current) => {
+      try {
+        return await searchScope(ctx, current, maxResults);
+      } catch (error: unknown) {
+        warnings.push(describeFailure(githubUpstream(current), error, ctx.now()));
+        return undefined;
+      }
+    }),
+  );
+
+  for (const search of searches) {
+    if (search === undefined) continue;
+    totalFound += search.total;
+    candidates.push(...search.candidates);
+  }
+
+  candidates.sort((a, b) => a.createdAtMs - b.createdAtMs);
+  const selected = candidates.slice(0, maxResults);
+
+  const now = ctx.now();
+  const items = await mapLimit(selected, DEFAULT_CONCURRENCY, (candidate) =>
+    enrich(ctx.clients.github(candidate.scope), candidate, now, options),
+  );
+
+  return { items, totalFound, warnings };
+}
+
 export async function getMyOpenPrs(
   ctx: ToolContext,
   args: MyPrsArgs,
@@ -290,36 +344,7 @@ export async function getMyOpenPrs(
   const { scope, maxResults } = normalizeArgs(args);
 
   return ctx.cache.wrap(cacheKey(TOOL_NAME, { scope, maxResults, ci: options.includeCi }), async () => {
-    const scopes = resolveScopes(scope);
-    const warnings: UpstreamFailure[] = [];
-    const candidates: Candidate[] = [];
-    let totalFound = 0;
-
-    const searches = await Promise.all(
-      scopes.map(async (current) => {
-        try {
-          return { result: await searchScope(ctx, current, maxResults) };
-        } catch (error: unknown) {
-          warnings.push(describeFailure(githubUpstream(current), error, ctx.now()));
-          return undefined;
-        }
-      }),
-    );
-
-    for (const search of searches) {
-      if (search === undefined) continue;
-      totalFound += search.result.total;
-      candidates.push(...search.result.candidates);
-    }
-
-    candidates.sort((a, b) => a.createdAtMs - b.createdAtMs);
-    const selected = candidates.slice(0, maxResults);
-
-    const now = ctx.now();
-    const items = await mapLimit(selected, DEFAULT_CONCURRENCY, (candidate) =>
-      enrich(ctx.clients.github(candidate.scope), candidate, now, options),
-    );
-
+    const { items, totalFound, warnings } = await collectAuthoredPrs(ctx, scope, maxResults, options);
     return buildEnvelope({ items, totalFound, warnings });
   });
 }
