@@ -112,6 +112,14 @@
     return out;
   }
 
+  /* The reverse of the glossary's chapter references, computed rather than
+     authored. 28 of the 44 chapters define at least one term. */
+  function termsDefinedIn(chapterId) {
+    return (C.glossary || []).filter(function (g) {
+      return g.ch === chapterId;
+    });
+  }
+
   function totalMinutes() {
     return C.chapters.reduce(function (a, c) {
       return a + c.minutes;
@@ -126,6 +134,7 @@
     overall: overall,
     nextChapter: nextChapter,
     projectUsesOf: projectUsesOf,
+    termsDefinedIn: termsDefinedIn,
     allCardIds: allCardIds,
     unlockedCardIds: unlockedCardIds,
     totalMinutes: totalMinutes,
@@ -899,6 +908,30 @@
       };
     });
     aside.appendChild(toc);
+
+    /* Terms this chapter defines, derived from the glossary's own references. A
+       reader who half-remembers a word gets the definition without leaving, and a
+       reader who has finished gets a checklist of what the chapter was about. */
+    var terms = termsDefinedIn(ch.id);
+    if (terms.length) {
+      var tbox = el("div", "chterms");
+      tbox.innerHTML =
+        "<h2>Terms defined here</h2>" +
+        "<ul>" +
+        terms
+          .map(function (g) {
+            return (
+              '<li><a href="#/glossary" title="' +
+              U.attr(g.d) +
+              '">' +
+              esc(g.t) +
+              "</a></li>"
+            );
+          })
+          .join("") +
+        "</ul>";
+      aside.appendChild(tbox);
+    }
 
     var notes = el("div", "notes");
     notes.innerHTML =
@@ -1723,6 +1756,22 @@
               md(g.n) +
               "</span></p>"
             : "");
+        /* Where the term is actually taught. A glossary is a stepping stone, not a
+           destination: a reader who needed the definition usually needs the
+           chapter next, and there was no route to it from here. */
+        var gch = chapter(g.ch);
+        if (gch) {
+          var gp = phase(gch.phase);
+          var link = el("a", "gterm__ch");
+          link.href = "#/chapter/" + gch.id;
+          link.innerHTML =
+            Icons.get("book", 12) +
+            "<span>" +
+            esc(gch.title) +
+            "</span>" +
+            (gp ? '<span class="gterm__ph">' + gp.n + "</span>" : "");
+          c.appendChild(link);
+        }
         grid.appendChild(c);
       });
     }

@@ -1907,3 +1907,50 @@
     height: 38px;
   }
 }
+
+/* ---- Glossary: the chapter that teaches the term ----
+   A glossary is a stepping stone. Someone who looked a term up usually wants the
+   chapter next, and there was no route from here to there. */
+
+.gterm__ch {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  min-height: 24px;
+  border-top: 1px solid var(--line-faint);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.gterm__ch:hover {
+  color: var(--accent);
+}
+
+.gterm__ch svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+.gterm__ch span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --ink-2, not --ink-3: tiny type on a raised chip is the same case as
+   .phaselink__idx in the sidebar, and --ink-3 measures 4.4:1 here against the
+   4.5 AA needs. The contrast audit caught it on the first run. */
+.gterm__ph {
+  margin-left: auto;
+  flex: none;
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--ink-2);
+  background: var(--surface-3);
+}

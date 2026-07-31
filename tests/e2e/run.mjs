@@ -1401,6 +1401,94 @@ async function main() {
     await cctx.close();
   }
 
+  /* ---------------- the glossary is a stepping stone, not a dead end ---------------- */
+  section("glossary cross-references");
+  {
+    const yctx = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      colorScheme: "dark",
+    });
+    const yp = await yctx.newPage();
+    yp.on("pageerror", (e) => errors.push(`glossary pageerror: ${e.message}`));
+    yp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`glossary console: ${m.text()}`);
+    });
+    await yp.goto(BASE + "#/glossary", { waitUntil: "networkidle" });
+    await yp.evaluate(() => Store.skipOnboarding());
+    await yp.waitForTimeout(500);
+
+    const cards = await yp.evaluate(() => ({
+      terms: document.querySelectorAll(".gterm").length,
+      links: document.querySelectorAll(".gterm__ch").length,
+      resolve: [...document.querySelectorAll(".gterm__ch")].every((a) => {
+        const id = a.getAttribute("href").replace("#/chapter/", "");
+        return window.Curriculum.chapters.some((c) => c.id === id);
+      }),
+    }));
+    check(
+      "every glossary term links to the chapter that teaches it",
+      cards.terms >= 50 && cards.links === cards.terms && cards.resolve,
+      JSON.stringify(cards)
+    );
+    await yp.locator(".gterm__ch").first().click();
+    await yp.waitForTimeout(500);
+    check(
+      "and that link opens the chapter",
+      (await yp.evaluate(() => location.hash)).startsWith("#/chapter/"),
+      await yp.evaluate(() => location.hash)
+    );
+
+    /* The reverse, derived from the same field, so the two cannot disagree. */
+    await yp.goto(BASE + "#/chapter/hybrid-rerank", {
+      waitUntil: "networkidle",
+    });
+    await yp.waitForTimeout(500);
+    const aside = await yp.evaluate(() => {
+      const t = document.querySelector(".chterms");
+      if (!t) return null;
+      const expected = window.Curriculum.glossary
+        .filter((g) => g.ch === "hybrid-rerank")
+        .map((g) => g.t);
+      const shown = [...t.querySelectorAll("a")].map((a) => a.innerText);
+      return {
+        shown,
+        expected,
+        tips: [...t.querySelectorAll("a")].every(
+          (a) => (a.title || "").length > 20
+        ),
+      };
+    });
+    check(
+      "a chapter lists the terms it defines, with their definitions on hover",
+      !!aside &&
+        aside.shown.join() === aside.expected.join() &&
+        aside.shown.length >= 3 &&
+        aside.tips,
+      JSON.stringify(aside)
+    );
+
+    const cover = await yp.evaluate(async () => {
+      const ids = window.Curriculum.chapters.map((c) => c.id);
+      const expected = new Set(window.Curriculum.glossary.map((g) => g.ch));
+      let shown = 0;
+      const wrong = [];
+      for (const id of ids) {
+        location.hash = "#/chapter/" + id;
+        await new Promise((r) => setTimeout(r, 50));
+        const has = !!document.querySelector(".chterms");
+        if (has) shown++;
+        if (has !== expected.has(id)) wrong.push(id);
+      }
+      return { shown, expected: expected.size, wrong };
+    });
+    check(
+      "it appears on exactly the chapters that define a term",
+      cover.wrong.length === 0 && cover.shown === cover.expected,
+      JSON.stringify(cover)
+    );
+    await yctx.close();
+  }
+
   /* ---------------- every link and control, activated ---------------- */
   /* The contents-link bug survived twenty iterations because the suite asserted a
      table of contents *exists* without ever activating a link in it. These two

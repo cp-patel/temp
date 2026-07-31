@@ -45,7 +45,8 @@ two inline knowledge checks, key takeaways, a scored quiz with per-answer
 explanations, flashcards, and further reading. Chapters and projects point at each
 other: every project milestone links to the chapter that teaches it, and every
 chapter lists the milestones that apply it — including which you've already
-ticked.
+ticked. Every glossary term names the chapter that teaches it, and every chapter
+lists the terms it defines.
 
 ### Personalised plan
 
@@ -147,8 +148,8 @@ js/content/                 phases, projects, glossary, 8 phase files, tracks (p
 js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
-tests/unit/                 106 assertions — util, store, plan engine
-tests/e2e/                  150 checks in real Chromium, incl. a full first-visitor walkthrough
+tests/unit/                 108 assertions — util, store, plan engine
+tests/e2e/                  154 checks in real Chromium, incl. a full first-visitor walkthrough
                             and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```

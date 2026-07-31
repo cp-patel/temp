@@ -1559,3 +1559,51 @@
   letter-spacing: 0.03em;
   color: var(--ink-3);
 }
+
+/* ---- Terms defined in this chapter ----
+   Derived from the glossary's chapter references, so the two directions are one
+   piece of data. Sits under the contents in the aside: a reader who half-recalls
+   a word can hover for the definition without leaving the page. */
+
+.chterms {
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+
+.chterms h2 {
+  font-size: 0.66rem;
+  font-weight: 680;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: var(--s-3);
+}
+
+.chterms ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  list-style: none;
+  padding: 0;
+}
+
+.chterms a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0.15rem 0.5rem;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line-faint);
+  border-radius: var(--r-full);
+  transition:
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.chterms a:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}

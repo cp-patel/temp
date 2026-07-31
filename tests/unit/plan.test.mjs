@@ -175,6 +175,37 @@ describe("project cross-references", () => {
     assert.ok(n >= 40, `expected 40+ milestones, got ${n}`);
   });
 
+  test("every glossary term points at a chapter that exists", () => {
+    const ids = new Set(C.chapters.map((c) => c.id));
+    for (const g of C.glossary) {
+      assert.ok(g.ch, `"${g.t}" has no chapter reference`);
+      assert.ok(ids.has(g.ch), `"${g.t}" -> unknown chapter "${g.ch}"`);
+    }
+    // A glossary that all points at one chapter is not a cross-reference.
+    const spread = new Set(C.glossary.map((g) => g.ch));
+    assert.ok(
+      spread.size >= 20,
+      `52 terms spread over only ${spread.size} chapters`
+    );
+  });
+
+  test("terms defined in a chapter are derived, not authored twice", () => {
+    /* The chapter aside lists its terms from the glossary's own `ch` field, so
+       the two directions cannot disagree. This asserts the derivation, which is
+       what a future edit would break. */
+    const byChapter = {};
+    for (const g of C.glossary) (byChapter[g.ch] ||= []).push(g.t);
+    const total = Object.values(byChapter).reduce((n, l) => n + l.length, 0);
+    assert.equal(total, C.glossary.length);
+    for (const [ch, terms] of Object.entries(byChapter)) {
+      assert.equal(
+        new Set(terms).size,
+        terms.length,
+        `${ch} lists a term twice`
+      );
+    }
+  });
+
   test("the reverse index agrees with the forward references", () => {
     /* The chapter's "where you'll use this" is computed from the milestones
        rather than authored, so the two directions cannot drift. This asserts the

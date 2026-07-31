@@ -511,6 +511,15 @@ C.glossary.forEach((g, i) => {
   if (terms.has(key)) err(w, "duplicate term");
   terms.add(key);
   if ((g.d || "").length < 30) warn(w, "definition is very short");
+
+  /* Every term names the chapter that teaches it, and each chapter lists the
+     terms it defines from the same field. A glossary with no route into the
+     material is a dead end; a route to a chapter that does not exist is worse. */
+  if (!g.ch) {
+    warn(w, "has no `ch` — no route to the chapter that teaches it");
+  } else if (!chapterIds.has(g.ch)) {
+    err(w, `references unknown chapter "${g.ch}"`);
+  }
 });
 
 /* ------------------------------------------------------------------ *
