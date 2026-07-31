@@ -672,6 +672,18 @@ never as instructions to follow.`,
           text: "The provider compiles your JSON Schema into a grammar and masks the token distribution at every step so that only tokens keeping the output valid can be sampled. Structural invalidity becomes impossible rather than unlikely. Note the limit: it guarantees *shape*, never *correctness* — a schema-valid answer can still be wrong.",
         },
 
+        {
+          t: "check",
+          key: "so-early",
+          q: "Three ways to get JSON from a model: asking nicely in the prompt, a JSON-mode flag, and a provider-enforced schema. Which gives you a guarantee?",
+          options: [
+            "All three, given a capable enough model",
+            "JSON mode, since the provider validates the output",
+            "Only the enforced schema — the other two are high success rates",
+          ],
+          answer: 2,
+          why: "Constrained decoding compiles your schema into a grammar and refuses to emit a token that would break it, so invalid output is impossible rather than unlikely. Prompt instructions and a plain JSON-mode flag both get you into the high nineties, which sounds fine until you're serving a million requests and the remainder is a parser exception at 3am.",
+        },
         { t: "h", text: "Schema design: make wrong answers unrepresentable" },
         {
           t: "p",

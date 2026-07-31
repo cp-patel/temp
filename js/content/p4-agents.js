@@ -173,6 +173,18 @@ async def run_with_tools(messages: list, tools: list) -> str:
           text: "Most tool-selection errors come from overlapping tools. Explicitly naming the alternative — 'use get_order for a single order' — converts an ambiguous choice into a clear one. If you fix one thing about your tool definitions, fix this. It's also self-documenting for your teammates.",
         },
 
+        {
+          t: "check",
+          key: "tu-mid",
+          q: 'A tool call fails with "customer not found". What should the loop send back to the model?',
+          options: [
+            "Nothing — catch it, log it, and return a generic failure to the user",
+            "The error message itself, as the tool result",
+            "A retry of the same call, in case it was transient",
+          ],
+          answer: 1,
+          why: "A tool error is information the model can act on: told the customer wasn't found, it can try a different identifier, ask the user, or say it can't proceed. Swallowing it removes the model's ability to recover and turns a handled situation into a dead end. Return errors as results — with the caveat that error text is untrusted input, so it needs the same treatment as any other tool output.",
+        },
         { t: "h", text: "How many tools is too many" },
         {
           t: "p",
@@ -833,6 +845,18 @@ UPDATE_STATE_TOOL = {
           text: "The state file goes into every iteration's prompt as a fresh block near the end. That means the agent's goal and constraints are always recent and high-attention, which directly counters goal drift. It costs a few hundred tokens per step and it's the cheapest reliability improvement available for long-running agents.",
         },
 
+        {
+          t: "check",
+          key: "am-mid",
+          q: "Your agent's context is filling up. Why is offloading to files preferred over summarising?",
+          options: [
+            "Files are faster to read than a summary is to generate",
+            "A summary is lossy and irreversible; a pointer can be re-read in full",
+            "Summaries consume more tokens than file paths",
+          ],
+          answer: 1,
+          why: "Both save tokens, but a summary is a one-way door — whatever it dropped is gone, and you find out which detail mattered later. Writing the material to a file and holding the path keeps the full content retrievable, so the decision about what matters can be deferred to the moment the agent actually needs it. That's the whole ranking.",
+        },
         { t: "h", text: "Filesystem offload in practice" },
         {
           t: "p",
@@ -1063,6 +1087,18 @@ to inspect further."""))
           ],
         },
 
+        {
+          t: "check",
+          key: "ma-mid",
+          q: "Five agents, each 95% reliable, chained in sequence. What is the end-to-end success rate?",
+          options: [
+            "About 95%, since each agent is independently reliable",
+            "About 77%, because the error rates compound",
+            "About 88%, averaging the failures across the chain",
+          ],
+          answer: 1,
+          why: "0.95 to the fifth power is 0.774. Every agent you add multiplies rather than adds, so a chain of individually reliable agents is unreliable as a system — and reliability was usually the thing you were trying to improve. This is the argument for fewer agents, fewer handoffs, and doing more inside one context where you can.",
+        },
         { t: "h", text: "Handoffs are where information dies" },
         {
           t: "p",
@@ -1367,6 +1403,18 @@ if __name__ == "__main__":
     mcp.run()          # stdio transport by default`,
         },
 
+        {
+          t: "check",
+          key: "mcp-mid",
+          q: "An MCP server exposes both tools and resources. What is the difference that matters?",
+          options: [
+            "Tools perform actions; resources are read-only data",
+            "Tools are model-controlled; resources are application-controlled",
+            "Tools require authentication; resources are public",
+          ],
+          answer: 1,
+          why: "The distinction is about who decides, not what the thing does. The model chooses when to invoke a tool; your application chooses what resources to attach. That determines where the trust boundary sits — a tool description is text the model will follow, while a resource is content you selected deliberately.",
+        },
         { t: "h", text: "Transports" },
         {
           t: "p",
@@ -1681,6 +1729,18 @@ async def guarded_execute(call, ctx: RunContext) -> ToolResult:
     return tool.validate_result(raw)`,
         },
 
+        {
+          t: "check",
+          key: "ag-mid",
+          q: "Of the four enforcement layers, which does the most work?",
+          options: [
+            "Input filtering, since it stops bad instructions arriving",
+            "Removing the capability, so the action is impossible rather than forbidden",
+            "Output filtering, since it is the last line of defence",
+          ],
+          answer: 1,
+          why: "Input filtering can be talked around, and output filtering only catches something that already happened. A capability the agent does not possess cannot be misused by any prompt, however cleverly written — which is why containment beats persuasion. The prompt-injection chapter reaches the identical conclusion from a security direction.",
+        },
         { t: "h", text: "Dry runs and previews" },
         {
           t: "p",

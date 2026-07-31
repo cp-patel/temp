@@ -724,6 +724,18 @@ def enrich(document: str, chunk: str) -> str:
           text: "A brute-force scan over 50k × 1536-dimension float32 vectors is a few hundred milliseconds of straightforward numpy, with perfect recall and zero tuning. Plenty of production systems are this size. Adding an ANN index at this scale buys latency you don't need in exchange for recall loss and operational complexity you didn't want.",
         },
 
+        {
+          t: "check",
+          key: "vdb-mid",
+          q: "You have 30,000 chunks and answer latency is fine. Which index should you build?",
+          options: [
+            "HNSW, since it is the production default",
+            "IVF, to keep memory down at this scale",
+            "None — a brute-force scan over 30,000 vectors is fast enough",
+          ],
+          answer: 2,
+          why: "Approximate indexes trade recall for speed, and below roughly 50,000 vectors there is no speed problem to solve: a full scan finishes in single-digit milliseconds. Building an index there costs you recall and adds a rebuild step in exchange for nothing. Add one when a measurement says you need it.",
+        },
         { t: "h", text: "Postgres + pgvector versus a specialist store" },
         {
           t: "p",
@@ -1039,6 +1051,18 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
           text: "Score blending requires normalising two distributions whose shapes differ per query, and the normalisation is where the bugs live. RRF only needs ordering, so it's robust, has one hyperparameter, and needs no per-query calibration. It's boring and it works — start here and only reach for learned fusion if you can measure a gain.",
         },
 
+        {
+          t: "check",
+          key: "hr-mid",
+          q: "A user searches for the exact error string `ERR_TLS_CERT_ALTNAME_INVALID`. Pure dense retrieval returns nothing useful. Why?",
+          options: [
+            "The string is too long for the embedding model's context",
+            "A rare identifier has no learned semantic representation to match on",
+            "Dense retrieval requires lowercase input",
+          ],
+          answer: 1,
+          why: 'Embeddings encode meaning learned from training data, and a specific error constant carries almost none — there is no "nearby" concept for it to sit next to in vector space. BM25 handles this trivially because it matches the literal term. This asymmetry, not a tuning problem, is the whole case for running both retrievers and fusing them.',
+        },
         { t: "h", text: "Reranking: precision where it counts" },
         {
           t: "p",
@@ -1718,6 +1742,18 @@ async def decompose_retrieve(query: str, tenant: str):
           text: "The real gain from agentic RAG isn't multi-hop — it's the model evaluating its own retrieval and searching again with a better query when the first attempt fails. You can get most of that benefit far more cheaply with a single non-agentic 'is this sufficient?' check plus one retry, which costs one extra call rather than an unbounded loop.",
         },
 
+        {
+          t: "check",
+          key: "arag-mid",
+          q: 'Your RAG answers single-fact questions well but fails on "compare the free and enterprise tiers on SSO". What is the cheapest thing to try?',
+          options: [
+            "Build a knowledge graph so the model can traverse tier relationships",
+            "Decompose the question into sub-queries and retrieve for each",
+            "Increase the number of chunks passed to the model",
+          ],
+          answer: 1,
+          why: "The question needs two separate retrievals — one per tier — and a single embedding of the whole question retrieves a blurry average of both. Decomposition is a prompt and a loop; GraphRAG is an ingestion pipeline, an extraction cost and a new store. Try the cheap structural fix before the expensive one, and only escalate if it genuinely fails.",
+        },
         { t: "h", text: "GraphRAG" },
         {
           t: "p",
@@ -1996,6 +2032,18 @@ async def diagnose():
         {
           t: "p",
           text: "The last assertion in that script is the one people skip, and it is the most informative: feed the generation step perfect context by hand. If the answer is still wrong, no amount of retrieval tuning will help you, and you have a prompting or model-capacity problem wearing a retrieval costume.",
+        },
+        {
+          t: "check",
+          key: "rdbg-mid",
+          q: "Diagnostics show recall@50 = 96% but recall@5 = 41%. Which stage is broken?",
+          options: [
+            "Ingestion — the right chunks aren't indexed",
+            "Ranking — the right chunks are retrieved but not ranked into the top 5",
+            "Generation — the model isn't using the context it was given",
+          ],
+          answer: 1,
+          why: "Recall@50 at 96% proves the relevant chunks are indexed and retrievable, so ingestion is fine. They are just buried below rank 5, which is a pure ordering problem — exactly what a reranker fixes. Note how the two numbers together isolate the stage: neither is informative alone, which is why the procedure measures at several cut-offs.",
         },
         { t: "h", text: "Symptom to cause" },
         {
