@@ -45,6 +45,9 @@ files never ship to the browser, so the constraint doesn't apply to them.
                                                           js/content/tracks.js
                                                             skills, tracks,
                                                             overlap + plan engine
+                                                          js/content/competencies.js
+                                                            competency weights +
+                                                            readiness scorer
    │                                                                 │
    └──────────────────────────────────┬──────────────────────────────┘
                                       ▼
@@ -68,7 +71,15 @@ files never ship to the browser, so the constraint doesn't apply to them.
    it belongs in a lab or a renderer, not in the content.
 3. **`js/ui/*` may read `Store` and `Curriculum`; neither may read the UI.**
 4. **`js/app.js` is the only file that builds the shell** (sidebar, topbar,
-   palette, toasts) and the only owner of the router.
+   palette, toasts) and the only owner of the router. It exposes `App.routes()`
+   so the e2e suite derives its route sweeps from the real table — three
+   hand-written copies of that list existed, and a new route was in none of them.
+5. **Derived numbers are computed where their inputs live, and read from there
+   everywhere else.** The plan engine, the readiness scorer, the glossary
+   cross-references and the project↔chapter links all follow this: one direction
+   is authored and the other is derived, so the two cannot disagree. The same rule
+   governs the docs — `scripts/check-docs.mjs` recomputes every figure the README
+   quotes, including the readiness weights and band trajectory.
 
 ## State
 
@@ -101,6 +112,41 @@ explicit migration; don't silently reinterpret an existing field.
 
 Corrupt JSON in storage degrades to defaults rather than throwing. There's a
 test for that.
+
+Note what is **not** in here: the readiness score. It is derived on every read
+from the four signals above (`Store.signals()` flattens them; `Store.readiness()`
+scores them), for the same reason the plan is derived — a stored score would go
+stale the moment a weight was retuned or a chapter added, and nothing would look
+broken.
+
+## The readiness scorer
+
+`js/content/competencies.js` maps the curriculum onto the seven competencies an
+interview loop tests, and scores recorded work against them. It is a pure
+function of plain data — `readinessFor(signals)` takes
+`{ done, quiz, labs, projectTasks }` and returns a report — which is why the unit
+tests drive it in Node with no browser and the validator can assert its endpoints
+(0 for a fresh learner, exactly 100 for a finished one).
+
+Three decisions in it are load-bearing and were each arrived at by getting them
+wrong first:
+
+1. **Recall is scored over every question in a competency**, not over the quizzes
+   you took. Scoring only the taken ones means one perfect quiz reads as full
+   recall of a seven-chapter subject — which is how a diagnostic starts
+   flattering people.
+2. **A competency with no project redistributes the evidence weight** across the
+   parts it does have, rather than being capped below 100 forever.
+3. **Prerequisites gate the recommendation list; they do not discount it.**
+   Production is a four-chapter phase carrying 15% of the loop with one lab, so
+   that lab's value-per-item is ~3× anything else in the curriculum. Two versions
+   damped it with a multiplier — linear, then squared — and it climbed back to the
+   top of the list both times, one phase later. Any multiplier steep enough to
+   hold a 3× advantage is a constant picked to defeat one specific item. The rule
+   that holds is structural: an item whose earlier phases are done outranks one
+   whose aren't, whatever the arithmetic says. Both the unit tests and the
+   validator assert that invariant, because it is the difference between advice
+   that agrees with the roadmap and advice that contradicts it.
 
 ## The plan engine
 

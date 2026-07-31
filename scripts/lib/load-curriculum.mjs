@@ -16,14 +16,20 @@ export const ROOT = join(HERE, "..", "..");
 
 const CONTENT_DIR = join(ROOT, "js", "content");
 
+/* Loaded after the phase files because they read the populated registry at load
+   time, not only inside functions. Kept in the same order index.html uses — a
+   loader that disagrees with the page is a class of bug no test would catch,
+   because both would be internally consistent. */
+const LAST = ["tracks.js", "competencies.js"];
+
 /** Content files in the order index.html loads them. */
 export function contentFiles() {
   const files = readdirSync(CONTENT_DIR).filter((f) => f.endsWith(".js"));
   // meta.js first (it creates the registry), then phase files in name order.
   return [
     "meta.js",
-    ...files.filter((f) => f !== "meta.js" && f !== "tracks.js").sort(),
-    ...(files.includes("tracks.js") ? ["tracks.js"] : []),
+    ...files.filter((f) => f !== "meta.js" && LAST.indexOf(f) === -1).sort(),
+    ...LAST.filter((f) => files.includes(f)),
   ].map((f) => join(CONTENT_DIR, f));
 }
 

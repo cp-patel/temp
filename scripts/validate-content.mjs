@@ -555,6 +555,174 @@ if (C.tracks) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Competencies (the readiness diagnostic)
+ * ------------------------------------------------------------------ *
+ * The score is only meaningful if the model covers the curriculum: a phase no
+ * competency claims is work that earns nothing, and a weight set that doesn't
+ * sum to 1 makes 100% unreachable (or reachable early) without anything looking
+ * broken.
+ */
+if (C.competencies) {
+  const compIds = new Set();
+  const claimedPhases = new Set();
+  const claimedProjects = new Set();
+  const projectIds = new Set(C.projects.map((p) => p.id));
+  let weightSum = 0;
+
+  C.competencies.forEach((k, i) => {
+    const w = `competencies[${i}] "${k.id || ""}"`;
+    for (const f of [
+      "id",
+      "label",
+      "short",
+      "weight",
+      "phases",
+      "projects",
+      "probes",
+    ]) {
+      if (k[f] === undefined) err(w, `missing "${f}"`);
+    }
+    if (compIds.has(k.id)) err(w, "duplicate competency id");
+    compIds.add(k.id);
+    if (typeof k.weight !== "number" || k.weight <= 0 || k.weight > 1) {
+      err(w, `weight must be between 0 and 1, got ${k.weight}`);
+    } else {
+      weightSum += k.weight;
+    }
+    if (!(k.phases || []).length)
+      err(w, "claims no phases, so it can never score");
+    (k.phases || []).forEach((p) => {
+      if (!phaseIds.has(p)) err(w, `unknown phase "${p}"`);
+      if (claimedPhases.has(p))
+        err(w, `phase "${p}" is already claimed elsewhere`);
+      claimedPhases.add(p);
+    });
+    (k.projects || []).forEach((p) => {
+      if (!projectIds.has(p)) err(w, `unknown project "${p}"`);
+      if (claimedProjects.has(p))
+        err(w, `project "${p}" is already claimed elsewhere`);
+      claimedProjects.add(p);
+    });
+    if ((k.probes || "").length < 60) {
+      warn(
+        w,
+        "probes note is very short — this text is what makes the score legible"
+      );
+    }
+    if ((k.short || "").length > 12) {
+      warn(w, `short label "${k.short}" will not fit the dashboard summary`);
+    }
+  });
+
+  // Float arithmetic, so a cent of slack rather than an exact compare.
+  if (Math.abs(weightSum - 1) > 0.001) {
+    err("competencies", `weights sum to ${weightSum.toFixed(3)}, must be 1`);
+  }
+
+  phaseIds.forEach((p) => {
+    if (!claimedPhases.has(p)) {
+      err(
+        "competencies",
+        `phase "${p}" feeds no competency — its chapters score nothing`
+      );
+    }
+  });
+  projectIds.forEach((p) => {
+    if (!claimedProjects.has(p)) {
+      warn("competencies", `project "${p}" evidences no competency`);
+    }
+  });
+
+  /* Parts and bands. The parts are the four things a score is made of, so they
+     have to sum to 1 too; the bands have to start at 0 or a fresh learner falls
+     off the bottom of the scale. */
+  const partSum = (C.readinessParts || []).reduce((n, p) => n + p.weight, 0);
+  if (Math.abs(partSum - 1) > 0.001) {
+    err("readinessParts", `weights sum to ${partSum.toFixed(3)}, must be 1`);
+  }
+  const bands = C.readinessBands || [];
+  if (!bands.length || bands[0].at !== 0) {
+    err("readinessBands", "first band must start at 0");
+  }
+  bands.forEach((b, i) => {
+    const w = `readinessBands[${i}] "${b.name || ""}"`;
+    if (!b.name || !b.note) err(w, "needs name and note");
+    if (i && b.at <= bands[i - 1].at) err(w, "bands must ascend");
+    if (b.at < 0 || b.at > 100) err(w, `at must be 0-100, got ${b.at}`);
+  });
+
+  /* The scorer itself, at both ends. A diagnostic that cannot reach 100 tells
+     everyone they are unready forever; one that starts above 0 congratulates a
+     stranger. Both are silent failures — the page renders either way. */
+  if (typeof C.readinessFor === "function") {
+    const empty = C.readinessFor({});
+    if (empty.overall !== 0) {
+      err(
+        "readinessFor",
+        `a fresh learner scores ${empty.overall}%, must be 0`
+      );
+    }
+    const all = { done: {}, quiz: {}, labs: {}, projectTasks: {} };
+    C.chapters.forEach((c) => {
+      all.done[c.id] = true;
+      if ((c.quiz || []).length)
+        all.quiz[c.id] = { right: c.quiz.length, total: c.quiz.length };
+      if (c.lab) all.labs[c.lab] = true;
+    });
+    C.projects.forEach((p) => {
+      all.projectTasks[p.id] = {};
+      p.tasks.forEach((_, i) => (all.projectTasks[p.id][i] = true));
+    });
+    const full = C.readinessFor(all);
+    if (full.overall !== 100) {
+      err(
+        "readinessFor",
+        `completing everything scores ${full.overall}%, must be 100`
+      );
+    }
+    if (full.gaps.length) {
+      err(
+        "readinessFor",
+        `${full.gaps.length} gap(s) remain after completing everything`
+      );
+    }
+    if (C.readinessActions(all).length) {
+      err("readinessActions", "suggests work after everything is done");
+    }
+    if (!C.readinessActions({}).length) {
+      err(
+        "readinessActions",
+        "suggests nothing to a learner who has done nothing"
+      );
+    }
+
+    /* A ready item must never rank below an unready one. This is the invariant
+       that replaced two rounds of multiplier tuning, and it is cheap to check
+       here as well as in the unit tests because it is the difference between a
+       recommendation that agrees with the roadmap and one that contradicts it. */
+    const fresh = C.readinessActions({}, 40);
+    let seenUnready = false;
+    for (const a of fresh) {
+      if (!a.ready) seenUnready = true;
+      else if (seenUnready) {
+        err(
+          "readinessActions",
+          `"${a.label}" is ready but ranked below a look-ahead item`
+        );
+        break;
+      }
+    }
+    const firstPhase = C.phases.slice().sort((x, y) => x.n - y.n)[0].id;
+    if (fresh.length && fresh[0].phase !== firstPhase) {
+      err(
+        "readinessActions",
+        `a fresh learner is pointed at "${fresh[0].phase}", not "${firstPhase}"`
+      );
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Report
  * ------------------------------------------------------------------ */
 const totalMin = C.chapters.reduce((a, c) => a + c.minutes, 0);

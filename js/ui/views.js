@@ -1099,6 +1099,14 @@
       });
     };
     acts.appendChild(edit);
+    /* The plan's sibling question. This page answers "when will I be done"; the
+       diagnostic answers "will I be any good" — and a schedule you are on track
+       with can still leave a gap a panel will find, because the plan counts
+       chapters and readiness counts evidence. */
+    var diag = el("a", "btn btn--outline");
+    diag.href = "#/readiness";
+    diag.innerHTML = Icons.get("gauge", 15) + " Readiness";
+    acts.appendChild(diag);
     bar.appendChild(acts);
     root.appendChild(bar);
 
@@ -1447,6 +1455,45 @@
     mastery.appendChild(mg);
     rcol.appendChild(mastery);
 
+    /* readiness summary — the one number this dashboard was missing. Percent
+       complete says how much of the course is behind you; this says what a panel
+       would find, and links to the breakdown. */
+    var rd = Store.readiness();
+    if (rd) {
+      var rdCard = el("div", "card card--pad");
+      rdCard.style.marginTop = "var(--s-5)";
+      var worst = rd.gaps.slice(0, 3);
+      rdCard.innerHTML =
+        '<div class="u-eyebrow" style="margin-bottom:var(--s-4)">Interview readiness</div>' +
+        '<div class="u-row" style="gap:var(--s-4);align-items:center">' +
+        '<div class="ring" style="--ring-size:58px;--ring-w:6px;--pct:' +
+        rd.overall +
+        '"><span class="ring__label">' +
+        rd.overall +
+        "%</span></div>" +
+        '<div class="u-grow"><div style="font-size:var(--t-sm);font-weight:640;color:var(--ink)">' +
+        esc(rd.band.name) +
+        "</div>" +
+        '<div class="u-dim" style="font-size:var(--t-xs);margin-top:3px">' +
+        /* At zero every competency is equally weak, so naming three of them is
+           noise dressed as a diagnosis. */
+        (rd.overall === 0
+          ? "What a panel would find, scored from your own work"
+          : worst.length
+            ? "Weakest: " +
+              worst
+                .map(function (c) {
+                  return esc(c.short) + " " + c.score + "%";
+                })
+                .join(" · ")
+            : "Every competency complete") +
+        "</div></div></div>" +
+        '<a class="btn btn--ghost btn--block" style="margin-top:var(--s-4)" href="#/readiness">' +
+        Icons.get("gauge", 15) +
+        " See the breakdown</a>";
+      rcol.appendChild(rdCard);
+    }
+
     /* badges */
     var badges = el("div", "card card--pad");
     badges.style.marginTop = "var(--s-5)";
@@ -1512,6 +1559,273 @@
     root.appendChild(head);
     root.appendChild(stats);
     root.appendChild(cols);
+  };
+
+  /* =========================================================
+     READINESS
+
+     Every other surface answers "how much of this have I done?". This one
+     answers the question the learner actually has — "am I ready, and if not,
+     what is the gap?" — by scoring the work already recorded against the seven
+     competencies an interview loop tests. Nothing new is stored: the inputs are
+     completions, quiz results, labs and project milestones.
+     ========================================================= */
+
+  var PART_ICON = {
+    reading: "book",
+    recall: "target",
+    practice: "beaker",
+    evidence: "hammer",
+  };
+
+  var ACTION_ICON = { chapter: "book", milestone: "hammer", lab: "beaker" };
+  var ACTION_KIND = { chapter: "Read", milestone: "Build", lab: "Try" };
+
+  V.readiness = function (root) {
+    var r = Store.readiness();
+    /* The scorer lives in a content file, so a deployment that dropped it would
+       otherwise reach the router's generic "something went wrong" card. Say which
+       thing is missing instead — the rest of the app is unaffected, which is
+       exactly the situation a generic error hides. */
+    if (!r) {
+      root.appendChild(
+        emptyState(
+          "The readiness model isn't loaded",
+          "js/content/competencies.js is missing from this build. Everything else " +
+            "works — your progress is intact and the roadmap is unaffected.",
+          "#/roadmap",
+          "Back to roadmap"
+        )
+      );
+      return;
+    }
+    var signals = Store.signals();
+    var actions = C.readinessActions(signals, 6);
+
+    var head = el("div", "page-head");
+    head.innerHTML =
+      '<div class="u-eyebrow">Diagnostic</div><h1>Readiness</h1>' +
+      "<p>Scored from what you have actually done — chapters, quizzes, labs and " +
+      "project milestones — against the " +
+      U.words(C.competencies.length) +
+      " competencies an AI engineering loop tests. " +
+      "Weighted the way the loop weights them, so the gaps are ranked by how much " +
+      "they would cost you.</p>";
+    root.appendChild(head);
+
+    /* ---- hero: the number, the band, and what it means ----
+
+       At zero the band is technically correct and useless: a 0% ring beside
+       "Getting oriented" tells a stranger nothing they didn't know from the fact
+       that they just arrived. Say what the number will measure instead, and let
+       the actions below do the work. */
+    var fresh = r.overall === 0;
+    var hero = el("div", "rdhero");
+    hero.innerHTML =
+      '<div class="ring rdhero__ring" style="--ring-size:132px;--ring-w:10px;--pct:' +
+      r.overall +
+      '">' +
+      '<span class="ring__label rdhero__pct">' +
+      r.overall +
+      "<small>%</small></span></div>" +
+      '<div class="rdhero__body"><div class="u-eyebrow">' +
+      (fresh ? "Nothing measured yet" : "Overall") +
+      "</div>" +
+      "<h2>" +
+      esc(fresh ? "Start anywhere and this fills in" : r.band.name) +
+      "</h2><p>" +
+      (fresh
+        ? "Complete a chapter, answer its quiz, open a lab or tick a project " +
+          "milestone and the number moves. Project milestones move it most — " +
+          "which is the point."
+        : esc(r.band.note)) +
+      "</p></div>";
+    root.appendChild(hero);
+
+    /* The band scale, so a number has somewhere to sit. Without it 42% is
+       unreadable — good? bad? — and a diagnostic that can't be interpreted is
+       just another progress bar. */
+    var scale = el("div", "rdscale");
+    scale.setAttribute("aria-hidden", "true");
+    C.readinessBands.forEach(function (b, i) {
+      var next = C.readinessBands[i + 1];
+      var span = (next ? next.at : 100) - b.at;
+      var seg = el("div", "rdscale__seg" + (b === r.band ? " is-here" : ""));
+      seg.style.flexGrow = String(span);
+      seg.innerHTML =
+        '<span class="rdscale__bar"></span>' +
+        '<span class="rdscale__lbl">' +
+        esc(b.name) +
+        "</span>" +
+        '<span class="rdscale__at">' +
+        b.at +
+        "</span>";
+      scale.appendChild(seg);
+    });
+    root.appendChild(scale);
+
+    /* ---- next actions ---- */
+    if (actions.length) {
+      var act = el("div", "card card--pad rdnext");
+      act.innerHTML =
+        '<div class="sec-head" style="margin-bottom:var(--s-4)">' +
+        '<div><div class="u-eyebrow">Do these next</div>' +
+        '<p class="u-dim" style="font-size:var(--t-sm);margin-top:4px">' +
+        "Ranked by how much each one moves the score — but only among the things " +
+        "your earlier phases have prepared you for, so this never argues with the " +
+        "roadmap." +
+        (actions.some(function (a) {
+          return !a.ready;
+        })
+          ? " Anything marked <b>ahead</b> is worth more than what's left in " +
+            "front of it, if you want to skip."
+          : "") +
+        "</p></div></div>";
+      var list = el("div", "rdacts");
+      actions.forEach(function (a) {
+        var row = el("a", "rdact");
+        row.href = a.href;
+        row.innerHTML =
+          '<span class="rdact__ic">' +
+          Icons.get(ACTION_ICON[a.kind], 15) +
+          "</span>" +
+          '<span class="u-grow"><span class="rdact__t">' +
+          esc(a.label) +
+          "</span>" +
+          '<span class="rdact__m">' +
+          ACTION_KIND[a.kind] +
+          " · " +
+          esc(a.competency) +
+          (a.project ? " · " + esc(a.project) : "") +
+          (a.minutes ? " · " + a.minutes + " min" : "") +
+          "</span></span>" +
+          (a.ready ? "" : '<span class="rdact__ahead">ahead</span>') +
+          '<span class="rdact__go">' +
+          Icons.get("arrowRight", 14) +
+          "</span>";
+        list.appendChild(row);
+      });
+      act.appendChild(list);
+      root.appendChild(act);
+    }
+
+    /* ---- per-competency breakdown ----
+
+       One column, sorted, not a grid of cards. Seven cards side by side made the
+       scores incomparable — you cannot eyeball whether Retrieval is worse than
+       Agents when their bars start at different x positions — and the ranking is
+       the entire product of the weighting above it. Stacked rows share a baseline,
+       so the shape of the gap is legible at a glance and the order carries
+       meaning rather than being an accident of grid flow. */
+    var secHead = el("div", "sec-head");
+    secHead.style.marginTop = "var(--s-7)";
+    secHead.innerHTML =
+      "<div><h2>By competency</h2>" +
+      '<p class="u-dim" style="font-size:var(--t-sm);margin-top:4px">' +
+      "Weakest first, weighted by how much the loop cares — a 20-point gap in " +
+      "evaluation costs more than the same gap in judgement. The four figures on " +
+      "each row are what earn it.</p></div>";
+    root.appendChild(secHead);
+
+    var grid = el("div", "rdgrid");
+    /* Weakest-weighted first — this list is the answer to "what should I worry
+       about", so ordering it by id or by phase would bury it. */
+    var ordered = r.gaps.concat(
+      r.competencies.filter(function (c) {
+        return c.score >= 100;
+      })
+    );
+    ordered.forEach(function (c) {
+      var node = el("div", "rdrow" + (c.score >= 100 ? " is-done" : ""));
+      var parts = C.readinessParts.map(function (p) {
+        var v = c.parts[p.id];
+        var counts = c.counts;
+        var detail =
+          p.id === "reading"
+            ? counts.chaptersDone + "/" + counts.chapters
+            : p.id === "recall"
+              ? counts.quizRight + "/" + counts.quizQuestions
+              : p.id === "practice"
+                ? counts.labs
+                  ? counts.labsUsed + "/" + counts.labs
+                  : "none"
+                : counts.milestones
+                  ? counts.milestonesDone + "/" + counts.milestones
+                  : "no project";
+        return (
+          '<div class="rdpart' +
+          (v === null ? " is-na" : "") +
+          '" title="' +
+          esc(p.label) +
+          (v === null ? "" : " — " + v + "%") +
+          '"><span class="rdpart__ic">' +
+          Icons.get(PART_ICON[p.id], 12) +
+          "</span>" +
+          '<span class="rdpart__l">' +
+          esc(p.label) +
+          "</span>" +
+          '<span class="rdpart__v">' +
+          esc(detail) +
+          "</span>" +
+          U.bar(v || 0, { cls: "bar--hair", inline: true }) +
+          "</div>"
+        );
+      });
+
+      node.innerHTML =
+        '<div class="rdrow__head">' +
+        '<div class="rdrow__n">' +
+        c.score +
+        "<small>%</small></div>" +
+        '<div class="u-grow"><div class="rdrow__top">' +
+        "<h3>" +
+        esc(c.label) +
+        "</h3>" +
+        '<span class="rdrow__w">' +
+        Math.round(c.weight * 100) +
+        "% of the loop" +
+        /* The number the sort is on. Without it the order looks arbitrary —
+           Agents at 0% ranks below Retrieval at 4% and a reader has no way to
+           see why — and an unexplained order reads as a bug in the ranking
+           rather than the point of the weighting. */
+        (c.score < 100
+          ? " · <b>" +
+            (Math.round(((100 - c.score) / 100) * c.weight * 1000) / 10)
+              .toFixed(1)
+              .replace(/\.0$/, "") +
+            " pts</b> to gain"
+          : " · complete") +
+        "</span></div>" +
+        U.bar(c.score, { cls: "bar--tall", style: "margin-top:7px" }) +
+        "</div></div>" +
+        '<p class="rdrow__probes">' +
+        esc(c.probes) +
+        "</p>" +
+        '<div class="rdparts">' +
+        parts.join("") +
+        "</div>";
+      grid.appendChild(node);
+    });
+    root.appendChild(grid);
+
+    /* ---- honest footer ---- */
+    var foot = el("div", "rdfoot");
+    foot.innerHTML =
+      Icons.get("info", 15) +
+      "<span><b>What this is and isn't.</b> It measures the work recorded in " +
+      "this browser, weighted toward evidence: project milestones and quiz " +
+      "accuracy together are " +
+      /* Derived, not typed: the weights are tuned in competencies.js and a
+         hardcoded number here would be wrong the first time they change. */
+      Math.round(
+        C.readinessParts.reduce(function (n, p) {
+          return n + (p.id === "evidence" || p.id === "recall" ? p.weight : 0);
+        }, 0) * 100
+      ) +
+      "% of every score, so you cannot read your way to a high number. It is " +
+      "not a prediction — no diagnostic knows the panel you get. Treat a gap as " +
+      "a thing to go and build, not a thing to go and revise.</span>";
+    root.appendChild(foot);
   };
 
   /* =========================================================

@@ -85,7 +85,54 @@ const newcomerPlan = (h) =>
   C.planFor({ track: "new", goal: "depth", hoursPerWeek: h, skills: [] });
 const backendAt = (h) => C.planFor({ ...backendPlan.profile, hoursPerWeek: h });
 
+/* The readiness diagnostic's own figures. Every one of these is derived from
+   competencies.js, so documenting them by hand is documenting them wrong — the
+   weights were retuned twice while this section was being written. */
+const readAll = { done: {}, quiz: {}, labs: {}, projectTasks: {} };
+for (const ch of C.chapters) {
+  readAll.done[ch.id] = true;
+  if ((ch.quiz || []).length)
+    readAll.quiz[ch.id] = { right: ch.quiz.length, total: ch.quiz.length };
+}
+const readOnlyScore = C.readinessFor(readAll).overall;
+
+/* Working through the roadmap properly, a phase at a time. */
+const trajectory = {};
+{
+  const s2 = { done: {}, quiz: {}, labs: {}, projectTasks: {} };
+  for (const p of C.phases.slice().sort((a, b) => a.n - b.n)) {
+    for (const ch of C.chapters.filter((c) => c.phase === p.id)) {
+      s2.done[ch.id] = true;
+      if ((ch.quiz || []).length)
+        s2.quiz[ch.id] = { right: ch.quiz.length, total: ch.quiz.length };
+      if (ch.lab) s2.labs[ch.lab] = true;
+    }
+    for (const pr of C.projects.filter((x) => x.phase === p.id)) {
+      s2.projectTasks[pr.id] = {};
+      pr.tasks.forEach((_, i) => (s2.projectTasks[pr.id][i] = true));
+    }
+    trajectory[p.id] = C.readinessFor(s2).overall;
+  }
+}
+
+const partPct = {};
+for (const part of C.readinessParts) partPct[part.id] = part.weight * 100;
+
+const compPct = {};
+for (const k of C.competencies) compPct[k.id] = Math.round(k.weight * 100);
+
 const TRUTH = {
+  competencies: C.competencies.length,
+  readOnlyScore,
+  partReading: partPct.reading,
+  partRecall: partPct.recall,
+  partPractice: partPct.practice,
+  partEvidence: partPct.evidence,
+  bandFoundations: trajectory.foundations,
+  bandBuilding: trajectory.building,
+  bandAgents: trajectory.agents,
+  bandEvals: trajectory.evals,
+  bandProduction: trajectory.production,
   chapters: C.chapters.length,
   phases: C.phases.length,
   labs,
@@ -152,7 +199,34 @@ const RULES = [
   ["README.md", /dominate: (\d+)h of chapters and labs/, "planReadHours"],
   ["README.md", /(\d+)h of building/, "planProjectHours"],
   ["README.md", /marks the (nine|ten|eleven|twelve) chapters/, "skimWord"],
+
+  /* The readiness diagnostic. Each competency share is checked against its own
+     weight below; these are the figures written into the surrounding prose. */
+  ["README.md", /against the (\w+) competencies an AI engineering/, "compWord"],
+  ["README.md", /chapters read \((\d+)%\)/, "partReading"],
+  ["README.md", /quiz accuracy \((\d+)%\)/, "partRecall"],
+  ["README.md", /labs used \((\d+)%\)/, "partPractice"],
+  ["README.md", /project milestones \((\d+)%\)\*\*/, "partEvidence"],
+  ["README.md", /perfectly reaches (\d+)%, not/, "readOnlyScore"],
+  ["README.md", /scores (\d+)% after Foundations/, "bandFoundations"],
+  ["README.md", /(\d+)% after Building/, "bandBuilding"],
+  ["README.md", /(\d+)% after Agents/, "bandAgents"],
+  ["README.md", /(\d+)% after Evaluation/, "bandEvals"],
+  ["README.md", /(\d+)% after Production/, "bandProduction"],
 ];
+
+/* Every row of the competency table, against the weight it claims. A share that
+   drifts from its weight is the readiness page and its documentation disagreeing
+   about what the loop asks for. */
+const COMP_ROWS = C.competencies.map((k) => [k.label, k.id]);
+
+const WORDS_SMALL = {
+  5: "five",
+  6: "six",
+  7: "seven",
+  8: "eight",
+  9: "nine",
+};
 
 /* The duration table: every row recomputed from the plan engine. */
 const DURATION_ROWS = [3, 5, 10, 20];
@@ -176,8 +250,19 @@ const fails = [];
 let checked = 0;
 const cache = {};
 
+/* Prose rules match against a whitespace-collapsed copy.
+ *
+ * Prettier reflows Markdown paragraphs, so a claim written on one line can end up
+ * split across two the next time anything nearby is edited — and a regex with a
+ * literal space in it then reports the claim as missing. That is a false failure
+ * about formatting, not a real one about a number, and it wastes exactly the
+ * attention this script exists to focus. The table loops below keep the raw
+ * source, because a row's meaning depends on its line. */
+const flat = {};
+
 for (const [file, re, key] of RULES) {
-  const src = (cache[file] ??= readFileSync(join(ROOT, file), "utf8"));
+  cache[file] ??= readFileSync(join(ROOT, file), "utf8");
+  const src = (flat[file] ??= cache[file].replace(/\s+/g, " "));
   const m = src.match(re);
   if (!m) {
     fails.push(
@@ -191,6 +276,13 @@ for (const [file, re, key] of RULES) {
     const want = WORDS[TRUTH.labs];
     if (m[0].split(" ")[0] !== want)
       fails.push(`${file}: says "${m[0].split(" ")[0]} labs", want "${want}"`);
+    continue;
+  }
+
+  if (key === "compWord") {
+    const want = WORDS_SMALL[TRUTH.competencies];
+    if (m[1] !== want)
+      fails.push(`${file}: says "${m[1]} competencies", want "${want}"`);
     continue;
   }
 
@@ -215,6 +307,27 @@ for (const [file, re, key] of RULES) {
   }
   if (got !== TRUTH[key])
     fails.push(`${file}: claims ${key} = ${got}, actual ${TRUTH[key]}`);
+}
+
+/* The competency table's shares. */
+for (const [label, id] of COMP_ROWS) {
+  const readmeSrc = (cache["README.md"] ??= readFileSync(
+    join(ROOT, "README.md"),
+    "utf8"
+  ));
+  const esc = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const row = new RegExp(`\\|\\s*${esc}\\s*\\|\\s*(\\d+)%\\s*\\|`);
+  const m = readmeSrc.match(row);
+  if (!m) {
+    fails.push(`README.md: no competency row for "${label}"`);
+    continue;
+  }
+  checked++;
+  if (Number(m[1]) !== compPct[id]) {
+    fails.push(
+      `README.md: "${label}" row says ${m[1]}%, actual ${compPct[id]}%`
+    );
+  }
 }
 
 /* The README's duration table, row by row. It was right, but only because I

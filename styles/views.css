@@ -1990,3 +1990,384 @@
   color: var(--ink-1);
   font-variant-numeric: tabular-nums;
 }
+
+/* ============================================================
+   Readiness — the diagnostic
+
+   Two jobs, in this order: give the overall number somewhere to sit (a bare
+   "42%" is unreadable — good? bad?), then break it into parts specific enough
+   to act on. Every band and part label comes from js/content/competencies.js,
+   so this file only decides where they go.
+   ============================================================ */
+
+.rdhero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-6);
+  padding: var(--s-6);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  border: 1px solid var(--accent-line);
+  background:
+    radial-gradient(
+      ellipse 90% 140% at 0% 0%,
+      hsl(var(--hue-violet) 90% 55% / 0.14),
+      transparent 66%
+    ),
+    var(--surface-1);
+}
+
+@media (max-width: 620px) {
+  .rdhero {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+}
+
+.rdhero__pct {
+  font-size: 2rem;
+  letter-spacing: -0.03em;
+}
+
+.rdhero__pct small {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-left: 1px;
+}
+
+.rdhero__body h2 {
+  font-size: var(--t-xl);
+  margin: var(--s-2) 0;
+}
+
+.rdhero__body p {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.65;
+  max-width: 35.7em;
+}
+
+/* ---- band scale ----
+   A six-segment ruler under the score. Segment widths are proportional to the
+   band ranges, so "Interview-ready" occupying a narrow slice near the right is
+   information, not decoration. */
+
+.rdscale {
+  display: flex;
+  align-items: flex-start;
+  gap: 3px;
+  /* Attached to the hero above it, not floating between two sections: this is a
+     legend for that number, and the first version sat equidistant from the hero
+     and the actions card, reading as neither. */
+  margin: calc(var(--s-4) * -1) 0 var(--s-7);
+  padding: var(--s-4) var(--s-5) var(--s-3);
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  background: var(--surface-2);
+}
+
+.rdscale__seg {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.rdscale__bar {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.rdscale__seg.is-here .rdscale__bar {
+  background: var(--accent);
+}
+
+.rdscale__lbl,
+.rdscale__at {
+  display: block;
+  font-size: var(--t-xs);
+  margin-top: 6px;
+  color: var(--ink-3);
+  /* Six labels across a page that can be 320px wide: clipping is the honest
+     failure. The active band is spelled out in the hero above, so a truncated
+     neighbour costs nothing. */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rdscale__at {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  margin-top: 1px;
+  color: var(--ink-3);
+  opacity: 0.72;
+}
+
+.rdscale__seg.is-here .rdscale__lbl {
+  color: var(--ink);
+  font-weight: 640;
+}
+
+@media (max-width: 720px) {
+  /* Below this the labels are unreadable at any truncation, so the ruler keeps
+     its proportions and drops the words. Its own band is named in the hero. */
+  .rdscale__lbl,
+  .rdscale__at {
+    display: none;
+  }
+
+  .rdscale {
+    padding-bottom: var(--s-4);
+  }
+}
+
+/* ---- next actions ---- */
+
+.rdnext {
+  margin-bottom: var(--s-7);
+}
+
+.rdacts {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.rdact {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.rdact:hover {
+  border-color: var(--accent-line);
+  transform: translateX(2px);
+}
+
+.rdact__ic {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--accent);
+}
+
+.rdact__t {
+  display: block;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.rdact__m {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.rdact__go {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.rdact:hover .rdact__go {
+  color: var(--accent);
+}
+
+/* ---- per-competency rows ----
+   Stacked, not a grid: seven cards side by side put the bars at seven different
+   x positions, and comparing them was guesswork. One column shares a baseline,
+   which is the only reason the sort order means anything. */
+
+.rdgrid {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.rdrow {
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.rdrow.is-done {
+  border-color: var(--accent-line);
+}
+
+.rdrow__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+/* The score as a number in a fixed-width column, so seven of them form a
+   readable column rather than drifting with the title lengths beside them. */
+.rdrow__n {
+  flex: none;
+  width: 3.4em;
+  text-align: right;
+  font-size: var(--t-xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.rdrow__n small {
+  font-size: 0.55em;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin-left: 1px;
+}
+
+.rdrow__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.rdrow__top h3 {
+  font-size: var(--t-md);
+  margin: 0;
+}
+
+.rdrow__w {
+  flex: none;
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rdrow__w b {
+  color: var(--ink-1);
+  font-weight: 640;
+}
+
+.rdrow__probes {
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.6;
+  /* 0.525em per character: `ch` is the width of "0", ~24% wider than average
+     lowercase in Inter, so a `ch` measure runs long. */
+  max-width: 42em;
+  margin: var(--s-4) 0 var(--s-4);
+}
+
+/* Four figures in one row. They answer "why is this low" — read but not built
+   looks different from neither — without a second bar chart per competency. */
+.rdparts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+@media (max-width: 620px) {
+  .rdparts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rdpart {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line-faint);
+}
+
+.rdpart__ic {
+  color: var(--ink-3);
+  display: grid;
+  place-items: center;
+}
+
+.rdpart__l {
+  font-size: 0.66rem;
+  color: var(--ink-3);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rdpart__v {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1);
+}
+
+/* The bar spans all three columns on its own line. */
+.rdpart .bar {
+  grid-column: 1 / -1;
+  margin-top: 5px;
+}
+
+/* A competency with no project of its own cannot earn an evidence score. Its
+   weight is redistributed across the parts it does have, and the row says so
+   rather than showing a permanent 0%. */
+.rdpart.is-na {
+  opacity: 0.5;
+}
+
+.rdpart.is-na .bar {
+  visibility: hidden;
+}
+
+.rdfoot {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  margin-top: var(--s-7);
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+
+.rdfoot svg {
+  flex: none;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+.rdfoot b {
+  color: var(--ink);
+}
+
+/* An item whose earlier phases are not done yet. It is in the list because its
+   arithmetic value is genuinely higher, and labelled because acting on it means
+   reading a chapter that assumes context you do not have. */
+.rdact__ahead {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+}

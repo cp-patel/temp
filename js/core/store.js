@@ -421,6 +421,35 @@
     save();
   };
 
+  /* ---- readiness ---- */
+
+  /* The learner state, flattened into the four signals the readiness model
+     scores. Kept here because the store owns the shape, and returned as plain
+     data so Curriculum.readinessFor stays a pure function the unit tests can
+     drive without a browser or a localStorage. */
+  S.signals = function () {
+    var done = {};
+    var quiz = {};
+    Object.keys(state.progress).forEach(function (id) {
+      var rec = state.progress[id];
+      if (!rec || typeof rec !== "object") return;
+      if (rec.done) done[id] = true;
+      if (rec.quiz && rec.quiz.total)
+        quiz[id] = { right: rec.quiz.right, total: rec.quiz.total };
+    });
+    return {
+      done: done,
+      quiz: quiz,
+      labs: clone(state.labs),
+      projectTasks: clone(state.projects),
+    };
+  };
+
+  S.readiness = function () {
+    if (!global.Curriculum || !global.Curriculum.readinessFor) return null;
+    return global.Curriculum.readinessFor(S.signals());
+  };
+
   /* The generated plan is derived, never stored — so editing the profile or
      adding chapters recomputes it rather than leaving a stale copy behind. */
   S.plan = function () {

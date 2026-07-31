@@ -116,6 +116,45 @@ the VRAM calculator models activation scratch as a flat 1.2 GiB. The first
 version of the retrieval lab used lexical hashing and _couldn't demonstrate
 paraphrase matching_ — the lab's entire point — so it was rebuilt.
 
+### Readiness diagnostic
+
+Percent-complete answers "how much of this course have I done?". A career-changer
+is asking something else: **am I ready, and if not, what is the gap?** The
+readiness page answers that from work already recorded — no new tracking — by
+scoring it against the seven competencies an AI engineering loop tests, weighted
+the way the loop weights them.
+
+| Competency                  | Share | What it probes                                                            |
+| --------------------------- | ----- | ------------------------------------------------------------------------- |
+| Application engineering     | 20%   | Prompt structure, structured output, streaming, state, caching, unit cost |
+| Evaluation                  | 17%   | Eval sets, metrics, judge calibration, trajectory scoring, CI gates       |
+| Model internals & economics | 15%   | What a token costs, why the same prompt answers differently twice         |
+| Retrieval systems           | 15%   | Chunking, hybrid search, reranking, diagnosing plausible nonsense         |
+| Production & security       | 15%   | Tracing, prompt injection, deployment, privacy                            |
+| Agents & tools              | 13%   | Tool design, the loop, budgets, when a workflow beats an agent            |
+| Judgement & communication   | 5%    | Fine-tune or prompt, build or buy — and the behavioural round             |
+
+Each score is made of four parts: chapters read (30%), quiz accuracy (25%), labs
+used (15%), and **project milestones (30%)**. Evidence is weighted highest on
+purpose — reading every chapter and taking every quiz perfectly reaches 60%, not
+100%, because a diagnostic you can satisfy by reading would contradict the thing
+this curriculum argues. Recall is scored over _every_ question in a competency,
+not the ones you happened to take, so one perfect quiz isn't full marks for a
+seven-chapter subject.
+
+Bands are calibrated against the real trajectory rather than round numbers:
+working through the roadmap properly scores 15% after Foundations, 35% after
+Building, 63% after Agents, 80% after Evaluation, 95% after Production. So a band
+changes when a phase closes.
+
+It also answers "what do I do right now" with a ranked list — but **prerequisites
+are a gate, not a discount**. Production is a four-chapter phase carrying 15% of
+the loop with one lab, so that lab's value-per-item is roughly 3× anything else,
+and a pure lift ranking sent a learner at 0% to read about prompt injection. Two
+attempts at damping it with a multiplier both failed; the rule that holds is
+structural — anything whose earlier phases are done outranks anything whose aren't,
+whatever the arithmetic says. Look-ahead items still appear, labelled `ahead`.
+
 ### Progress tracking
 
 - Chapter completion, quiz scores with explanations, inline knowledge checks

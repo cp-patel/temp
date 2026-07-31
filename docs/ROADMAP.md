@@ -15,6 +15,7 @@ Written so the next change doesn't have to rediscover the reasoning.
 | Interactive     | 17 labs, 79 inline knowledge checks, 165 quiz questions               |
 | Practice        | 6 projects with 43 verifiable milestones, 167 spaced-repetition cards |
 | Personalisation | 5 tracks, 14 claimable skills, 17 per-chapter delta notes             |
+| Diagnostic      | 7 weighted competencies, 4-part scoring, ranked next actions          |
 | Reference       | 52-term glossary, 91 external resources                               |
 | Tooling         | Validator, unit + e2e suites, docs check, scaffolder, CI              |
 | Deployment      | Static; GitHub Pages workflow included; runs from `file://`           |
@@ -28,9 +29,15 @@ Changes that would break these need a strong argument.
 2. **No network calls after page load.** No analytics, no CDN, no telemetry.
    Progress lives in `localStorage` and never leaves the browser.
 3. **The plan is derived, never stored.** Adding a chapter updates every existing
-   learner's plan with no migration.
+   learner's plan with no migration. The readiness score follows the same rule for
+   the same reason: a stored number goes stale silently.
 4. **Content is data.** Anyone who can edit a JS object can contribute a chapter.
 5. **Simplifications are disclosed in the UI**, not just in a comment.
+6. **No number is flattering by accident.** A metric a learner might act on is
+   calibrated against the real trajectory and tested at both ends — the readiness
+   diagnostic is 0 on a fresh account, cannot exceed 60 on reading alone, and
+   reaches exactly 100 only when the projects are done. A score that saturates
+   early is worse than no score, because someone will believe it.
 
 ## Next, in rough priority order
 
@@ -123,6 +130,14 @@ the backend is present; it doesn't stop working when it isn't.
 - **Search over chapter bodies**, not just titles and subtitles. The command
   palette currently misses content buried in prose. This is also the natural
   first consumer of the retrieval backend above.
+- **Portfolio export.** The readiness diagnostic knows which milestones are done;
+  what it cannot produce yet is the artefact — a Markdown write-up of the projects
+  with their numbers, ready to paste into a README or a post. That is the second
+  half of "prove the result works", and the milestone data for it already exists.
+- **A session planner.** "I have 25 minutes" should produce an exact plan rather
+  than a chapter list to pick from. `Curriculum.readinessActions` already ranks
+  the candidates and every chapter carries `minutes`; what is missing is the
+  packing and the UI.
 
 ## Explicitly out of scope
 

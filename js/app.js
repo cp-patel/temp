@@ -114,6 +114,7 @@
     { href: "#/dashboard", icon: "home", label: "Dashboard" },
     { href: "#/plan", icon: "compass", label: "My plan" },
     { href: "#/roadmap", icon: "map", label: "Roadmap" },
+    { href: "#/readiness", icon: "gauge", label: "Readiness" },
     { href: "#/library", icon: "grid", label: "Library" },
     { href: "#/labs", icon: "beaker", label: "Labs" },
     { href: "#/review", icon: "cards", label: "Review" },
@@ -334,6 +335,7 @@
         dashboard: "Dashboard",
         plan: "My plan",
         roadmap: "Roadmap",
+        readiness: "Readiness",
         library: "Library",
         labs: "Labs",
         review: "Review",
@@ -458,6 +460,10 @@
     { t: "Go to dashboard", icon: "home", go: "#/dashboard" },
     { t: "Open my personalised plan", icon: "compass", go: "#/plan" },
     { t: "Open the roadmap", icon: "map", go: "#/roadmap" },
+    { t: "Check my interview readiness", icon: "gauge", go: "#/readiness" },
+    /* The library had no command either — it is reachable from the sidebar, but
+       the palette is meant to be the complete index of where you can go. */
+    { t: "Browse the chapter library", icon: "grid", go: "#/library" },
     { t: "Browse all labs", icon: "beaker", go: "#/labs" },
     { t: "Review flashcards", icon: "cards", go: "#/review" },
     { t: "Open projects", icon: "hammer", go: "#/projects" },
@@ -477,6 +483,18 @@
       run: function () {
         var n = Views.helpers.nextChapter();
         App.go(n ? "#/chapter/" + n.id : "#/projects");
+      },
+    },
+    /* "Continue" follows the curriculum order; this follows the diagnostic, which
+       is a different question and sometimes a different answer — it will send you
+       to a project milestone over the next unread chapter once the reading is
+       ahead of the building. */
+    {
+      t: "Do the highest-value thing next",
+      icon: "target",
+      run: function () {
+        var a = (C.readinessActions(Store.signals(), 1) || [])[0];
+        App.go(a ? a.href : "#/readiness");
       },
     },
   ];
@@ -652,12 +670,30 @@
     "/dashboard": { name: "dashboard", render: Views.dashboard },
     "/plan": { name: "plan", render: Views.plan },
     "/roadmap": { name: "roadmap", render: Views.roadmap },
+    "/readiness": { name: "readiness", render: Views.readiness },
     "/library": { name: "library", render: Views.library },
     "/labs": { name: "labs", render: Views.labs },
     "/review": { name: "review", render: Views.review },
     "/projects": { name: "projects", render: Views.projects },
     "/glossary": { name: "glossary", render: Views.glossary },
     "/settings": { name: "settings", render: Views.settings },
+  };
+
+  /* The hash of every top-level route, deduplicated and in sidebar order.
+     Exposed because the e2e suite kept three hand-written copies of this list and
+     a new route was covered by none of them — the readiness page shipped with no
+     entry in the route sweep, the accessibility sweep, or the contrast sweep,
+     because all three were literals someone had to remember to edit. */
+  App.routes = function () {
+    var seen = {};
+    var out = [];
+    Object.keys(ROUTES).forEach(function (h) {
+      var name = ROUTES[h].name;
+      if (seen[name]) return;
+      seen[name] = true;
+      out.push(h === "" || h === "/" ? "" : "#" + h);
+    });
+    return out;
   };
 
   function parse() {
@@ -677,6 +713,8 @@
     dashboard: ".page-head, .dgrid > *, .dcols > div > *",
     plan: ".planhero, .modelegend, .week",
     roadmap: ".page-head, .rm__legend, .phase",
+    readiness:
+      ".page-head, .rdhero, .rdscale, .rdnext, .sec-head, .rdrow, .rdfoot",
     library: ".page-head, .filters, .libcard",
     labs: ".page-head, .lab",
     projects: ".page-head, .proj",

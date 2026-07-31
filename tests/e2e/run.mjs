@@ -145,19 +145,21 @@ async function main() {
 
   /* ---------------- every route renders ---------------- */
   section("routes");
-  const routes = [
-    "",
-    "#/dashboard",
-    "#/plan",
-    "#/roadmap",
-    "#/library",
-    "#/labs",
-    "#/review",
-    "#/projects",
-    "#/glossary",
-    "#/settings",
-    "#/nonexistent-route",
-  ];
+  /* Read from the app's own route table rather than a literal. Three copies of
+     this list existed and the readiness route was in none of them: a new surface
+     could ship with no render check, no heading check and no contrast check while
+     the suite stayed green.
+
+     Captured once, here, rather than re-evaluated per section: the main context is
+     closed part-way through the suite, so a later `page.evaluate` would fail on a
+     dead page — which is how the first version of this crashed. */
+  const APP_ROUTES = await page.evaluate(() => App.routes());
+  const routes = [...APP_ROUTES, "#/nonexistent-route"];
+  check(
+    "the route sweep covers every route the app declares",
+    routes.length >= 11,
+    JSON.stringify(routes)
+  );
   for (const r of routes) {
     await go(r);
     const len = await page.evaluate(() => document.body.innerText.length);
@@ -666,19 +668,7 @@ async function main() {
   /* What a screen reader is handed, as opposed to what a keyboard can reach. */
   section("accessibility tree");
   const treeIssues = { skips: [], h1: [], unlabelled: new Map(), svg: [] };
-  for (const r of [
-    "",
-    "#/dashboard",
-    "#/plan",
-    "#/roadmap",
-    "#/library",
-    "#/labs",
-    "#/review",
-    "#/projects",
-    "#/glossary",
-    "#/settings",
-    "#/chapter/tokens",
-  ]) {
+  for (const r of [...APP_ROUTES, "#/chapter/tokens"]) {
     await go(r);
     await page.waitForTimeout(300);
     const m = await page.evaluate(() => {
@@ -1301,16 +1291,7 @@ async function main() {
      inverts between themes). */
   section("contrast (WCAG AA)");
   const CONTRAST_ROUTES = [
-    "",
-    "#/dashboard",
-    "#/plan",
-    "#/roadmap",
-    "#/library",
-    "#/labs",
-    "#/review",
-    "#/projects",
-    "#/glossary",
-    "#/settings",
+    ...APP_ROUTES,
     "#/chapter/role",
     "#/chapter/evals-ci",
   ];
@@ -1587,6 +1568,226 @@ async function main() {
     await yctx.close();
   }
 
+  /* ---------------- readiness diagnostic ---------------- */
+  /* The one number a learner might act on — "start applying" or "spend another
+     month on evals" — so the checks here are about whether it can be trusted:
+     does it move when work is done, does it stay inside its own scale, and does
+     the advice it gives agree with the roadmap next to it. */
+  section("readiness");
+  {
+    const rctx = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      colorScheme: "dark",
+    });
+    const rp = await rctx.newPage();
+    rp.on("pageerror", (e) => errors.push(`readiness pageerror: ${e.message}`));
+    rp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`readiness console: ${m.text()}`);
+    });
+
+    await rp.goto(BASE + "#/readiness", { waitUntil: "networkidle" });
+    await rp.evaluate(() => Store.skipOnboarding());
+    await rp.waitForTimeout(500);
+
+    const fresh = await rp.evaluate(() => ({
+      pct: (document.querySelector(".rdhero__pct") || {}).innerText || "",
+      head: (document.querySelector(".rdhero__body h2") || {}).innerText || "",
+      rows: document.querySelectorAll(".rdrow").length,
+      comps: window.Curriculum.competencies.length,
+      segs: document.querySelectorAll(".rdscale__seg").length,
+      bands: window.Curriculum.readinessBands.length,
+      acts: document.querySelectorAll(".rdact").length,
+      /* Every action on a fresh account must be in phase 1. A ranking that goes
+         by raw lift-per-item sends a beginner to a Phase 7 lab. */
+      actPhases: window.Curriculum.readinessActions({}, 6).map((a) => a.phase),
+      firstPhase: window.Curriculum.phases.slice().sort((a, b) => a.n - b.n)[0]
+        .id,
+    }));
+    check(
+      "a fresh account scores 0 and says so without a band name",
+      fresh.pct.replace(/\s/g, "") === "0%" &&
+        /start anywhere/i.test(fresh.head),
+      JSON.stringify({ pct: fresh.pct, head: fresh.head })
+    );
+    check(
+      "one row per competency, one scale segment per band",
+      fresh.rows === fresh.comps &&
+        fresh.rows === 7 &&
+        fresh.segs === fresh.bands,
+      JSON.stringify(fresh)
+    );
+    check(
+      "the next actions all sit in the first phase, not the highest-lift one",
+      fresh.acts === 6 &&
+        fresh.actPhases.length === 6 &&
+        fresh.actPhases.every((p) => p === fresh.firstPhase),
+      JSON.stringify({ acts: fresh.acts, phases: fresh.actPhases })
+    );
+
+    /* Rows are sorted by weighted shortfall, and that figure is printed on each
+       row precisely so the order is checkable by eye. If the two disagree the
+       page is arguing with itself. */
+    const sorted = await rp.evaluate(() =>
+      [...document.querySelectorAll(".rdrow")].map((n) => {
+        const w = n.querySelector(".rdrow__w").innerText;
+        const m = w.match(/([\d.]+) pts/);
+        return m ? Number(m[1]) : null;
+      })
+    );
+    check(
+      "rows descend by the points-to-gain figure printed on them",
+      sorted.every((v) => v !== null) &&
+        sorted.every((v, i) => i === 0 || sorted[i - 1] >= v),
+      JSON.stringify(sorted)
+    );
+
+    /* Work in, score up. Seeding through the real Store rather than writing
+       localStorage directly, so this exercises the same path the app uses. */
+    const moved = await rp.evaluate(() => {
+      const before = Store.readiness().overall;
+      const C = window.Curriculum;
+      C.chapters
+        .filter((c) => c.phase === "foundations")
+        .forEach((c) => {
+          Store.complete(c.id);
+          if ((c.quiz || []).length)
+            Store.saveQuiz(c.id, c.quiz.length, c.quiz.length);
+          if (c.lab) Store.labTouched(c.lab);
+        });
+      const after = Store.readiness();
+      return { before, after: after.overall, band: after.band.name };
+    });
+    check(
+      "completing a phase moves the score",
+      moved.before === 0 && moved.after > 0 && moved.after < 100,
+      JSON.stringify(moved)
+    );
+
+    await visit(rp, BASE + "#/readiness");
+    await rp.waitForTimeout(500);
+    const after = await rp.evaluate(() => ({
+      pct: (document.querySelector(".rdhero__pct") || {}).innerText || "",
+      here:
+        (document.querySelector(".rdscale__seg.is-here .rdscale__lbl") || {})
+          .innerText || "",
+      band: (document.querySelector(".rdhero__body h2") || {}).innerText || "",
+      /* The finished phase must not still be recommended. */
+      actPhases: [...document.querySelectorAll(".rdact")].length
+        ? window.Curriculum.readinessActions(Store.signals(), 6).map(
+            (a) => a.phase
+          )
+        : [],
+      fractions: [...document.querySelectorAll(".rdrow")]
+        .map((n) => n.querySelector(".rdpart__v").innerText)
+        .filter(Boolean).length,
+    }));
+    check(
+      "the highlighted band on the scale is the one the hero names",
+      after.here === after.band && after.band.length > 3,
+      JSON.stringify({ here: after.here, band: after.band })
+    );
+    check(
+      "a finished phase stops being recommended",
+      after.actPhases.length > 0 &&
+        after.actPhases.every((p) => p !== "foundations"),
+      JSON.stringify(after.actPhases)
+    );
+
+    /* Every action must go somewhere real, and the top one must actually work —
+       the contents-link bug was a link that existed and did nothing. */
+    const hrefs = await rp.evaluate(() =>
+      [...document.querySelectorAll(".rdact")].map((a) =>
+        a.getAttribute("href")
+      )
+    );
+    check(
+      "every next action points at a chapter or the projects page",
+      hrefs.length === 6 &&
+        hrefs.every((h) => h === "#/projects" || h.startsWith("#/chapter/")),
+      JSON.stringify(hrefs)
+    );
+    await rp.locator(".rdact").first().click();
+    await rp.waitForTimeout(500);
+    check(
+      "and clicking the first one lands on a real page",
+      await rp.evaluate(
+        () =>
+          !!document.querySelector("h1") &&
+          (location.hash.startsWith("#/chapter/") ||
+            location.hash === "#/projects")
+      ),
+      await rp.evaluate(() => location.hash)
+    );
+
+    /* The dashboard summary is the entry point; if it disagrees with the page it
+       links to, one of them is lying. */
+    await rp.goto(BASE + "#/dashboard", { waitUntil: "networkidle" });
+    await rp.waitForTimeout(500);
+    const dash = await rp.evaluate(() => {
+      const card = [...document.querySelectorAll(".card")].filter((c) =>
+        /interview readiness/i.test(c.innerText)
+      )[0];
+      if (!card) return null;
+      return {
+        ring: (card.querySelector(".ring__label") || {}).innerText || "",
+        overall: Store.readiness().overall,
+        link: (card.querySelector("a") || {}).getAttribute?.("href") || "",
+      };
+    });
+    check(
+      "the dashboard card shows the same score and links to the breakdown",
+      !!dash &&
+        dash.ring.replace(/\s/g, "") === dash.overall + "%" &&
+        dash.link === "#/readiness",
+      JSON.stringify(dash)
+    );
+
+    /* Everything done: the ceiling is reachable and the advice stops. */
+    const full = await rp.evaluate(() => {
+      const C = window.Curriculum;
+      C.chapters.forEach((c) => {
+        Store.complete(c.id);
+        if ((c.quiz || []).length)
+          Store.saveQuiz(c.id, c.quiz.length, c.quiz.length);
+        if (c.lab) Store.labTouched(c.lab);
+      });
+      C.projects.forEach((p) =>
+        p.tasks.forEach((_, i) => {
+          if (!(Store.state().projects[p.id] || {})[i]) Store.projTask(p.id, i);
+        })
+      );
+      const r = Store.readiness();
+      return {
+        overall: r.overall,
+        band: r.band.name,
+        gaps: r.gaps.length,
+        acts: C.readinessActions(Store.signals(), 6).length,
+      };
+    });
+    check(
+      "finishing everything reaches 100 with no gaps and nothing left to suggest",
+      full.overall === 100 && full.gaps === 0 && full.acts === 0,
+      JSON.stringify(full)
+    );
+
+    await visit(rp, BASE + "#/readiness");
+    await rp.waitForTimeout(500);
+    const done = await rp.evaluate(() => ({
+      acts: document.querySelectorAll(".rdact").length,
+      rows: document.querySelectorAll(".rdrow.is-done").length,
+      complete: [...document.querySelectorAll(".rdrow__w")].filter((n) =>
+        /complete/.test(n.innerText)
+      ).length,
+    }));
+    check(
+      "and the page drops the action list rather than showing an empty one",
+      done.acts === 0 && done.rows === 7 && done.complete === 7,
+      JSON.stringify(done)
+    );
+
+    await rctx.close();
+  }
+
   /* ---------------- every link and control, activated ---------------- */
   /* The contents-link bug survived twenty iterations because the suite asserted a
      table of contents *exists* without ever activating a link in it. These two
@@ -1612,18 +1813,11 @@ async function main() {
       await ap.waitForTimeout(180);
     };
 
-    const PAGES = [
-      "",
-      "#/dashboard",
-      "#/plan",
-      "#/roadmap",
-      "#/library",
-      "#/labs",
-      "#/review",
-      "#/projects",
-      "#/glossary",
-      "#/settings",
-    ];
+    /* The fourth copy of this list, now the same one. It was the last holdout and
+       it caught the readiness page's own nav link as a broken anchor — which is
+       the failure mode in miniature: a hand-maintained list of "routes that
+       exist" reports every new route as a bug until someone remembers it. */
+    const PAGES = APP_ROUTES;
 
     /* 1. Static: no link points at a chapter that does not exist, and every
        in-page anchor carries a handler — without one the hash reaches the router,

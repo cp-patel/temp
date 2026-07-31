@@ -530,6 +530,12 @@ kbd {
   height: 9px;
 }
 
+/* Thinner than --thin: a supporting figure beside a headline bar, where the
+   headline is what should carry the eye. */
+.bar--hair {
+  height: 3px;
+}
+
 .ring {
   --pct: 0;
   --ring-size: 44px;
