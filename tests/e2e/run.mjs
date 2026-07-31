@@ -299,8 +299,70 @@ async function main() {
 
   /* ---------------- review deck ---------------- */
   section("review");
+  /* Cards are gated on chapter completion. Before that gate existed, all 167
+     cards counted as due on a brand-new account: the sidebar carried a "167"
+     badge before you had read a word and the deck cold-quizzed phase-4 material
+     in your first session, while the UI claimed completing a chapter is what
+     "unlocks its flashcards for review". */
+  await page.evaluate(() => Store.reset());
   await go("#/review");
   await page.waitForTimeout(300);
+  check(
+    "a fresh account has no cards to review",
+    (await page.locator(".fcard3d").count()) === 0 &&
+      (await page.locator(".empty").count()) === 1
+  );
+  check(
+    "the empty state points at a chapter to unlock some",
+    /No cards unlocked/.test(
+      await page.evaluate(() => document.querySelector(".empty").innerText)
+    )
+  );
+  check(
+    "no review badge before anything is complete",
+    (await page.locator(".navlink__count").count()) === 0
+  );
+
+  await page.evaluate(() => {
+    Store.complete("role", true);
+    Store.complete("tokens", true);
+    // Restore the profile the reset above cleared: later sections measure #/plan,
+    // and without one it renders its empty state instead of the real schedule.
+    Store.setProfile({
+      track: "backend",
+      goal: "job",
+      hoursPerWeek: 10,
+      skills: ["apis", "reliability", "caching", "databases"],
+    });
+  });
+  const unlocked = await page.evaluate(() =>
+    ["role", "tokens"].reduce(
+      (a, id) =>
+        a +
+        window.Curriculum.chapters.filter((c) => c.id === id)[0].cards.length,
+      0
+    )
+  );
+  // reload, not go() — goto to an identical URL is a same-document no-op, so the
+  // empty-state DOM from the assertions above would still be on screen.
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(400);
+  const deckSize = await page.evaluate(() =>
+    Number(
+      (document.querySelector(".fcmeta").innerText.match(/of (\d+)/) || [])[1]
+    )
+  );
+  check(
+    "completing chapters unlocks exactly their cards",
+    deckSize === unlocked,
+    `deck ${deckSize}, unlocked ${unlocked}`
+  );
+  check(
+    "the sidebar badge counts only unlocked cards",
+    (await page.evaluate(
+      () => (document.querySelector(".navlink__count") || {}).innerText
+    )) === String(unlocked)
+  );
   check("a card is presented", (await page.locator(".fcard3d").count()) === 1);
   await page.locator(".fcard3d").click();
   await page.waitForTimeout(650);
@@ -733,6 +795,220 @@ async function main() {
     );
     await cctx.close();
   }
+
+  /* ---------------- the first visitor's whole path ---------------- */
+  /* Everything above drives the app with state pre-seeded from JS, because that
+     is how you test a screen. Nobody arrives that way. This walks the actual
+     journey with an empty localStorage, clicking only what a person can click:
+     onboarding → plan → the Continue button → the chapter it lands on → its
+     checks → its quiz → mark complete → review. It is the only check here that
+     would catch a break in the seams *between* screens. */
+  section("first-visitor walkthrough");
+  const wctx = await browser.newContext({
+    viewport: { width: 1440, height: 950 },
+    colorScheme: "dark",
+  });
+  const wp = await wctx.newPage();
+  wp.on("pageerror", (e) => errors.push(`walkthrough pageerror: ${e.message}`));
+  wp.on("console", (m) => {
+    if (m.type() === "error") errors.push(`walkthrough console: ${m.text()}`);
+  });
+  const wover = () =>
+    wp.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth
+    );
+
+  await wp.goto(BASE, { waitUntil: "networkidle" });
+  await wp.addStyleTag({ content: "html{scroll-behavior:auto !important}" });
+  check(
+    "arrives with empty storage",
+    (await wp.evaluate(() => localStorage.length)) === 0
+  );
+  await wp.waitForSelector(".ob", { timeout: 3000 }).catch(() => {});
+  check("onboarding opens by itself", (await wp.locator(".ob").count()) === 1);
+  check(
+    "Continue is gated until a track is picked",
+    await wp.evaluate(
+      () => document.querySelector(".ob .btn--primary").disabled
+    )
+  );
+
+  await wp.locator(".ob__opt", { hasText: "Backend" }).first().click();
+  await wp.waitForTimeout(200);
+  const skills = await wp.evaluate(() => ({
+    on: document.querySelectorAll(".ob__skill.is-on").length,
+    total: document.querySelectorAll(".ob__skill").length,
+  }));
+  check(
+    "picking a track pre-fills its skills, not all of them",
+    skills.on >= 3 && skills.on < skills.total,
+    JSON.stringify(skills)
+  );
+
+  await wp.locator(".ob .btn--primary").click();
+  await wp.waitForTimeout(200);
+  await wp.locator(".ob__pill", { hasText: "10 h" }).click();
+  await wp.locator(".ob__opt", { hasText: "AI engineering role" }).click();
+  await wp.locator(".ob .btn--primary").click();
+  await wp.waitForTimeout(300);
+  const obPlan = await wp.evaluate(() =>
+    [...document.querySelectorAll(".ob .metric__n")].map((e) =>
+      Number(e.innerText)
+    )
+  );
+  check(
+    "the review step accounts for every chapter",
+    obPlan.length === 4 && obPlan[0] + obPlan[1] + obPlan[2] === 44,
+    JSON.stringify(obPlan)
+  );
+  check("no h-overflow in the modal", (await wover()) <= 2);
+
+  await wp.locator(".ob .btn--primary").click();
+  await wp.waitForTimeout(500);
+  const landed = await wp.evaluate(() => ({
+    modal: document.querySelectorAll(".ob").length,
+    hash: location.hash,
+    track: (Store.profile() || {}).track,
+    hours: (Store.profile() || {}).hoursPerWeek,
+  }));
+  check(
+    "finishing onboarding lands on the plan with the profile saved",
+    landed.modal === 0 &&
+      landed.hash === "#/plan" &&
+      landed.track === "backend" &&
+      landed.hours === 10,
+    JSON.stringify(landed)
+  );
+  await wp.waitForTimeout(400);
+  check(
+    "the plan built a real schedule",
+    (await wp.locator(".week").count()) > 5,
+    `${await wp.locator(".week").count()} weeks`
+  );
+
+  const cta = await wp.evaluate(
+    () =>
+      (document.querySelector("a.btn--primary") || {}).getAttribute("href") ||
+      ""
+  );
+  check(
+    "the plan offers a Continue CTA into a chapter",
+    /#\/chapter\//.test(cta),
+    cta
+  );
+  const firstId = cta.replace("#/chapter/", "");
+  check(
+    "the first chapter it sends you to is not one it told you to skim",
+    (await wp.evaluate(
+      (id) => window.Curriculum.planFor(Store.profile()).byId[id].mode,
+      firstId
+    )) !== "skim"
+  );
+
+  await wp.locator("a.btn--primary").first().click();
+  await wp.waitForTimeout(600);
+  const chapter = await wp.evaluate(() => ({
+    blocks: document.querySelectorAll(".prose > *").length,
+    checks: document.querySelectorAll(".check").length,
+    quiz: document.querySelectorAll(".qitem").length,
+    done: document.querySelectorAll(".chdone").length,
+  }));
+  check(
+    "the chapter renders with body, checks, quiz and a completion box",
+    chapter.blocks > 8 &&
+      chapter.checks >= 2 &&
+      chapter.quiz >= 3 &&
+      chapter.done === 1,
+    JSON.stringify(chapter)
+  );
+  check("the chapter has no h-overflow", (await wover()) <= 2);
+
+  const nChecks = await wp.locator(".check").count();
+  for (let i = 0; i < nChecks; i++) {
+    await wp.locator(".check").nth(i).locator(".opt").first().click();
+    await wp.waitForTimeout(140);
+  }
+  check(
+    "answering every inline check records it",
+    (await wp.evaluate(
+      (id) => Object.keys(Store.state().progress[id].checks || {}).length,
+      firstId
+    )) === nChecks
+  );
+
+  const nQ = await wp.locator(".qitem").count();
+  for (let i = 0; i < nQ; i++) {
+    const answer = await wp.evaluate(
+      (a) =>
+        window.Curriculum.chapters.filter((c) => c.id === a.id)[0].quiz[a.i]
+          .answer,
+      { id: firstId, i }
+    );
+    await wp.locator(".qitem").nth(i).locator(".opt").nth(answer).click();
+    await wp.waitForTimeout(80);
+  }
+  await wp.waitForTimeout(250);
+  const quizSaved = await wp.evaluate(
+    (id) => Store.state().progress[id].quiz,
+    firstId
+  );
+  check(
+    "a full-marks run is scored and saved",
+    quizSaved && quizSaved.right === nQ,
+    JSON.stringify(quizSaved)
+  );
+
+  await wp.locator(".chdone .btn").click();
+  await wp.waitForTimeout(400);
+  const completed = await wp.evaluate(
+    (id) => ({ done: Store.isDone(id), xp: Store.state().xp }),
+    firstId
+  );
+  check(
+    "marking complete sticks and awards XP",
+    completed.done === true && completed.xp > 0,
+    JSON.stringify(completed)
+  );
+
+  await wp.goto(BASE + "#/review", { waitUntil: "networkidle" });
+  await wp.waitForTimeout(500);
+  const deck = await wp.evaluate(
+    (id) => ({
+      cards: document.querySelectorAll(".fcard3d").length,
+      size: Number(
+        ((document.querySelector(".fcmeta") || {}).innerText || "").match(
+          /of (\d+)/
+        )?.[1]
+      ),
+      chapterCards: window.Curriculum.chapters.filter((c) => c.id === id)[0]
+        .cards.length,
+    }),
+    firstId
+  );
+  check(
+    "the completed chapter's cards — and only those — are now due",
+    deck.cards === 1 && deck.size === deck.chapterCards,
+    JSON.stringify(deck)
+  );
+
+  await wp.goto(BASE, { waitUntil: "networkidle" });
+  await wp.waitForTimeout(600);
+  const returning = await wp.evaluate(
+    (id) => ({
+      modal: document.querySelectorAll(".ob").length,
+      done: Store.isDone(id),
+      profile: !!Store.profile(),
+    }),
+    firstId
+  );
+  check(
+    "a return visit keeps the profile and progress and does not re-onboard",
+    returning.modal === 0 && returning.done && returning.profile,
+    JSON.stringify(returning)
+  );
+  await wctx.close();
 
   await browser.close();
   stop();

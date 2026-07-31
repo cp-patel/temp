@@ -79,6 +79,23 @@
     return ids;
   }
 
+  /* Cards enter the review deck when their chapter is completed — which is what
+     the completion box has always promised ("unlock its flashcards for review").
+     Without this gate every card in the curriculum counts as due on a brand-new
+     account: the sidebar showed a 167 badge before you had read a word, and the
+     deck cold-quizzed you on reranking in phase 4 during your first session.
+     Spaced repetition only does anything to material you have actually met. */
+  function unlockedCardIds() {
+    var ids = [];
+    C.chapters.forEach(function (c) {
+      if (!Store.isDone(c.id)) return;
+      (c.cards || []).forEach(function (_, i) {
+        ids.push(c.id + ":" + i);
+      });
+    });
+    return ids;
+  }
+
   function totalMinutes() {
     return C.chapters.reduce(function (a, c) {
       return a + c.minutes;
@@ -93,6 +110,7 @@
     overall: overall,
     nextChapter: nextChapter,
     allCardIds: allCardIds,
+    unlockedCardIds: unlockedCardIds,
     totalMinutes: totalMinutes,
   };
 
@@ -1117,7 +1135,7 @@
     var o = overall();
     var lvl = Store.level();
     var next = nextChapter();
-    var cards = Store.cardStats(allCardIds());
+    var cards = Store.cardStats(unlockedCardIds());
 
     var quizzed = 0,
       quizRight = 0,
@@ -1181,15 +1199,23 @@
       ],
       [
         "Cards learned",
-        cards.learned + "<small>/" + cards.total + "</small>",
+        cards.total
+          ? cards.learned + "<small>/" + cards.total + "</small>"
+          : '<span class="stat__none">—</span>',
         "cards",
-        cards.due + " due for review",
+        cards.total
+          ? cards.due + " due for review"
+          : "Complete a chapter to unlock cards",
       ],
       [
         "Reading done",
         U.hours(minsDone),
         "clock",
-        U.hours(totalMinutes() - minsDone) + " remaining",
+        /* Say what this number is. Read alone it looks like the whole course
+           fits in 15 hours, which contradicts the plan's 15 weeks and is the
+           exact "it only takes two weeks" figure this curriculum argues against:
+           labs, quizzes and projects are where the hours actually go. */
+        U.hours(totalMinutes() - minsDone) + " of reading left, labs aside",
       ],
       [
         "Notes written",
@@ -1761,9 +1787,12 @@
 
   V.review = function (root) {
     var deck = [];
+    var unlocked = 0;
     C.chapters.forEach(function (c) {
+      if (!Store.isDone(c.id)) return;
       (c.cards || []).forEach(function (card, i) {
         var id = c.id + ":" + i;
+        unlocked++;
         if (Store.cardDue(id)) {
           deck.push({ id: id, f: card.f, b: card.b, ch: c });
         }
@@ -1778,11 +1807,33 @@
       "sooner. Five minutes a day beats an hour a week.</p>";
     root.appendChild(head);
 
+    /* Two different empty states. Conflating them is what made the old copy
+       ("complete more chapters to add cards") read as a lie to someone who had
+       completed nothing and was being shown 167 cards anyway. */
+    if (!unlocked) {
+      var nx = nextChapter();
+      root.appendChild(
+        emptyState(
+          "No cards unlocked yet",
+          "A chapter's flashcards join this deck when you mark it complete — there is " +
+            "no point drilling recall on material you haven't read. Finish one chapter " +
+            "and come back.",
+          nx ? "#/chapter/" + nx.id : "#/roadmap",
+          nx ? "Start: " + nx.title : "Back to roadmap"
+        )
+      );
+      return;
+    }
+
     if (!deck.length) {
       root.appendChild(
         emptyState(
-          "Nothing due right now",
-          "Every card is scheduled for a future day. Complete more chapters to add cards, or come back tomorrow.",
+          "Nothing due today",
+          "All " +
+            unlocked +
+            " of your unlocked cards are scheduled for a future day — that is the " +
+            "system working. Come back tomorrow, or complete another chapter to add " +
+            "its cards.",
           "#/roadmap",
           "Back to roadmap"
         )

@@ -139,7 +139,7 @@
       a.dataset.nav = n.href;
       var count = "";
       if (n.href === "#/review") {
-        var st = Store.cardStats(Views.helpers.allCardIds());
+        var st = Store.cardStats(Views.helpers.unlockedCardIds());
         if (st.due)
           count = '<span class="navlink__count">' + st.due + "</span>";
       }

@@ -22,6 +22,8 @@ const BACKEND = {
 
 const NEWCOMER = { track: "new", goal: "depth", hoursPerWeek: 5, skills: [] };
 
+const ALL_SKILLS = C.skills.map((s) => s.id);
+
 describe("plan generation", () => {
   test("covers every chapter exactly once", () => {
     const plan = C.planFor(BACKEND);
@@ -57,6 +59,38 @@ describe("plan generation", () => {
       plan.counts.skim >= 6,
       `expected at least 6 skims, got ${plan.counts.skim}`
     );
+  });
+
+  test("skim requires every overlapping skill, not just one", () => {
+    /* The onboarding tells you to uncheck anything that isn't true, promising
+       that an over-claimed skill is what gets a chapter wrongly marked skim.
+       That promise was false: any degree:"high" chapter skimmed on a single
+       claimed skill, so unchecking the one you lacked changed nothing. */
+    const multi = Object.keys(C.overlap).filter(
+      (id) => (C.overlap[id].skills || []).length > 1
+    );
+    assert.ok(multi.length >= 4, "expected multi-skill overlaps to test");
+
+    for (const id of multi) {
+      const skills = C.overlap[id].skills;
+      const partial = C.planFor({ ...BACKEND, skills: skills.slice(1) });
+      const whole = C.planFor({ ...BACKEND, skills: skills });
+      if (whole.byId[id].mode === "skim") {
+        assert.notEqual(
+          partial.byId[id].mode,
+          "skim",
+          `${id} skims on ${skills.length - 1} of ${skills.length} skills`
+        );
+      }
+    }
+  });
+
+  test("the orientation chapter is never marked skim", () => {
+    // It is the frame the other 43 chapters hang off, and it is the first thing
+    // the plan's Continue button points at. "Skip this" is a bad first minute.
+    for (const p of [BACKEND, NEWCOMER, { ...BACKEND, skills: ALL_SKILLS }]) {
+      assert.notEqual(C.planFor(p).byId.role.mode, "skim");
+    }
   });
 
   test("claiming more skills never increases total effort", () => {

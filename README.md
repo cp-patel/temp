@@ -52,7 +52,7 @@ Four questions on first visit produce a plan that annotates every chapter:
 - **Study** — new to you. Read properly.
 - **Skim** — you already know this. Here is precisely what's new in it.
 
-A backend engineer with 4 years' experience gets 16 deep, 18 study, 10 skim, and
+A backend engineer with 4 years' experience gets 16 deep, 19 study, 9 skim, and
 a 15-week schedule at 10 h/week — which matches reported real-world timelines for
 this transition. The skim notes are the point:
 
@@ -72,7 +72,7 @@ recomputes. Estimated durations:
 | 10           | **15 weeks**     | 16 weeks       |
 | 20           | 8 weeks          | 8 weeks        |
 
-Those include project hours, which dominate: 28h of chapters and labs against
+Those include project hours, which dominate: 29h of chapters and labs against
 118h of building. Reading-only estimates are how you get an "it takes two weeks"
 number that nobody should believe.
 
@@ -108,7 +108,9 @@ paraphrase matching_ — the lab's entire point — so it was rebuilt.
 ### Progress tracking
 
 - Chapter completion, quiz scores with explanations, inline knowledge checks
-- Spaced-repetition flashcards (Leitner boxes, 1/2/4/8/16-day intervals)
+- Spaced-repetition flashcards (Leitner boxes, 1/2/4/8/16-day intervals), which a
+  chapter unlocks when you complete it — you can't retrieval-practise a chapter
+  you haven't read, so a fresh account has an empty deck rather than 167 cold cards
 - XP, levels, streaks, per-phase mastery, milestone badges, activity heatmap
 - Per-chapter notes, project milestone checklists
 - Command palette (`⌘K` / `Ctrl+K` / `/`) over chapters, labs, glossary, commands
@@ -127,8 +129,9 @@ js/content/                 phases, projects, glossary, 8 phase files, tracks (p
 js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
-tests/unit/                 76 assertions — util, store, plan engine
-tests/e2e/                  67 checks in real Chromium, incl. a WCAG AA audit of both themes
+tests/unit/                 78 assertions — util, store, plan engine
+tests/e2e/                  94 checks in real Chromium, incl. a full first-visitor walkthrough
+                            and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```
 

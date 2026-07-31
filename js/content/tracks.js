@@ -281,11 +281,16 @@
       delta:
         "You know injection classes and least privilege, which is most of the way there. The uncomfortable part: unlike SQL injection there is **no parameterisation** — instructions and data share one channel with no trust boundary. So the fix is architectural (remove a leg of the lethal trifecta), and the analogue you already trust — input sanitisation — is the weakest mitigation on the list.",
     },
+    /* degree:"low" — never skimmable, however much you already know. Knowing
+       APIs and deployment tells you nothing about what the job is, and this
+       chapter is the frame the other 43 hang off. Marking the roadmap's own
+       entry point "skim" also made the first thing a new user was told to do
+       "skip this", which is a bad first minute regardless of accuracy. */
     role: {
       skills: ["apis", "deployment"],
-      degree: "partial",
+      degree: "low",
       delta:
-        "Skim the prerequisites section; you have them. Read the five hireable capabilities and the note on why evals are the moat — that framing is what the rest of the roadmap is organised around.",
+        "The prerequisites section is a formality for you — you have them. What to actually read: the five hireable capabilities, and why evaluation is the moat. That framing is what the rest of the roadmap is organised around.",
     },
   };
 
@@ -339,16 +344,17 @@
           if (coreSet[ch.id]) {
             // Stays deep, but the delta note explains what to focus on.
             why = ov.delta;
-          } else if (ov.degree === "high" && full) {
-            mode = "skim";
-            why = ov.delta;
-          } else if (
-            ov.degree === "high" ||
-            (ov.degree === "partial" && full)
-          ) {
+          } else if (full && ov.degree !== "low") {
+            /* Skim requires *every* overlapping skill, not one of them. The
+               previous rule downgraded any degree:"high" chapter on a single
+               claimed skill, so unchecking "caching" still marked Caching,
+               Retries & Idempotency as skim — the exact failure the onboarding
+               copy promises unchecking protects you from. */
             mode = "skim";
             why = ov.delta;
           } else {
+            /* Partial coverage, or degree:"low" — an overlap that only ever
+               justified a note. Read it, but know what will feel familiar. */
             why = ov.delta;
           }
         }
