@@ -114,6 +114,18 @@
           },
         },
 
+        {
+          t: "check",
+          key: "ft-mid",
+          q: "Your support bot gives wrong answers about current pricing. Fine-tune it on 500 correct pricing examples?",
+          options: [
+            "Yes — 500 examples will teach it the correct prices",
+            "No — use retrieval, because prices are facts and they change",
+            "Yes, but retrain monthly as prices move",
+          ],
+          answer: 1,
+          why: "Fine-tuning changes behaviour, not knowledge. Training on facts produces a model that has learned the *shape* of a pricing answer and will confidently generate plausible wrong numbers, which is worse than not knowing. Facts belong in retrieval where they can be updated by editing a document. Retraining monthly is the same mistake on a schedule.",
+        },
         { t: "h", text: "The methods" },
         {
           t: "p",
@@ -446,6 +458,18 @@ Levers
           ],
         },
 
+        {
+          t: "check",
+          key: "mm-mid",
+          q: "Your app lets users upload screenshots and chat about them. What does that add to your threat model?",
+          options: [
+            "Nothing new — the model handles images as safely as text",
+            "An untrusted instruction channel your text filters never inspect",
+            "Only a cost increase, since images are expensive input",
+          ],
+          answer: 1,
+          why: 'Text rendered inside an image reaches the model as an instruction while sailing past every filter you apply to the text field. An attacker uploads a screenshot with "ignore previous instructions" in small print and your input scanning sees an image, not a payload. Any capability the model has is now reachable through a channel you are not checking.',
+        },
         { t: "h", text: "Multimodal RAG" },
         {
           t: "p",
@@ -684,6 +708,18 @@ Levers
           text: "A 4-bit quantisation of a larger model generally beats full precision of a much smaller one at the same memory budget. If you have 40GB of VRAM, a 4-bit 70B model usually outperforms a 16-bit 13B model. Prefer more parameters at lower precision over fewer at higher precision — up to about 4 bits, below which quality falls off sharply.",
         },
 
+        {
+          t: "check",
+          key: "lm-mid",
+          q: "You have 48GB of VRAM. Which gives better quality: a large model at 4-bit, or a mid-sized model at 16-bit?",
+          options: [
+            "The mid-sized model — full precision preserves quality",
+            "The large model — quality tracks parameter count more than precision",
+            "They come out roughly equivalent",
+          ],
+          answer: 1,
+          why: "4-bit quantisation of a large model typically costs a few percent on quality, while dropping to a smaller parameter count costs much more. Given fixed memory, spend it on parameters and quantise harder. It is the most useful rule in the chapter precisely because the instinct runs the other way.",
+        },
         { t: "h", text: "The serving stack" },
         {
           t: "p",
@@ -977,6 +1013,18 @@ async def handle(req):
           text: 'The difference between a mid and senior signal is arithmetic. "I\'d use hybrid search" is a preference. "Recall@5 was 41%, I added a cross-encoder over the top 50, it went to 78% for 95ms of added p95, and cost per request went from $0.021 to $0.023" is evidence. Memorise two or three such numbers from your own projects. Interviewers remember the candidate who quoted a measurement.',
         },
 
+        {
+          t: "check",
+          key: "ip-mid",
+          q: "An interviewer asks how you would evaluate a support agent that looks up orders. What does a strong answer lead with?",
+          options: [
+            "The frameworks you would use to build the eval harness",
+            "Grading the trajectory, not just whether the final answer was right",
+            "The accuracy target you would commit to hitting",
+          ],
+          answer: 1,
+          why: "An agent can reach the right answer having called a forbidden tool, burned twenty steps, or got lucky — and outcome-only grading gives all three full marks. Leading with step-level and trajectory scoring shows you understand what an agent can get wrong. Naming frameworks answers a question about tools rather than about evaluation, which is the trap this round is built to catch.",
+        },
         { t: "h", text: "What gets people rejected" },
         {
           t: "p",
@@ -1290,6 +1338,18 @@ async def handle(req):
           text: "When something new appears, ask: will this still matter in six months? Most 'breakthrough' techniques won't. The ones that do — retrieval-augmented generation, tool calling, evals as practice, MCP — get discussed continuously and from many angles. Waiting costs you almost nothing and saves enormous time.",
         },
 
+        {
+          t: "check",
+          key: "sc-mid",
+          q: "A new agent framework is announced and the timeline is full of it. What is the useful test?",
+          options: [
+            "Whether it has more GitHub stars than the alternatives",
+            "Whether it will still matter in six months",
+            "Whether it is backed by a major lab",
+          ],
+          answer: 1,
+          why: "Most of what churns is tooling, and tooling you learn now is tooling you relearn next year. The six-month test sorts the durable from the noisy without requiring you to predict anything: evaluation, retrieval quality, cost and the security model will still matter, and the specific library on top of them probably won't.",
+        },
         { t: "h", text: "The portfolio that gets interviews" },
         {
           t: "p",

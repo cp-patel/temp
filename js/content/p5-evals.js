@@ -101,6 +101,18 @@
           text: "Add the failing case to your eval set *before* you fix it. This forces you to reproduce the failure, gives you a red test that turns green, and permanently protects the fix. Reversing the order means relying on memory that the case ever existed — and prompt changes routinely resurrect old bugs.",
         },
 
+        {
+          t: "check",
+          key: "we-mid",
+          q: "Your team's quality has plateaued: each prompt change fixes one report and seems to break something else. What does that pattern indicate?",
+          options: [
+            "You have hit the model's capability ceiling and need a stronger model",
+            "You have no measurement, so every change is an untested guess",
+            "The prompt has grown too long and needs rewriting",
+          ],
+          answer: 1,
+          why: "Fix-one-break-two is the signature of changing a system you cannot measure: nothing tells you whether a change helped overall, so regressions ship invisibly. It feels like a capability limit, which is exactly why teams reach for a bigger model instead of an eval set. Twenty cases with known-good answers converts the guesswork into an experiment.",
+        },
         { t: "h", text: "Objections, answered" },
         {
           t: "p",
@@ -387,6 +399,18 @@ report("faithfulness", 82, 100)  # faithfulness  82.0%  [73.3%, 88.3%]  n=100
 # Same score, much tighter interval. This is what more cases buys you.`,
         },
 
+        {
+          t: "check",
+          key: "ed-mid",
+          q: "Your eval score moves from 79% to 83% on 50 cases after a prompt change. What have you learned?",
+          options: [
+            "The change helped by about 4 points",
+            "Very little — that move is inside the noise for this sample size",
+            "The change helped, but you need to rerun to confirm the size",
+          ],
+          answer: 1,
+          why: "On 50 cases the 95% confidence interval is roughly ±11 points, so 79% and 83% are indistinguishable. Shipping on that basis means sometimes shipping changes that did nothing and reverting ones that helped. Either gather more cases or accept that only large moves are readable — the interval is cheap to compute and it stops you fooling yourself.",
+        },
         { t: "h", text: "Structuring a case" },
         {
           t: "p",
@@ -1027,6 +1051,18 @@ Do not consider whether the answer is what a user would want to hear.
           text: "In an autoregressive model, tokens generated later are conditioned on tokens generated earlier. If the label comes first, the reasoning is generated to justify a label already committed to — a rationalisation. Putting reasoning first means the label is conditioned on actual analysis. This ordering measurably improves judge accuracy and costs nothing.",
         },
 
+        {
+          t: "check",
+          key: "lj-mid",
+          q: "Why must an LLM judge produce its reasoning *before* its score rather than after?",
+          options: [
+            "It makes the output easier for humans to audit",
+            "An autoregressive model conditions the score on the reasoning it already wrote",
+            "It reduces token cost by allowing an early stop",
+          ],
+          answer: 1,
+          why: "The model generates left to right, so whatever comes first conditions what follows. Reasoning first means the label is derived from an argument; label first means the reasoning is a post-hoc justification of a number the model already committed to. The audit benefit is real but secondary — the ordering changes the answer, not just its presentation.",
+        },
         { t: "h", text: "Calibration is not optional" },
         {
           t: "p",
@@ -1765,6 +1801,18 @@ sys.exit(gate(run_evals(), n=len(CASES)))`,
           text: "**Too strict** and the suite blocks legitimate changes over noise; people add `--skip-evals` and you've lost the whole benefit. **Too loose** and real regressions ship. Gate hard on deterministic invariants (citations must resolve, schema must validate — zero tolerance), and gate softly on judged metrics with confidence intervals and a small tolerance.",
         },
 
+        {
+          t: "check",
+          key: "eci-mid",
+          q: "Your CI eval gate fails about one PR in four for changes unrelated to the model. What is wrong?",
+          options: [
+            "The suite is too small, so noise dominates",
+            "The gate is too strict — it is failing on movement inside the noise band",
+            "Judged metrics are unsuitable for CI and should be removed",
+          ],
+          answer: 1,
+          why: "A gate that fires on noise gets disabled, and then you have no gate at all. The fix is to gate hard only on deterministic invariants — citations resolve, schema validates, no PII — and softly on judged metrics, comparing against a baseline with a tolerance wide enough to clear the confidence interval. Removing judged metrics entirely throws away the signal you most wanted.",
+        },
         { t: "h", text: "Online evals on production traffic" },
         {
           t: "p",

@@ -94,6 +94,16 @@ there and none of the teaching was. Specifically:
 - **Debrief code.** Say what design decision it embodies, or what it deliberately
   doesn't do.
 
+**Put a knowledge check partway through, not only at the end.** Every chapter
+used to have exactly one inline check, and in the 31 chapters without an embedded
+lab it sat at 94–96% of the way through — twenty minutes of reading with nothing
+to do, then one question. The testing effect is among the most replicated findings
+in learning research and the guidance is consistent: low-stakes recall belongs
+inside each chunk. The validator now warns if the first interactive block arrives
+past the halfway mark, or if a chapter of twelve blocks or more has fewer than
+two. Write the mid-chapter check as a _decision_ the reader has just been equipped
+to make, not a definition lookup.
+
 **Point at other chapters.** The premise of this curriculum is a deliberate
 sequence, so a chapter that never references another one is a missed opportunity.
 Reach backwards ("you saw this in X, here's what's different") and forwards

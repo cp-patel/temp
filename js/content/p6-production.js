@@ -166,6 +166,18 @@ async def generate(question: str, chunks: list, ctx) -> Answer:
         return parse(resp)`,
         },
 
+        {
+          t: "check",
+          key: "obs-mid",
+          q: "You log your prompt template plus the variables, rather than the final rendered prompt. Why is that a problem during an incident?",
+          options: [
+            "It uses more storage than logging the rendered string",
+            "You have to reconstruct what the model saw, and reconstruction can be wrong",
+            "Templates change between deploys so the variables become meaningless",
+          ],
+          answer: 1,
+          why: "The only thing that explains a response is the exact bytes the model received. Rebuilding that from a template and a variable bag means re-running your own rendering logic — including whatever truncation, ordering or escaping it applies — and if that logic is where the bug is, your reconstruction hides it. Log the rendered prompt.",
+        },
         { t: "h", text: "Sampling and cost" },
         {
           t: "p",
@@ -779,6 +791,18 @@ PROMPT_ROLLOUT = {
           text: "A prompt change rarely raises your 500 rate — it degrades answer quality, which no infrastructure metric detects. Your canary must watch online eval scores, thumbs-down rate, and abstention rate. Those are the signals that catch a bad prompt before it reaches everyone.",
         },
 
+        {
+          t: "check",
+          key: "dep-mid",
+          q: "Your support team wants to edit prompts in a database so they can fix wording without waiting for a deploy. What is the objection?",
+          options: [
+            "Database reads add latency to every request",
+            "Behaviour then changes without review, evaluation, or anything to roll back",
+            "Non-engineers will introduce typos",
+          ],
+          answer: 1,
+          why: "A prompt is behaviour, so an editable prompt is production code with no review, no eval run, no version history and no rollback. The latency is solvable with a cache and typos are the least of it — the real cost is that when quality drops you cannot tell what changed or return to what worked. Give them a reviewed, versioned, evaluated path instead.",
+        },
         { t: "h", text: "Provider outages" },
         {
           t: "p",
@@ -1098,6 +1122,18 @@ async def complete_resilient(messages, **kw):
           text: "Adding a new store that holds user data without adding it here is a bug — treat it that way in review. Some teams add a test that inserts data for a synthetic user across every store, runs deletion, and asserts everything is gone. It catches the store somebody forgot, which is the whole failure mode.",
         },
 
+        {
+          t: "check",
+          key: "sp-mid",
+          q: "Is a vector embedding of a user's message personal data?",
+          options: [
+            "No — it's an irreversible numeric transformation, effectively a hash",
+            "Yes — enough of the original text can be recovered from it",
+            "Only if the original text is stored alongside it",
+          ],
+          answer: 1,
+          why: "An embedding is a lossy encoding, not a one-way hash, and inversion attacks recover a usable approximation of the source text. Treat your vector index as containing the material it was built from: it falls under the same retention, residency and deletion obligations as the primary store — which is exactly why the delete path has to reach it.",
+        },
         { t: "h", text: "Safety controls" },
         {
           t: "p",
