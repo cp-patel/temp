@@ -106,6 +106,23 @@
     return wrap;
   }
 
+  /* Right and wrong are shown with colour and a tick/cross icon, and the icons
+     are aria-hidden like every other icon in the app — so to a screen reader the
+     revealed options read exactly as they did before answering. This appends the
+     state as text. It is also what makes the result legible if colour fails for
+     any other reason. */
+  function markAnswer(btn, state) {
+    btn.classList.add("is-" + state);
+    var note = el("span", "u-sr");
+    note.textContent =
+      state === "right"
+        ? " — correct answer"
+        : state === "wrong"
+          ? " — your answer, incorrect"
+          : "";
+    if (note.textContent) btn.appendChild(note);
+  }
+
   /* ---------------- inline knowledge check ---------------- */
 
   function checkBlock(b, chapterId) {
@@ -151,12 +168,14 @@
             : i === picked
               ? Icons.get("x", 12)
               : String.fromCharCode(65 + i);
-        if (i === b.answer) btn.classList.add("is-right");
-        else if (i === picked) btn.classList.add("is-wrong");
-        else btn.classList.add("is-muted");
+        markAnswer(
+          btn,
+          i === b.answer ? "right" : i === picked ? "wrong" : "muted"
+        );
       });
       if (!why) {
         why = el("div", "why");
+        why.setAttribute("role", "status");
         why.innerHTML =
           '<div class="why__ic">' +
           Icons.get("bulb", 16) +
@@ -396,9 +415,9 @@
   R.takeaways = function (items) {
     var wrap = el("div", "takeaways");
     wrap.innerHTML =
-      "<h3>" +
+      "<h2>" +
       Icons.get("spark", 17) +
-      " Key takeaways</h3><ol>" +
+      " Key takeaways</h2><ol>" +
       items
         .map(function (i) {
           return "<li><span>" + md(i) + "</span></li>";
@@ -419,7 +438,7 @@
       '<div class="quiz__ic">' +
       Icons.get("trophy", 18) +
       "</div>" +
-      '<div class="u-grow"><h3>Chapter quiz</h3><p>' +
+      '<div class="u-grow"><h2>Chapter quiz</h2><p>' +
       U.plural(ch.quiz.length, "question") +
       " · " +
       (Store.XP.quizItem * ch.quiz.length + Store.XP.perfect) +
@@ -476,11 +495,13 @@
                 : j === i
                   ? Icons.get("x", 12)
                   : String.fromCharCode(65 + j);
-            if (j === q.answer) b2.classList.add("is-right");
-            else if (j === i) b2.classList.add("is-wrong");
-            else b2.classList.add("is-muted");
+            markAnswer(
+              b2,
+              j === q.answer ? "right" : j === i ? "wrong" : "muted"
+            );
           });
           var why = el("div", "why");
+          why.setAttribute("role", "status");
           why.innerHTML =
             '<div class="why__ic">' +
             Icons.get("bulb", 16) +
@@ -560,7 +581,7 @@
 
   R.resources = function (items) {
     var wrap = el("div", "reslist");
-    wrap.appendChild(el("h3", null, "Go deeper"));
+    wrap.appendChild(el("h2", null, "Go deeper"));
     items.forEach(function (r) {
       var a = el("a", "res");
       a.href = r.url;

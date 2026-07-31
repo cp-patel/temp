@@ -313,9 +313,9 @@
         '<div class="ppitem__n">' +
         p.n +
         "</div>" +
-        "<div><h4>" +
+        "<div><h3>" +
         esc(p.title) +
-        "</h4><p>" +
+        "</h3><p>" +
         U.plural(chaptersOf(p.id).length, "chapter") +
         " · " +
         esc(p.weeks) +
@@ -475,9 +475,9 @@
       headBtn.type = "button";
       headBtn.setAttribute("aria-expanded", open ? "true" : "false");
       headBtn.innerHTML =
-        '<div class="phase__title"><h3>' +
+        '<div class="phase__title"><h2>' +
         esc(p.title) +
-        "</h3><p>" +
+        "</h2><p>" +
         esc(p.blurb) +
         "</p></div>" +
         '<div class="phase__meta">' +
@@ -691,7 +691,7 @@
     if (ch.objectives && ch.objectives.length) {
       var ob = el("div", "objectives");
       ob.innerHTML =
-        "<h4>By the end of this chapter you can</h4><ul>" +
+        "<h2>By the end of this chapter you can</h2><ul>" +
         ch.objectives
           .map(function (o) {
             return "<li>" + md(o) + "</li>";
@@ -815,7 +815,7 @@
     /* --- aside: TOC + notes --- */
     var toc = el("div", "toc");
     toc.innerHTML =
-      "<h4>On this page</h4><ul>" +
+      "<h2>On this page</h2><ul>" +
       rendered.headings
         .map(function (h) {
           return (
@@ -834,7 +834,7 @@
 
     var notes = el("div", "notes");
     notes.innerHTML =
-      "<h4>Your notes</h4>" +
+      "<h2>Your notes</h2>" +
       '<textarea placeholder="Notes for this chapter — saved automatically."></textarea>' +
       '<div class="notes__saved">Saved</div>';
     var ta = notes.querySelector("textarea");
@@ -908,7 +908,7 @@
 
       var cta = el("div", "resume");
       cta.innerHTML =
-        '<div class="u-eyebrow">Two minutes</div><h3>Build your plan</h3>' +
+        '<div class="u-eyebrow">Two minutes</div><h2>Build your plan</h2>' +
         "<p>Four questions. Everything stays in this browser, and you can change " +
         "your answers whenever your situation does.</p>";
       var btn = el("button", "btn btn--primary");
@@ -1253,9 +1253,9 @@
         '<div class="u-eyebrow">Up next · Phase ' +
         p.n +
         "</div>" +
-        "<h3>" +
+        "<h2>" +
         esc(next.title) +
-        "</h3>" +
+        "</h2>" +
         "<p>" +
         esc(next.subtitle) +
         "</p>" +
@@ -1270,9 +1270,9 @@
     } else {
       var doneCard = el("div", "resume");
       doneCard.innerHTML =
-        '<div class="u-eyebrow">Complete</div><h3>All ' +
+        '<div class="u-eyebrow">Complete</div><h2>All ' +
         C.chapters.length +
-        " chapters done</h3>" +
+        " chapters done</h2>" +
         "<p>Now do the projects — the deployed one especially. Nothing on this " +
         "roadmap teaches as much as real users doing unexpected things.</p>" +
         '<a class="btn btn--primary" href="#/projects">' +
@@ -1505,9 +1505,9 @@
               "Done</span>"
             : "") +
           "</div>" +
-          "<h3>" +
+          "<h2>" +
           esc(c.title) +
-          "</h3><p>" +
+          "</h2><p>" +
           esc(c.subtitle) +
           "</p>" +
           '<div class="libcard__foot">' +
@@ -1632,9 +1632,9 @@
       list.forEach(function (g) {
         var c = el("div", "gterm");
         c.innerHTML =
-          '<div class="gterm__h"><h3>' +
+          '<div class="gterm__h"><h2>' +
           esc(g.t) +
-          "</h3></div>" +
+          "</h2></div>" +
           "<p>" +
           md(g.d) +
           "</p>" +
@@ -1706,9 +1706,9 @@
         Icons.get("hammer", 12) +
         esc(pr.tier) +
         "</span></div>" +
-        "<h3>" +
+        "<h2>" +
         esc(pr.title) +
-        "</h3>" +
+        "</h2>" +
         '<p class="proj__brief">' +
         esc(pr.brief) +
         "</p>" +
@@ -1865,11 +1865,11 @@
         done.style.maxWidth = "560px";
         done.innerHTML =
           '<div class="u-eyebrow">Session complete</div>' +
-          "<h3>" +
+          "<h2>" +
           got +
           " of " +
           deck.length +
-          " recalled</h3>" +
+          " recalled</h2>" +
           "<p>Cards you missed will resurface sooner. The ones you got right move " +
           "to a longer interval — that spacing is what makes recall durable.</p>" +
           '<div class="u-row u-wrap">' +
@@ -2208,9 +2208,9 @@
       '<div class="empty__icon">' +
       Icons.get("compass", 24) +
       "</div>" +
-      "<h3>" +
+      "<h2>" +
       esc(title) +
-      "</h3>" +
+      "</h2>" +
       '<p style="max-width:44ch">' +
       esc(text) +
       "</p>" +

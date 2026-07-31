@@ -623,7 +623,7 @@ kbd {
   height: 24px;
 }
 
-.empty h3 {
+.empty h2 {
   font-size: var(--t-md);
 }
 

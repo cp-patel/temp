@@ -587,7 +587,7 @@
   min-width: 0;
 }
 
-.phase__title h3 {
+.phase__title h2 {
   font-size: var(--t-lg);
   letter-spacing: var(--tr-tight);
 }
@@ -1019,7 +1019,7 @@
   overflow: hidden;
 }
 
-.resume h3 {
+.resume h2 {
   font-size: var(--t-xl);
   margin: var(--s-2) 0 var(--s-2);
 }
@@ -1269,7 +1269,7 @@
   justify-content: space-between;
 }
 
-.libcard h3 {
+.libcard h2 {
   font-size: var(--t-base);
   line-height: 1.35;
 }
@@ -1330,7 +1330,7 @@
   flex-wrap: wrap;
 }
 
-.gterm h3 {
+.gterm h2 {
   font-size: var(--t-base);
   font-family: var(--font-mono);
   letter-spacing: -0.01em;
@@ -1437,7 +1437,7 @@
   margin-bottom: var(--s-4);
 }
 
-.proj h3 {
+.proj h2 {
   font-size: var(--t-lg);
   margin-bottom: var(--s-2);
 }

@@ -9,6 +9,7 @@
   var C = global.Curriculum;
 
   var App = {};
+  var routeStatus = null;
   var scrollHandlers = [];
   var keyHandlers = [];
   var leaveHandlers = [];
@@ -738,6 +739,25 @@
         : route.name !== "landing"
           ? route.name.charAt(0).toUpperCase() + route.name.slice(1) + " · "
           : "") + "Forge — AI Engineering Academy";
+
+    /* Announce the new page. A hash router replaces the entire document body
+       without a page load, so to a screen reader nothing happened — you activate
+       "Roadmap" and hear silence. A polite status region says what you landed on
+       without stealing focus, which is what the WAI guidance prefers for
+       navigation inside a single-page app. Read from the rendered h1 rather than
+       the route name so it matches what a sighted user sees.
+
+       The clear-then-set is not superstition: setting identical text does not
+       re-fire the announcement, and returning to a page you were already on
+       otherwise says nothing at all. */
+    if (routeStatus) {
+      var h1 = page.querySelector("h1");
+      var label = h1 ? h1.textContent.trim() : "Forge";
+      routeStatus.textContent = "";
+      setTimeout(function () {
+        routeStatus.textContent = label;
+      }, 120);
+    }
   }
 
   App.go = function (hash, force) {
@@ -823,6 +843,11 @@
     toastHost = el("div", "toasts");
     toastHost.setAttribute("aria-live", "polite");
     document.body.appendChild(toastHost);
+
+    routeStatus = el("div", "u-sr");
+    routeStatus.setAttribute("role", "status");
+    routeStatus.setAttribute("aria-live", "polite");
+    document.body.appendChild(routeStatus);
 
     /* global listeners */
     window.addEventListener("hashchange", render);

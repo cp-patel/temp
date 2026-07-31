@@ -527,6 +527,129 @@ async function main() {
   // Restore state for the sections that follow this one.
   await page.evaluate(() => Store.skipOnboarding());
 
+  /* ---------------- accessibility tree ---------------- */
+  /* What a screen reader is handed, as opposed to what a keyboard can reach. */
+  section("accessibility tree");
+  const treeIssues = { skips: [], h1: [], unlabelled: new Map(), svg: [] };
+  for (const r of [
+    "",
+    "#/dashboard",
+    "#/plan",
+    "#/roadmap",
+    "#/library",
+    "#/labs",
+    "#/review",
+    "#/projects",
+    "#/glossary",
+    "#/settings",
+    "#/chapter/tokens",
+  ]) {
+    await go(r);
+    await page.waitForTimeout(300);
+    const m = await page.evaluate(() => {
+      const hs = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")].map(
+        (h) => +h.tagName[1]
+      );
+      let skips = 0;
+      for (let i = 1; i < hs.length; i++) if (hs[i] > hs[i - 1] + 1) skips++;
+      const unl = [];
+      document.querySelectorAll("button, a[href]").forEach((e) => {
+        if ((e.innerText || "").trim()) return;
+        if (e.getAttribute("aria-label") || e.getAttribute("title")) return;
+        unl.push(
+          `${e.tagName.toLowerCase()}.${(e.className || "?").toString().split(" ")[0]}`
+        );
+      });
+      return {
+        h1: document.querySelectorAll("h1").length,
+        skips,
+        unl: [...new Set(unl)],
+        loudSvg: [...document.querySelectorAll("svg")].filter(
+          (v) => !v.getAttribute("aria-hidden") && !v.getAttribute("role")
+        ).length,
+      };
+    });
+    if (m.skips) treeIssues.skips.push(`${r || "/"}(${m.skips})`);
+    if (m.h1 !== 1) treeIssues.h1.push(`${r || "/"}(${m.h1})`);
+    m.unl.forEach((u) => treeIssues.unlabelled.set(u, r || "/"));
+    if (m.loudSvg) treeIssues.svg.push(`${r || "/"}(${m.loudSvg})`);
+  }
+  /* Card and section titles had been picked for their visual size rather than
+     their level, so nine of eleven routes jumped h1 -> h3 or h1 -> h4. Heading
+     level is the document outline a screen reader navigates by; the size is CSS. */
+  check(
+    "no route skips a heading level",
+    treeIssues.skips.length === 0,
+    treeIssues.skips.join(", ")
+  );
+  check(
+    "exactly one h1 per route",
+    treeIssues.h1.length === 0,
+    treeIssues.h1.join(", ")
+  );
+  check(
+    "every icon-only control is labelled",
+    treeIssues.unlabelled.size === 0,
+    [...treeIssues.unlabelled.keys()].slice(0, 4).join(", ")
+  );
+  check(
+    "decorative icons are hidden from the tree",
+    treeIssues.svg.length === 0,
+    treeIssues.svg.join(", ")
+  );
+
+  /* A hash router swaps the whole body with no page load, so navigation is silent
+     to a screen reader — you activate "Roadmap" and hear nothing at all. */
+  await go("#/roadmap");
+  await page.waitForTimeout(400);
+  const ann1 = await page.evaluate(
+    () => (document.querySelector("[role=status]") || {}).textContent
+  );
+  await page.evaluate(() => {
+    location.hash = "#/library";
+  });
+  await page.waitForTimeout(500);
+  const ann2 = await page.evaluate(
+    () => (document.querySelector("[role=status]") || {}).textContent
+  );
+  check(
+    "navigating announces the page it landed on",
+    /roadmap/i.test(ann1 || "") && /library/i.test(ann2 || ""),
+    `"${ann1}" then "${ann2}"`
+  );
+
+  /* Right and wrong were colour plus an aria-hidden icon, so a revealed option
+     read identically to an unanswered one. */
+  await go("#/chapter/tokens");
+  await page.waitForTimeout(300);
+  await page.locator(".check").first().locator(".opt").first().click();
+  await page.waitForTimeout(350);
+  const revealed = await page.evaluate(() => {
+    const opts = [...document.querySelectorAll(".check .opt")];
+    return {
+      names: opts.slice(0, 3).map((o) => o.textContent),
+      why: (document.querySelector(".check .why") || {}).getAttribute?.("role"),
+      hidden: (() => {
+        const n = document.querySelector(".check .opt .u-sr");
+        if (!n) return false;
+        const r = n.getBoundingClientRect();
+        return r.width <= 1 && r.height <= 1;
+      })(),
+    };
+  });
+  check(
+    "a revealed answer says which it was, in text",
+    revealed.names.some((n) => /correct answer/.test(n)) &&
+      revealed.names.some((n) => /incorrect/.test(n)) &&
+      revealed.hidden,
+    JSON.stringify(revealed.names.map((n) => n.slice(-24)))
+  );
+  check(
+    "the explanation announces itself when it appears",
+    revealed.why === "status",
+    String(revealed.why)
+  );
+
   /* ---------------- reading measure ---------------- */
   /* Line length is the single biggest lever on whether long-form text is
      comfortable, and it is easy to break without noticing because nothing looks
