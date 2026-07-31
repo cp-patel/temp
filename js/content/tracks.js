@@ -327,6 +327,13 @@
       var ov = C.overlap[ch.id];
       var mode = "study";
       var why = null;
+      /* Whether `why` says something this chapter specifically, or just restates
+         what its mode already means. 31 of 44 rows used to repeat one of two
+         sentences down the page, which buried the 13 that had something to say —
+         and those notes are the entire point of a personalised plan. The string
+         still travels with the item for tooltips and assistive text; the view
+         decides whether it earns a line of its own. */
+      var generic = true;
 
       if (coreSet[ch.id]) {
         mode = "deep";
@@ -341,6 +348,7 @@
         var all = (ov.skills || []).length;
         if (known && all) {
           var full = known === all;
+          generic = false;
           if (coreSet[ch.id]) {
             // Stays deep, but the delta note explains what to focus on.
             why = ov.delta;
@@ -371,6 +379,7 @@
         minutes: ch.minutes,
         mode: mode,
         why: why,
+        generic: generic,
         effort: Math.round(ch.minutes * MODE_WEIGHT[mode]),
       };
     });

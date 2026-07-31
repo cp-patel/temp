@@ -704,28 +704,30 @@
     /* --- personalised delta note --- */
     var plan = Store.plan();
     var pItem = plan && plan.byId[ch.id];
-    if (pItem && pItem.why) {
+    /* Shown whenever the plan has something specific to say about this chapter.
+       The old test for that was `skim || (deep && has-an-overlap-entry)`, which
+       silently dropped the study-mode notes — including the one on the roadmap's
+       own first chapter, whose whole job is to say which section to actually
+       read. The generic flag is the honest version of the same question. */
+    if (pItem && pItem.why && !pItem.generic) {
       var isDeep = pItem.mode === "deep";
       var isSkim = pItem.mode === "skim";
-      // Only worth showing when the plan has something specific to say: a skim
-      // recommendation with a delta, or a core chapter with focus guidance.
-      var hasOverlap = !!(C.overlap && C.overlap[ch.id]);
-      if (isSkim || (isDeep && hasOverlap)) {
-        var dn = el("div", "delta" + (isDeep ? " delta--deep" : ""));
-        dn.innerHTML =
-          '<div class="delta__ic">' +
-          Icons.get(isSkim ? "zap" : "target", 17) +
-          "</div><div>" +
-          '<div class="delta__t">' +
-          (isSkim
-            ? "You can skim this — here's what's actually new"
-            : "Core chapter — where to focus, given your background") +
-          "</div>" +
-          '<div class="delta__b">' +
-          md(pItem.why) +
-          "</div></div>";
-        main.appendChild(dn);
-      }
+      var dn = el("div", "delta" + (isDeep ? " delta--deep" : ""));
+      dn.innerHTML =
+        '<div class="delta__ic">' +
+        Icons.get(isSkim ? "zap" : isDeep ? "target" : "bulb", 17) +
+        "</div><div>" +
+        '<div class="delta__t">' +
+        (isSkim
+          ? "You can skim this — here's what's actually new"
+          : isDeep
+            ? "Core chapter — where to focus, given your background"
+            : "Some of this will be familiar — here's the part that isn't") +
+        "</div>" +
+        '<div class="delta__b">' +
+        md(pItem.why) +
+        "</div></div>";
+      main.appendChild(dn);
     }
 
     /* --- body --- */
@@ -1072,6 +1074,10 @@
         var a = el("a", "planrow" + (done ? " is-done" : ""));
         a.href = "#/chapter/" + it.id;
         var ml = MODE_LABEL[it.mode];
+        /* A note only earns a line when it is about this chapter. The generic
+           ones restated the mode chip, 31 times in 44 rows, which buried the 13
+           that carry real guidance. The text still reaches the reader — it is the
+           chip's tooltip, and the legend above the weeks spells out every mode. */
         a.innerHTML =
           '<span class="planrow__dot">' +
           (done ? Icons.get("check", 12) : "") +
@@ -1079,14 +1085,17 @@
           '<span><span class="planrow__t">' +
           esc(it.title) +
           "</span>" +
-          '<span class="planrow__why">' +
-          md(it.why || "") +
-          "</span></span>" +
+          (it.generic
+            ? ""
+            : '<span class="planrow__why">' + md(it.why || "") + "</span>") +
+          "</span>" +
           '<span class="planrow__min">' +
           it.effort +
           "m</span>" +
           '<span class="mode mode--' +
           it.mode +
+          '" title="' +
+          U.attr(it.why || "") +
           '">' +
           ml.l +
           "</span>";

@@ -46,7 +46,10 @@ explanations, flashcards, and further reading.
 
 ### Personalised plan
 
-Four questions on first visit produce a plan that annotates every chapter:
+Four questions on first visit produce a plan that annotates every chapter. A note
+appears on a row only when it says something about that chapter — the mode chip
+and the legend carry the rest, so the thirteen chapters with real guidance are the
+thirteen you notice:
 
 - **Deep** — core material. Load-bearing, and what interviews probe.
 - **Study** — new to you. Read properly.
@@ -135,8 +138,8 @@ js/content/                 phases, projects, glossary, 8 phase files, tracks (p
 js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
-tests/unit/                 78 assertions — util, store, plan engine
-tests/e2e/                  110 checks in real Chromium, incl. a full first-visitor walkthrough
+tests/unit/                 80 assertions — util, store, plan engine
+tests/e2e/                  114 checks in real Chromium, incl. a full first-visitor walkthrough
                             and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```

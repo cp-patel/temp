@@ -319,6 +319,59 @@ async function main() {
   const chips = await page.locator(".mode").count();
   check("roadmap shows mode chips", chips >= 40, `${chips} chips`);
 
+  /* The plan's per-chapter notes are its reason to exist, and 31 of 44 rows used
+     to repeat one of two boilerplate sentences — which buried the 13 that carry
+     real guidance. A note now earns a line only when it is about that chapter;
+     the generic text moves to the mode chip's tooltip, where the legend above
+     the weeks already explains what each mode means. */
+  await go("#/plan");
+  await page.waitForTimeout(400);
+  const noteShape = await page.evaluate(() => ({
+    rows: document.querySelectorAll(".planrow").length,
+    notes: document.querySelectorAll(".planrow__why").length,
+    tooltips: [...document.querySelectorAll(".planrow .mode")].filter(
+      (m) => (m.getAttribute("title") || "").length > 20
+    ).length,
+    skimRowsWithNotes: [...document.querySelectorAll(".planrow")].filter(
+      (r) => r.querySelector(".mode--skim") && r.querySelector(".planrow__why")
+    ).length,
+    skimRows: document.querySelectorAll(".planrow .mode--skim").length,
+  }));
+  check(
+    "plan notes appear only where they say something",
+    noteShape.notes >= 8 &&
+      noteShape.notes < noteShape.rows / 2 &&
+      noteShape.tooltips === noteShape.rows,
+    JSON.stringify(noteShape)
+  );
+  check(
+    "every skim recommendation still carries its reason",
+    noteShape.skimRows > 0 &&
+      noteShape.skimRowsWithNotes === noteShape.skimRows,
+    JSON.stringify(noteShape)
+  );
+
+  /* The chapter-level version of the same note. Its old visibility test was
+     `skim || (deep && has-an-overlap-entry)`, which silently dropped the
+     study-mode notes — including the one on the roadmap's own first chapter. */
+  await go("#/chapter/role");
+  await page.waitForTimeout(300);
+  const roleNote = await page.evaluate(() => {
+    const n = document.querySelector(".delta");
+    return n ? n.innerText.replace(/\s+/g, " ").slice(0, 60) : null;
+  });
+  check(
+    "a study chapter with a specific note shows it",
+    !!roleNote && /familiar/i.test(roleNote),
+    String(roleNote)
+  );
+  await go("#/chapter/llm-mental-model");
+  await page.waitForTimeout(300);
+  check(
+    "a chapter with nothing specific to say shows no note",
+    (await page.locator(".delta").count()) === 0
+  );
+
   /* ---------------- review deck ---------------- */
   section("review");
   /* Cards are gated on chapter completion. Before that gate existed, all 167

@@ -106,6 +106,47 @@ describe("plan generation", () => {
     }
   });
 
+  test("a note is marked generic unless it is about that chapter", () => {
+    /* 31 of 44 rows used to repeat one of two boilerplate sentences, which buried
+       the 13 carrying real guidance — and those notes are the whole point of a
+       personalised plan. The flag lets the view show only the ones that earn a
+       line, while the text still travels for tooltips and assistive output. */
+    const plan = C.planFor(BACKEND);
+    const specific = plan.items.filter((i) => !i.generic);
+    assert.ok(
+      specific.length >= 10,
+      `expected 10+ chapter-specific notes, got ${specific.length}`
+    );
+
+    const BOILER = [
+      "New material for you — read it properly.",
+      "Core chapter — this is load-bearing for everything after it, and it's what interviews probe.",
+    ];
+    for (const it of specific) {
+      assert.ok(
+        !BOILER.includes(it.why),
+        `${it.id} is marked specific but carries boilerplate`
+      );
+    }
+    for (const it of plan.items.filter((i) => i.generic)) {
+      assert.ok(
+        BOILER.includes(it.why),
+        `${it.id} is marked generic but says something specific: ${it.why}`
+      );
+    }
+
+    // A skim recommendation without a reason is the one thing this must not do.
+    for (const it of plan.items.filter((i) => i.mode === "skim")) {
+      assert.equal(it.generic, false, `${it.id} skims with a generic note`);
+    }
+  });
+
+  test("a newcomer's notes are all generic, and that is correct", () => {
+    // Nothing overlaps, so there is no delta to report on any chapter.
+    const plan = C.planFor(NEWCOMER);
+    assert.equal(plan.items.filter((i) => !i.generic).length, 0);
+  });
+
   test("skimmed chapters explain what is still new", () => {
     const plan = C.planFor(BACKEND);
     const skims = plan.items.filter((i) => i.mode === "skim");
