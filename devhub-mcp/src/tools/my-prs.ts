@@ -162,8 +162,16 @@ export function summarizeReviews(
     }
   }
 
-  // "Awaiting" = still formally requested and has not left a substantive review.
-  const responded = new Set(latestByReviewer.keys());
+  // "Awaiting" = still formally requested and has not left a standing substantive review.
+  //
+  // A DISMISSED review is tracked above (it must supersede an earlier approval) but does NOT
+  // count as responded: dismissal is precisely the act of voiding a review, and GitHub
+  // re-requests the reviewer, so they genuinely still owe one.
+  const responded = new Set(
+    [...latestByReviewer.entries()]
+      .filter(([, latest]) => latest.state !== 'DISMISSED')
+      .map(([login]) => login),
+  );
   const awaiting = requestedReviewers
     .map((reviewer) => reviewer.login)
     .filter((login) => !responded.has(login));

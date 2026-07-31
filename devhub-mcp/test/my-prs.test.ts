@@ -68,6 +68,30 @@ describe('summarizeReviews', () => {
     expect(summary.awaiting.sort()).toEqual(['dave', 'erin']);
   });
 
+  it('a dismissed review voids an earlier approval', () => {
+    const summary = summarizeReviews(
+      [
+        { state: 'APPROVED', submitted_at: '2026-07-20T00:00:00.000Z', user: { login: 'bob' } },
+        { state: 'DISMISSED', submitted_at: '2026-07-25T00:00:00.000Z', user: { login: 'bob' } },
+      ],
+      [],
+    );
+    expect(summary.approvals).toBe(0);
+  });
+
+  it('still awaits a reviewer whose review was dismissed', () => {
+    // Dismissal is the act of voiding a review, and GitHub re-requests the reviewer, so they
+    // genuinely still owe one — counting them as "responded" would hide that.
+    const summary = summarizeReviews(
+      [
+        { state: 'APPROVED', submitted_at: '2026-07-20T00:00:00.000Z', user: { login: 'bob' } },
+        { state: 'DISMISSED', submitted_at: '2026-07-25T00:00:00.000Z', user: { login: 'bob' } },
+      ],
+      [{ login: 'bob' }],
+    );
+    expect(summary.awaiting).toEqual(['bob']);
+  });
+
   it('handles a null review author without crashing', () => {
     const summary = summarizeReviews([{ state: 'APPROVED', submitted_at: null, user: null }], []);
     expect(summary.approvals).toBe(0);

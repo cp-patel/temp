@@ -98,7 +98,17 @@ export interface PrContext {
   readonly notes?: string[];
 }
 
-/** Each reviewer's latest substantive state, for the human-readable review summary. */
+/** States that actually decide a review's outcome. COMMENTED and PENDING do not. */
+const SUBSTANTIVE_STATES: ReadonlySet<string> = new Set(['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED']);
+
+/**
+ * Each reviewer's standing review state.
+ *
+ * Reports the latest *substantive* state rather than the literally-latest event: a reviewer who
+ * approves and then leaves a comment has still approved, and showing "commented" would hide
+ * that. Reviewers who only ever commented fall back to that, so they are not misreported as
+ * having decided anything.
+ */
 function reviewerStates(
   reviews: readonly { state: string; submitted_at?: string | null | undefined; user: { login: string } | null }[],
 ): ReviewerState[] {
@@ -107,10 +117,21 @@ function reviewerStates(
     const login = review.user?.login;
     if (login === undefined) continue;
     const at = review.submitted_at === null || review.submitted_at === undefined ? 0 : Date.parse(review.submitted_at);
+    const state = review.state.toUpperCase();
     const previous = latest.get(login);
-    if (previous === undefined || at >= previous.at) {
-      latest.set(login, { state: review.state.toUpperCase(), at });
+
+    if (previous === undefined) {
+      latest.set(login, { state, at });
+      continue;
     }
+    // A substantive state never loses to a later non-substantive one.
+    if (SUBSTANTIVE_STATES.has(previous.state) && !SUBSTANTIVE_STATES.has(state)) continue;
+    // A non-substantive state always yields to a substantive one, whenever it arrived.
+    if (!SUBSTANTIVE_STATES.has(previous.state) && SUBSTANTIVE_STATES.has(state)) {
+      latest.set(login, { state, at });
+      continue;
+    }
+    if (at >= previous.at) latest.set(login, { state, at });
   }
   // Rank before truncating: on a PR with dozens of reviewers, an arbitrary 15 could omit the
   // one person blocking the merge. Blockers first, then approvals, then everything else.
@@ -232,7 +253,9 @@ export async function getPrContext(
   if (includeDiffStats) {
     if (filesResult.status === 'fulfilled' && filesResult.value !== undefined) {
       const all = filesResult.value.data;
-      // Keep the biggest changes when truncating — that is where review attention goes.
+      // Keep the biggest changes when truncating — that is where review attention goes. Note
+      // the ranking only sees the first page (100 files); `files_omitted` below is still exact
+      // because it is derived from the PR's own `changed_files` count, not from this page.
       const ranked = [...all].sort((a, b) => b.additions + b.deletions - (a.additions + a.deletions));
       files = ranked.slice(0, MAX_FILES).map((file) => ({
         path: truncateText(file.filename, CAPS.label),

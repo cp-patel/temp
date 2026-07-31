@@ -97,6 +97,28 @@ describe('get_my_review_queue', () => {
     expect(work.calls.some((call) => call.includes('getCombinedStatusForRef'))).toBe(false);
   });
 
+  it('marks the CI denominator when there are more check runs than one page holds', async () => {
+    const { ctx } = createFakeContext({ work: { searchItems: [searchItem({ number: 10 })] } });
+    const api = ctx.clients.github('work');
+    Object.defineProperty(api.checks, 'listForRef', {
+      value: async () => ({
+        data: {
+          // A monorepo: 250 runs exist but only 100 come back on this page.
+          total_count: 250,
+          check_runs: Array.from({ length: 100 }, (_unused, index) => ({
+            name: `check-${index}`,
+            status: 'completed',
+            conclusion: index === 0 ? 'failure' : 'success',
+          })),
+        },
+      }),
+    });
+
+    const result = await getMyReviewQueue(ctx, { scope: 'work' });
+    // "100+" rather than "100", so the summary does not imply it saw every run.
+    expect(result.items[0]?.ci).toBe('failing (1/100+)');
+  });
+
   it('falls back to combined status when a repo reports no check runs', async () => {
     const { ctx, work } = createFakeContext({
       work: { searchItems: [searchItem({ number: 9 })], checkRuns: [] },

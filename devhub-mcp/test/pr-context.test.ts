@@ -128,6 +128,30 @@ describe('get_pr_context', () => {
     expect(result.files?.[0]?.additions).toBe(59);
   });
 
+  it('counts omitted checks against the reported total, not the page size', async () => {
+    const { ctx } = createFakeContext();
+    const api = ctx.clients.github('work');
+    Object.defineProperty(api.checks, 'listForRef', {
+      value: async () => ({
+        data: {
+          total_count: 250,
+          check_runs: Array.from({ length: 100 }, (_unused, index) => ({
+            name: `check-${index}`,
+            status: 'completed',
+            conclusion: 'success',
+          })),
+        },
+      }),
+    });
+
+    const result = await getPrContext(ctx, { scope: 'work', repo: 'acme/web', number: 7 });
+    if (!isContext(result)) throw new Error('expected a context');
+
+    // 250 exist, at most 20 are shown — so 230 are omitted, not 80.
+    expect(result.ci.length).toBeLessThanOrEqual(20);
+    expect(result.checks_omitted).toBe(250 - result.ci.length);
+  });
+
   it('truncates the body to 1,500 characters', async () => {
     const { ctx } = createFakeContext();
     const api = ctx.clients.github('work');
@@ -153,6 +177,30 @@ describe('get_pr_context', () => {
     const result = await getPrContext(ctx, { scope: 'work', repo: 'acme/web', number: 7 });
     if (!isContext(result)) throw new Error('expected a context');
     expect(result.body.length).toBeLessThanOrEqual(1_500);
+  });
+
+  it('keeps an approval visible when the reviewer later just comments', async () => {
+    const { ctx } = createFakeContext();
+    const api = ctx.clients.github('work');
+    Object.defineProperty(api.pulls, 'listReviews', {
+      value: async () => ({
+        data: [
+          { state: 'APPROVED', submitted_at: '2026-07-20T00:00:00.000Z', user: { login: 'alice' } },
+          // A follow-up comment does not undo the approval.
+          { state: 'COMMENTED', submitted_at: '2026-07-26T00:00:00.000Z', user: { login: 'alice' } },
+          { state: 'COMMENTED', submitted_at: '2026-07-27T00:00:00.000Z', user: { login: 'mallory' } },
+        ],
+      }),
+    });
+
+    const result = await getPrContext(ctx, { scope: 'work', repo: 'acme/web', number: 7 });
+    if (!isContext(result)) throw new Error('expected a context');
+
+    const byReviewer = new Map(result.reviews.map((review) => [review.reviewer, review.state]));
+    expect(byReviewer.get('alice')).toBe('approved');
+    // Someone who only commented must not be reported as having decided anything.
+    expect(byReviewer.get('mallory')).toBe('commented');
+    expect(result.approvals).toBe(1);
   });
 
   it('serves a repeated call from cache', async () => {

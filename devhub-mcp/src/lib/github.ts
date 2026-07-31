@@ -52,13 +52,18 @@ export async function ciSummary(
   const runs = checks.data.check_runs;
 
   if (runs.length > 0) {
+    // A monorepo can attach more check runs than one page holds. Mark the denominator with "+"
+    // in that case, so the summary does not imply it inspected every run.
+    const inspected = runs.length;
+    const total = checks.data.total_count > inspected ? `${inspected}+` : String(inspected);
+
     const failing = runs.filter((run) => FAILING_CONCLUSIONS.has(run.conclusion ?? ''));
-    if (failing.length > 0) return `failing (${failing.length}/${runs.length})`;
+    if (failing.length > 0) return `failing (${failing.length}/${total})`;
     const pending = runs.filter((run) => run.status !== 'completed');
-    if (pending.length > 0) return `pending (${pending.length}/${runs.length})`;
+    if (pending.length > 0) return `pending (${pending.length}/${total})`;
     const passing = runs.filter((run) => BENIGN_CONCLUSIONS.has(run.conclusion ?? ''));
-    if (passing.length === runs.length) return `passing (${runs.length})`;
-    return `mixed (${runs.length})`;
+    if (passing.length === inspected) return `passing (${total})`;
+    return `mixed (${total})`;
   }
 
   const combined = await api.repos.getCombinedStatusForRef({ owner, repo, ref });
@@ -94,7 +99,11 @@ export async function checkDetails(
     conclusion: run.status === 'completed' ? (run.conclusion ?? 'unknown') : run.status,
   }));
 
-  return { checks: kept, omitted: Math.max(0, runs.length - kept.length) };
+  // Counted against the reported total, not the page size: with more than 100 check runs the
+  // page holds only the first 100, and `runs.length - kept.length` would under-report the
+  // omission by everything beyond that page.
+  const total = Math.max(response.data.total_count, runs.length);
+  return { checks: kept, omitted: Math.max(0, total - kept.length) };
 }
 
 function rankCheck(run: { status: string; conclusion: string | null }): number {
