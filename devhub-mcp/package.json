@@ -1,0 +1,38 @@
+{
+  "name": "devhub-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal MCP server wrapping GitHub and Linear behind a few semantically rich, pre-digested tools.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "devhub-mcp": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "inspect": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@linear/sdk": "^89.0.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@octokit/rest": "^22.0.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

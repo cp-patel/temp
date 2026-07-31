@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+
+# Never commit real credentials. Only .env.example (names, no values) is tracked.
+.env
+.env.*
+!.env.example
