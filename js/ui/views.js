@@ -882,6 +882,22 @@
         })
         .join("") +
       "</ul>";
+    /* Scroll in place rather than navigate. The href stays a real anchor — right
+       click, copy link and keyboard activation all keep working — but letting the
+       hash change hands "#s-ingestion" to a router that does not recognise it,
+       which fell through to the landing route and replaced the chapter with the
+       marketing page. Every chapter had this, and it was one click away. */
+    U.qa("a", toc).forEach(function (a) {
+      a.onclick = function (e) {
+        var target = document.getElementById(a.getAttribute("href").slice(1));
+        if (!target) return; // no such heading: let the browser try
+        e.preventDefault();
+        target.scrollIntoView({ block: "start" });
+        // Move focus with the view, or a keyboard user's next Tab restarts above.
+        target.setAttribute("tabindex", "-1");
+        target.focus({ preventScroll: true });
+      };
+    });
     aside.appendChild(toc);
 
     var notes = el("div", "notes");

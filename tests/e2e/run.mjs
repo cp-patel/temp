@@ -1381,6 +1381,97 @@ async function main() {
     await cctx.close();
   }
 
+  /* ---------------- history, anchors and the reader's place ---------------- */
+  section("history and anchors");
+  {
+    const hctx = await browser.newContext({
+      viewport: { width: 1440, height: 950 },
+      colorScheme: "dark",
+    });
+    const hp = await hctx.newPage();
+    hp.on("pageerror", (e) => errors.push(`history pageerror: ${e.message}`));
+    hp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`history console: ${m.text()}`);
+    });
+    const hGo = async (hash) => {
+      await hp.goto(BASE + hash, { waitUntil: "networkidle" });
+      await hp.addStyleTag({
+        content: "html{scroll-behavior:auto !important}",
+      });
+      await hp.evaluate(() => Store.skipOnboarding());
+      await hp.waitForTimeout(200);
+    };
+
+    /* Every chapter has an "On this page" list, and activating one used to hand
+       "#s-ingestion" to a router that does not recognise it — which fell through
+       to the landing route and replaced the chapter with the marketing page. One
+       click, on every chapter, and no check had ever activated a contents link. */
+    await hGo("#/chapter/rag-architecture");
+    await hp.waitForTimeout(500);
+    const tocCount = await hp.locator(".toc a").count();
+    const histBefore = await hp.evaluate(() => history.length);
+    await hp.locator(".toc a").first().click();
+    await hp.waitForTimeout(500);
+    const afterToc = await hp.evaluate(() => ({
+      hash: location.hash,
+      toc: document.querySelectorAll(".toc a").length,
+      h1: (document.querySelector("h1") || {}).innerText,
+      y: Math.round(window.scrollY),
+      history: history.length,
+    }));
+    check(
+      "a contents link scrolls within the chapter instead of leaving it",
+      tocCount >= 3 &&
+        afterToc.hash === "#/chapter/rag-architecture" &&
+        afterToc.toc === tocCount &&
+        /RAG End to End/.test(afterToc.h1) &&
+        afterToc.y > 200,
+      JSON.stringify(afterToc)
+    );
+    check(
+      "and adds no history entry, so Back still leaves the chapter",
+      afterToc.history === histBefore,
+      `${histBefore} -> ${afterToc.history}`
+    );
+
+    /* Chapters run 20 to 60 minutes. Following a link out and pressing Back used
+       to return you to the top of one you had read half of. */
+    await hGo("#/chapter/rag-architecture");
+    await hp.waitForTimeout(500);
+    await hp.evaluate(() => window.scrollTo(0, 2400));
+    await hp.waitForTimeout(400);
+    const readAt = await hp.evaluate(() => Math.round(window.scrollY));
+    await hp.locator(".chnav__btn--next").click();
+    await hp.waitForTimeout(600);
+    const movedOn = await hp.evaluate(() => ({
+      y: Math.round(window.scrollY),
+      hash: location.hash,
+    }));
+    await hp.goBack();
+    await hp.waitForTimeout(700);
+    const back = await hp.evaluate(() => ({
+      y: Math.round(window.scrollY),
+      hash: location.hash,
+    }));
+    check(
+      "following a link starts the next chapter at the top",
+      movedOn.y === 0 && movedOn.hash === "#/chapter/advanced-rag",
+      JSON.stringify(movedOn)
+    );
+    check(
+      "and Back returns you to where you were reading",
+      back.hash === "#/chapter/rag-architecture" && back.y > readAt * 0.9,
+      `read at ${readAt}, came back to ${back.y}`
+    );
+    await hp.goForward();
+    await hp.waitForTimeout(500);
+    check(
+      "Forward works too",
+      (await hp.evaluate(() => location.hash)) === "#/chapter/advanced-rag"
+    );
+    await hctx.close();
+  }
+
   /* ---------------- no dialog outlives the page it opened on ---------------- */
   /* All three dialogs mount on document.body rather than inside the view the
      router replaces. The command palette showed what that costs: open it, press

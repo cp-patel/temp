@@ -11,6 +11,14 @@
   var App = {};
   var routeStatus = null;
   var scrollHandlers = [];
+
+  /* Where the reader had got to, per route. Chapters run 20 to 60 minutes, so
+     following a link out and pressing Back used to cost you your place: render()
+     scrolled to the top unconditionally and the browser cannot restore a position
+     it never recorded for a hash route. Only restored for a history navigation —
+     clicking a link to a chapter should start it at the beginning. */
+  var scrollFor = {};
+  var fromHistory = false;
   var keyHandlers = [];
   var leaveHandlers = [];
 
@@ -731,8 +739,19 @@
       Motion.enterView(page, { reveal: REVEAL[route.name], step: 55 });
     }
 
-    // hash anchors inside a chapter shouldn't reset scroll
-    if (!location.hash.match(/#s-/)) window.scrollTo(0, 0);
+    /* The table of contents scrolls in place rather than changing the hash, so the
+       router never sees a section anchor and this is a plain choice: resume where
+       they were, or start at the top. */
+    var resume = fromHistory ? scrollFor[location.hash] : null;
+    fromHistory = false;
+    if (resume) {
+      // After the view is in the document, or there is nothing to scroll through.
+      requestAnimationFrame(function () {
+        window.scrollTo(0, resume);
+      });
+    } else {
+      window.scrollTo(0, 0);
+    }
     document.title =
       (route.name === "chapter" && Views.helpers.chapter(route.arg)
         ? Views.helpers.chapter(route.arg).title + " · "
@@ -885,11 +904,19 @@
     document.body.appendChild(routeStatus);
 
     /* global listeners */
+    if (window.history && "scrollRestoration" in window.history) {
+      // Ours to do: the browser's own attempt fights the router's re-render.
+      window.history.scrollRestoration = "manual";
+    }
+    window.addEventListener("popstate", function () {
+      fromHistory = true;
+    });
     window.addEventListener("hashchange", render);
 
     window.addEventListener(
       "scroll",
       function () {
+        scrollFor[location.hash] = window.scrollY;
         scrollHandlers.forEach(function (f) {
           f();
         });
