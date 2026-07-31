@@ -427,6 +427,221 @@
     },
   ];
 
+
+  /* ================================================================= STORY
+     Multi-week arcs. Each beat triggers off the ACTUAL state of your campaign
+     (your heat, your credibility, who you drafted, who is leading), and choices
+     set flags that change later beats. Scripted chains dovetailing with
+     emergent state is what makes a campaign feel like *your* story.
+
+     trigger(st) → may this arc start now?
+     beats[].q may be a function(st) so the prose can name your own people. */
+  SG.ARCS = [
+    {
+      id: 'tape',
+      name: 'THE TAPE',
+      trigger: (st) => st.heat >= 4.5,
+      beats: [
+        {
+          q: 'A grainy 40-second clip of your war room is on every channel. In it, someone says the words "manage the booth".',
+          opts: [
+            { t: '"Deepfake. Obviously."', flag: 'denied', fx: { heat: 2, cred: -5 }, note: 'The clip trends for three days instead of one.' },
+            { t: 'Admit it, blame an over-eager volunteer', flag: 'blamed', fx: { cred: 6, buzzAll: -8 }, note: 'A 22-year-old is now nationally famous.' },
+            { t: 'Release the FULL tape yourself, unedited', flag: 'released', fx: { cred: 12, buzzAll: 14, funds: -30 }, note: 'Astonishing. Nobody does this. It works.' },
+          ],
+        },
+        {
+          wait: 2,
+          q: (st, f) =>
+            f.denied
+              ? 'The second half of the tape has leaked. Your voice is clearly on it, saying the quiet part loudly.'
+              : f.released
+              ? 'Your full-tape gamble has made you a folk hero. A rival front is now demanding YOUR opponents release theirs.'
+              : 'The volunteer you blamed has given a tearful interview. He is very likeable.',
+          opts: [
+            { t: 'Go on prime time and take every question', flag: 'faced', fx: { cred: 14, buzzAll: 10 }, note: 'Four hours. No water break. Respect.' },
+            { t: 'Send a spokesperson to shout over everyone', flag: 'shouted', fx: { heat: 1.5, buzzAll: 16, cred: -6 }, note: 'Ratings gold. Dignity, less so.' },
+            { t: 'Say nothing and campaign twice as hard', flag: 'ignored', fx: { swingBuzz: 22 }, note: 'The story dies of boredom. Mostly.' },
+          ],
+        },
+        {
+          wait: 2,
+          q: (st, f) =>
+            f.faced || f.released
+              ? 'The tape story has fully inverted: a channel is running "THE HONEST CAMPAIGN" as a prime-time special about you.'
+              : 'The Election Commission has "sought a clarification" about the tape. The letter is two pages long and entirely questions.',
+          opts: [
+            { t: 'Reply in writing, page for page', fx: { cred: 10, heat: -3 }, note: 'Boring. Correct. Ends it.' },
+            { t: 'Turn the letter into a campaign poster', fx: { buzzAll: 20, heat: 2, cred: -4 }, note: 'The poster is genuinely funny. The EC is not laughing.' },
+            { t: 'Ignore it; there are nine days left', fx: { heat: 1, swingBuzz: 18 }, note: 'A calculated risk, calculated on a napkin.' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'defector',
+      name: 'THE MIDNIGHT PHONE CALL',
+      trigger: (st) => st.week >= 2 && (st.leaders.P.includes('palti') || st.cred < 45),
+      beats: [
+        {
+          q: 'A sitting rival MP calls at 11:40 PM. He is "deeply concerned about the direction of his party" and also about a Rajya Sabha seat.',
+          opts: [
+            { t: 'Send a car immediately', flag: 'took', fx: { stealShare: 3, cred: -8, heat: 1 }, note: 'The car is a white Fortuner. It is always a white Fortuner.' },
+            { t: 'Ask him to resign publicly first', flag: 'principled', fx: { cred: 10 }, note: 'He hangs up. Your workers hear about it and stand taller.' },
+            { t: 'Record the call', flag: 'recorded', fx: { heat: 2, buzzAll: 12 }, note: 'You now own a small, radioactive asset.' },
+          ],
+        },
+        {
+          wait: 2,
+          q: (st, f) =>
+            f.took
+              ? 'Your new MP wants a rally in his own district — and a photo with your biggest name.'
+              : f.recorded
+              ? 'The recording is burning a hole in your pocket. A journalist has heard it exists.'
+              : 'The MP you turned away has stayed put, and is now attacking you by name every evening.',
+          opts: [
+            { t: 'Give him the rally and the photo', fx: { regionShare: { coal: 4 }, funds: -25 }, note: 'The photo is used against you for a decade.' },
+            { t: 'Leak everything to the press', fx: { stealBuzz: 26, heat: 2, cred: -5 }, note: 'His party spends four days on damage control.' },
+            { t: 'Do nothing. Let it sit.', fx: { cred: 6, cadre: 12 }, note: 'Restraint. Unfashionable, occasionally lethal.' },
+          ],
+        },
+        {
+          wait: 2,
+          q: 'Three more MPs from the same district want in. Their combined baggage would fill the Fortuner.',
+          opts: [
+            { t: 'Take all three', fx: { shareAll: 0.9, cred: -12, heat: 2 }, note: 'Numbers now. Headlines later.' },
+            { t: 'Take the cleanest one', fx: { stealShare: 2, cred: 2 }, note: 'A judgement call, made in a corridor.' },
+            { t: 'Take none and say so loudly', fx: { cred: 16, buzzAll: 8 }, note: 'Editorials use the word "refreshing".' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'star',
+      name: 'THE BENCHED STAR',
+      // fires when a drafted leader has gone unused — the story notices your habits
+      trigger: (st) => st.week >= 3 && SG.idleLeader(st) !== null,
+      beats: [
+        {
+          q: (st) => {
+            const L = SG.leaderById(SG.idleLeader(st) || st.leaders.P[0]);
+            return `${L.nick} has not been given a single assignment. He has started giving interviews about "internal democracy".`;
+          },
+          opts: [
+            { t: 'Give him the next big rally', flag: 'appeased', fx: { cadre: 20, cred: 5 }, note: 'He is insufferable about it. He is also very good.' },
+            { t: 'Tell him to wait his turn', flag: 'benched', fx: { cred: -6, funds: 20 }, note: 'He waits. Loudly.' },
+            { t: 'Put him in charge of the manifesto', flag: 'promoted', fx: { cred: 8, buzzAll: -6 }, note: 'It is now 94 pages long.' },
+          ],
+        },
+        {
+          wait: 3,
+          q: (st, f) =>
+            f.benched
+              ? 'Your benched star has been photographed having tea with the opposition. Just tea, he says. Excellent tea.'
+              : 'Your once-benched star has become the campaign\'s breakout act. Crowds are asking for him by name.',
+          opts: [
+            { t: 'Make him the face of the final week', fx: { buzzAll: 22, cred: 4 }, note: 'The posters are reprinted overnight.' },
+            { t: 'Keep him close and quiet', fx: { cadre: 18, cred: 6 }, note: 'A stable, unglamorous, winning choice.' },
+            { t: 'Let him go and wish him well', fx: { cred: -10, funds: 45 }, note: 'His seat, his problem. Your money, your gain.' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'merger',
+      name: 'THE MERGER',
+      trigger: (st) => !!st.alliance,
+      beats: [
+        {
+          q: 'Both rival fronts have merged against you. Their joint press conference has nine leaders, one microphone and no agreed candidate.',
+          opts: [
+            { t: 'Welcome it: "one against many"', flag: 'framed', fx: { buzzAll: 18, cred: 6 }, note: 'It is a genuinely strong frame. Use it everywhere.' },
+            { t: 'Attack the arithmetic of their seat-sharing', flag: 'arithmetic', fx: { stealBuzz: 24, heat: 1 }, note: 'Two of their allies start briefing against each other.' },
+            { t: 'Ignore them and flood the swing regions', flag: 'flooded', fx: { swingBuzz: 30, funds: -35 }, note: 'Unromantic. Effective.' },
+          ],
+        },
+        {
+          wait: 2,
+          q: (st, f) =>
+            f.arithmetic
+              ? 'Their seat-sharing talks have collapsed in a five-star lobby. Two allies are contesting the same seats.'
+              : 'The merged front has announced a joint rally of unprecedented size. The stage alone cost more than your week.',
+          opts: [
+            { t: 'Hold a bigger rally 2 km away', fx: { buzzAll: 20, funds: -55 }, note: 'Traffic in that city has still not recovered.' },
+            { t: 'Release a 90-second ad about their contradictions', fx: { stealBuzz: 28, cred: 4 }, note: 'It is 90 seconds of them insulting each other. You added nothing.' },
+            { t: 'Go door to door in the 20 closest seats', fx: { swingBuzz: 26, cadre: -14 }, note: 'No cameras. Just arithmetic.' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'march',
+      name: 'THE LONG MARCH',
+      trigger: (st) => st.week >= 4 && (st.planks.includes('FARMERS') || st.planks.includes('JOBS')),
+      beats: [
+        {
+          q: 'Forty thousand people are walking towards the capital with a list of demands and an alarming amount of food.',
+          opts: [
+            { t: 'Meet them personally at the edge of the city', flag: 'met', fx: { cred: 14, buzzAll: 12, funds: -20 }, note: 'The photograph of you sitting on the road runs everywhere.' },
+            { t: 'Send a committee', flag: 'committee', fx: { cred: -4, heat: 1 }, note: 'The committee will report after the election. Obviously.' },
+            { t: 'Announce their headline demand outright', flag: 'conceded', fx: { shareAll: 1.4, funds: -60 }, note: 'The treasury makes a small, wounded noise.' },
+          ],
+        },
+        {
+          wait: 2,
+          q: (st, f) =>
+            f.met
+              ? 'The march has turned into a festival that keeps mentioning your name. Somebody is selling t-shirts with your face on them.'
+              : 'The march has camped outside the capital for two weeks and become the only story on television.',
+          opts: [
+            { t: 'Walk the last 3 km with them', fx: { buzzAll: 24, cred: 10, funds: -15 }, note: 'Your shoes are ruined. Your week is made.' },
+            { t: 'Offer a written guarantee, signed', fx: { shareAll: 1.2, cred: 8, funds: -45 }, note: 'A signature is cheaper than a scheme and lands almost as hard.' },
+            { t: 'Let it run its course', fx: { heat: 1, funds: 25 }, note: 'It runs its course. Straight through your rural numbers.' },
+          ],
+        },
+      ],
+    },
+  ];
+
+  /* Which drafted leader has been most ignored? Used by THE BENCHED STAR so the
+     narrative reacts to how you have actually been playing. */
+  SG.idleLeader = function (st) {
+    const u = st.usage || {};
+    const idle = st.leaders.P.filter((id) => !u[id]);
+    if (!idle.length) return null;
+    return idle[0];
+  };
+
+  /* Weekly jab from whichever rival is doing best. Pure flavour, real needle. */
+  SG.TAUNTS = [
+    'They have a manifesto. We have a photocopier and a dream.',
+    'Our friends opposite have promised 2 crore jobs. We have counted 14.',
+    'This is not an election, it is a rerun. We have seen the ending.',
+    'He talks of development. Ask him where. Ask him when. Ask him for the file.',
+    'The people are not fooled. The people are simply not consulted.',
+    'They have booked 400 helicopters. We have booked 400 buses. Guess who lands where.',
+    'Every week a new scheme. Every scheme a new hoarding. Every hoarding a new bill.',
+    'We welcome their star campaigner. He has been very effective — for us.',
+    'Their arithmetic is beautiful. Their geography is imaginary.',
+    'They call it momentum. In our language it is called a press release.',
+  ];
+
+  SG.MASTHEADS = ['THE DAILY BHARAT', 'RASHTRA TIMES', 'THE MORNING CHAI', 'JANTA EXPRESS'];
+
+  /* Front-page headline chosen from what actually happened this week. */
+  SG.frontPage = function (st, rep) {
+    const d = rep.delta;
+    if (rep.events.some((e) => /MAHAGATHBANDHAN/.test(e.t))) return 'THEY HAVE JOINED HANDS AGAINST HIM';
+    if (rep.events.some((e) => /ELECTION COMMISSION/.test(e.t))) return 'NOTICE SERVED: COMMISSION STEPS IN';
+    if (rep.events.some((e) => /DEFECTED/.test(e.t))) return 'HE HAS SWITCHED SIDES. AGAIN.';
+    if (rep.events.some((e) => /fractured/i.test(e.t))) return 'ALLIANCE CRACKS OPEN IN PUBLIC';
+    if (d >= 18) return 'SURGE: THE GROUND HAS SHIFTED';
+    if (d >= 8) return 'STEADY GAINS AS RIVALS SQUABBLE';
+    if (d >= 1) return 'A QUIET WEEK OF SMALL MERCIES';
+    if (d > -8) return 'CAMPAIGN STALLS, WORKERS RESTLESS';
+    return 'SLIDE CONTINUES: PANIC IN WAR ROOM';
+  };
+
   /* ------------------------------------------------------------- EC penalties */
   SG.EC_EVENTS = [
     'MODEL CODE BREACH: your convoy handed out pressure cookers. AP cut, credibility hit.',

@@ -181,6 +181,11 @@
       pendingDilemma: null,
       aiPlans: [],
       intel: [],
+      arcs: {},          // arcId → { beat, waitLeft, done }
+      arcFlags: {},      // choices made in earlier beats, read by later ones
+      storyBeat: null,   // pending narrative beat, shown before the next planning turn
+      usage: {},         // leaderId → times you actually used their ability
+      taunt: null,
       finished: false,
       result: null,
       weekReport: null,
@@ -456,6 +461,14 @@
         break;
     }
 
+    if (party === 'P') {
+      const owner = SG.LEADERS.find((L) => L.action.id === actionId);
+      if (owner) {
+        if (!st.usage) st.usage = {};
+        st.usage[owner.id] = (st.usage[owner.id] || 0) + 1;
+      }
+    }
+
     if (log) {
       const nm = SG.actionById(actionId);
       log.push({
@@ -627,26 +640,39 @@
     Object.keys(st.cooldown).forEach((k) => (st.cooldown[k] = Math.max(0, st.cooldown[k] - 1)));
     st.news = SG.HEADLINES[Math.floor(st.rng() * SG.HEADLINES.length)];
 
+    // the week's seat swing must exist BEFORE the front page is written
+    report.seatsAfter = SG.seatTotals(st);
+    report.delta = report.seatsAfter.P - report.seatsBefore.P;
+
+    // a jab from whichever rival front is doing best
+    const seatsNow = report.seatsAfter;
+    const topRival = seatsNow.A >= seatsNow.B ? 'A' : 'B';
+    const rl = st.leaders[topRival] || [];
+    st.taunt = {
+      party: topRival,
+      leader: rl.length ? rl[Math.floor(st.rng() * rl.length)] : null,
+      text: SG.TAUNTS[Math.floor(st.rng() * SG.TAUNTS.length)],
+    };
+    report.taunt = st.taunt;
+    report.headline = SG.frontPage(st, report);
+
     if (st.week > st.maxWeeks) {
       SG.finish(st);
     } else {
       SG.planAI(st);
       st.intel = SG.visibleIntel(st);
+      SG.advanceArcs(st);
       // a dilemma most weeks — the "think" beat between planning turns
       st.dilemma = st.rng() < 0.75 ? SG.DILEMMAS[Math.floor(st.rng() * SG.DILEMMAS.length)] : null;
     }
 
-    report.seatsAfter = SG.seatTotals(st);
     st.weekReport = report;
     return report;
   };
 
   /* ------------------------------------------------------------- dilemmas */
-  SG.resolveDilemma = function (st, optIndex) {
-    const d = st.dilemma;
-    if (!d) return null;
-    const o = d.opts[optIndex];
-    const fx = o.fx || {};
+  SG.applyFx = function (st, fx) {
+    fx = fx || {};
     if (fx.cred) st.cred = clamp(st.cred + fx.cred, 0, 100);
     if (fx.heat) st.heat = clamp(st.heat + fx.heat, 0, 10);
     if (fx.funds) st.funds = Math.max(0, st.funds + fx.funds);
@@ -677,8 +703,76 @@
         .forEach((x) => addBuzz(st, x.def.id, 'P', fx.swingBuzz));
     }
     if (fx.regionShare) Object.entries(fx.regionShare).forEach(([rid, v]) => addShare(st, rid, 'P', v));
+    st.cred = clamp(st.cred, 0, 100);
+    st.heat = clamp(st.heat, 0, 10);
+  };
+
+  SG.resolveDilemma = function (st, optIndex) {
+    const d = st.dilemma;
+    if (!d) return null;
+    const o = d.opts[optIndex];
+    SG.applyFx(st, o.fx);
     st.dilemma = null;
     return o;
+  };
+
+  /* ------------------------------------------------------------------- story
+     One beat may fire per week. Active arcs get priority over new ones, so a
+     chain always finishes before another begins. */
+  SG.advanceArcs = function (st) {
+    if (st.week > st.maxWeeks) return null;
+    // tick waits on running arcs
+    for (const id in st.arcs) {
+      const a = st.arcs[id];
+      if (!a.done && a.waitLeft > 0) a.waitLeft--;
+    }
+    // a running arc whose wait has elapsed
+    for (const arc of SG.ARCS) {
+      const a = st.arcs[arc.id];
+      if (a && !a.done && a.waitLeft <= 0 && a.beat < arc.beats.length) {
+        st.storyBeat = { arcId: arc.id, beat: a.beat };
+        return st.storyBeat;
+      }
+    }
+    // otherwise, start a newly eligible arc
+    for (const arc of SG.ARCS) {
+      if (st.arcs[arc.id]) continue;
+      let ok = false;
+      try {
+        ok = arc.trigger(st);
+      } catch (e) {}
+      if (!ok) continue;
+      st.arcs[arc.id] = { beat: 0, waitLeft: 0, done: false };
+      st.storyBeat = { arcId: arc.id, beat: 0 };
+      return st.storyBeat;
+    }
+    return null;
+  };
+
+  SG.beatText = function (st, arcId, beatIndex) {
+    const arc = SG.ARCS.find((a) => a.id === arcId);
+    const beat = arc.beats[beatIndex];
+    const flags = st.arcFlags[arcId] || {};
+    return typeof beat.q === 'function' ? beat.q(st, flags) : beat.q;
+  };
+
+  SG.resolveStoryBeat = function (st, optIndex) {
+    const sb = st.storyBeat;
+    if (!sb) return null;
+    const arc = SG.ARCS.find((a) => a.id === sb.arcId);
+    const beat = arc.beats[sb.beat];
+    const o = beat.opts[optIndex];
+    SG.applyFx(st, o.fx);
+    if (o.flag) {
+      st.arcFlags[arc.id] = st.arcFlags[arc.id] || {};
+      st.arcFlags[arc.id][o.flag] = true;
+    }
+    const a = st.arcs[arc.id];
+    a.beat = sb.beat + 1;
+    if (a.beat >= arc.beats.length) a.done = true;
+    else a.waitLeft = arc.beats[a.beat].wait || 1;
+    st.storyBeat = null;
+    return { opt: o, arc };
   };
 
   /* -------------------------------------------------------------- projection
@@ -707,6 +801,9 @@
       cadre: st.cadre,
       seatTax: st.seatTax,
       cooldown: { ...st.cooldown },
+      usage: { ...(st.usage || {}) },
+      alliance: st.alliance,
+      allianceBroken: st.allianceBroken,
       queue: st.queue.map((q) => ({ ...q })),
       regions: {},
       rng: st.rng,

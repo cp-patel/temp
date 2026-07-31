@@ -449,61 +449,207 @@
   /* ------------------------------------------------------------- week resolve */
   function endWeek() {
     const st = G.st;
-    const before = SG.seatTotals(st).P;
-    const rep = SG.endWeek(st);
+    const rep = SG.endWeek(st); // rep carries its own delta + headline
     G.sel = null;
     G.previewKey = '';
-    rep.delta = SG.seatTotals(st).P - before;
     G.report = rep;
     G.screen = 'resolve';
     MM.audio.sfx(rep.delta >= 0 ? 'good' : 'bad');
     if (rep.delta > 6) MM.fx.confetti(40);
   }
 
+  /* After a week resolves: story beat first, then the Monday problem, then play. */
+  function nextBeat() {
+    const st = G.st;
+    if (st.finished) return startReveal();
+    if (st.storyBeat) G.screen = 'story';
+    else if (st.dilemma) G.screen = 'dilemma';
+    else G.screen = 'play';
+  }
+
   function drawResolve() {
     const st = G.st;
-    bg();
     const rep = G.report;
-    UI.panel(g, W / 2 - 470, 60, 940, H - 160, `WEEK ${rep.week} — WHAT HAPPENED`);
+    bg();
+
+    // ---- newsprint
+    const px = 168;
+    const pw = W - px * 2;
+    const py = 40;
+    const ph = H - 108;
+    d.fillRR(g, px + 5, py + 6, pw, ph, 4, 'rgba(0,0,0,.45)');
+    d.fillRR(g, px, py, pw, ph, 4, '#f1ebdd');
+    g.save();
+    g.globalAlpha = 0.05;
+    d.dots(g, px, py, pw, ph, 7, 0.7, '#3a3226');
+    g.restore();
+
+    const ink = '#1b1710';
+    const ink2 = '#5a5142';
+    const rule = (y, lw) => {
+      g.strokeStyle = ink;
+      g.lineWidth = lw || 1.5;
+      g.beginPath();
+      g.moveTo(px + 26, y);
+      g.lineTo(px + pw - 26, y);
+      g.stroke();
+    };
+
+    // masthead
+    const mast = SG.MASTHEADS[(rep.week + (st.seed % 4)) % SG.MASTHEADS.length];
+    d.text(g, mast, W / 2, py + 40, { size: 38, fill: ink });
+    rule(py + 60, 2.5);
+    d.text(g, `WEEK ${rep.week} OF THE CAMPAIGN`, px + 30, py + 74, { size: 11, align: 'left', fill: ink2 });
+    d.text(g, `PRICE ₹4  ·  ${SG.TOTAL_SEATS} SEATS  ·  MAJORITY ${SG.MAJORITY}`, px + pw - 30, py + 74, {
+      size: 11,
+      align: 'right',
+      fill: ink2,
+    });
+    rule(py + 82);
+
+    // headline
+    const head = rep.headline || SG.frontPage(st, rep);
+    wrapCentreClip(g, head, W / 2, py + 124, pw - 80, 40, 44, ink, 2);
+
+    // ---- left column: the photo + your numbers
+    const cx = px + 30;
+    const photoW = 230;
+    d.fillRR(g, cx, py + 186, photoW, 150, 3, '#d9d2c2');
+    g.save();
+    g.beginPath();
+    d.rr(g, cx, py + 186, photoW, 150, 3);
+    g.clip();
+    const heroId = st.leaders.P[(rep.week - 1) % st.leaders.P.length];
+    SG.face(g, cx + photoW / 2, py + 268, 1.05, heroId, { mood: rep.delta >= 0 ? 'smile' : 'sad' });
+    g.restore();
+    d.strokeRR(g, cx, py + 186, photoW, 150, 3, ink2, 1);
+    d.text(g, SG.leaderById(heroId).nick + ' on the road this week', cx + photoW / 2, py + 350, {
+      size: 10.5,
+      weight: 700,
+      fill: ink2,
+    });
 
     const dl = rep.delta;
-    d.text(g, `${dl >= 0 ? '+' : ''}${dl} SEATS`, W / 2, 128, {
-      size: 52,
-      fill: dl > 0 ? C.green : dl < 0 ? C.red : C.dim,
-      stroke: '#0b1020',
-      lw: 8,
+    d.text(g, (dl >= 0 ? '+' : '') + dl, cx + photoW / 2, py + 406, {
+      size: 54,
+      fill: dl > 0 ? '#137a3a' : dl < 0 ? '#a52018' : ink2,
     });
-    d.text(g, `projection now ${rep.seatsAfter.P} of ${SG.TOTAL_SEATS}`, W / 2, 166, { size: 15, fill: C.dim });
+    d.text(g, 'SEATS THIS WEEK', cx + photoW / 2, py + 440, { size: 11, fill: ink2 });
+    d.text(g, `PROJECTION  ${rep.seatsAfter.P} / ${SG.TOTAL_SEATS}`, cx + photoW / 2, py + 462, { size: 13, fill: ink });
 
-    let y = 210;
-    rep.log.slice(0, 12).forEach((l) => {
+    // ---- right column: what everyone did
+    const rx = cx + photoW + 26;
+    const rw = pw - photoW - 82;
+    g.strokeStyle = ink2;
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(rx - 13, py + 186);
+    g.lineTo(rx - 13, py + 470);
+    g.stroke();
+
+    let y = py + 198;
+    d.text(g, 'ON THE GROUND', rx, y, { size: 12, align: 'left', fill: '#a52018' });
+    y += 20;
+    rep.log.slice(0, 9).forEach((l) => {
       const mine = l.party === 'P' || l.good;
-      d.text(g, (mine ? '▸ ' : '◂ ') + l.t, W / 2 - 440, y, {
-        size: 13,
+      d.text(g, (mine ? '▪ ' : '▫ ') + l.t, rx, y, {
+        size: 11.5,
         weight: 700,
         align: 'left',
-        fill: l.bad ? C.red : mine ? C.text : C.blue,
+        fill: l.bad ? '#a52018' : mine ? ink : ink2,
       });
-      y += 21;
+      y += 17;
     });
-    y += 8;
-    rep.events.forEach((e) => {
-      d.text(g, (e.bad ? '⚠ ' : '★ ') + e.t, W / 2 - 440, y, {
-        size: 13.5,
-        align: 'left',
-        fill: e.bad ? C.red : C.gold,
+    if (rep.events.length) {
+      y += 6;
+      rep.events.slice(0, 3).forEach((e) => {
+        y = wrapClipRet(g, (e.bad ? '⚠ ' : '★ ') + e.t, rx, y, rw, 12, 16, e.bad ? '#a52018' : '#8a5a10', 2) + 18;
       });
-      y += 22;
-    });
+    }
+
+    // ---- quote of the week
+    const qy = py + ph - 92;
+    rule(qy - 16);
+    if (rep.taunt) {
+      if (rep.taunt.leader) {
+        g.save();
+        g.globalAlpha = 0.9;
+        SG.face(g, px + 62, qy + 34, 0.44, rep.taunt.leader, { mood: 'flat' });
+        g.restore();
+      }
+      d.text(g, 'THEY SAID IT', px + 118, qy + 6, { size: 11, align: 'left', fill: '#a52018' });
+      wrapClipRet(g, '“' + rep.taunt.text + '”', px + 118, qy + 28, pw - 200, 16, 20, ink, 2);
+      d.text(g, '— ' + SG.PARTIES[rep.taunt.party].name, px + 118, qy + 68, { size: 11, align: 'left', fill: ink2 });
+    }
 
     const done = st.finished;
-    UI.button(g, W / 2 - 130, H - 84, 260, 44, done ? 'COUNTING DAY ▶' : 'NEXT WEEK ▶', {
-      fn: () => {
-        if (done) startReveal();
-        else G.screen = st.dilemma ? 'dilemma' : 'play';
-      },
+    UI.button(g, W / 2 - 150, H - 52, 300, 40, done ? 'COUNTING DAY ▶' : 'CONTINUE ▶', {
+      fn: () => (done ? startReveal() : nextBeat()),
       hoverBg: C.green,
       size: 17,
+    });
+  }
+
+  /* -------------------------------------------------------------- story beat */
+  function drawStory() {
+    const st = G.st;
+    const sb = st.storyBeat;
+    if (!sb) return nextBeat();
+    const arc = SG.ARCS.find((a) => a.id === sb.arcId);
+    const beat = arc.beats[sb.beat];
+    const text = SG.beatText(st, sb.arcId, sb.beat);
+    bg();
+
+    // breaking-news slab
+    const px = 190;
+    const pw = W - px * 2;
+    const faceId0 = arc.id === 'star' ? SG.idleLeader(st) || st.leaders.P[0] : null;
+    // measure the prose first so the card hugs its content
+    const probeW = faceId0 ? pw - 190 : pw - 60;
+    const nLines = Math.min(4, Math.ceil(d.measure(g, text, 19, 700) / probeW));
+    const oy = Math.max(300, 176 + nLines * 26 + 34);
+    const slabH = oy - 96 + beat.opts.length * 74 + 18;
+    d.fillRR(g, px, 96, pw, slabH, 12, 'rgba(12,18,38,.97)');
+    d.strokeRR(g, px, 96, pw, slabH, 12, C.red, 2);
+    d.fillRR(g, px, 96, pw, 40, 12, 'rgba(200,40,34,.92)');
+    const blink = Math.sin(G.t * 6) > 0;
+    d.text(g, (blink ? '● ' : '  ') + 'BREAKING  ·  ' + arc.name, px + 16, 116, {
+      size: 14,
+      align: 'left',
+      fill: '#fff',
+    });
+    d.text(g, `CHAPTER ${sb.beat + 1} OF ${arc.beats.length}`, px + pw - 16, 116, {
+      size: 12,
+      align: 'right',
+      fill: 'rgba(255,255,255,.8)',
+    });
+
+    // a face reacting, if the arc is about one of yours
+    const faceId = faceId0;
+    if (faceId) {
+      SG.face(g, px + 78, 214, 0.66, faceId, { mood: 'flat' });
+      d.text(g, SG.leaderById(faceId).nick, px + 78, 292, { size: 11, fill: C.dim });
+    }
+    const tx = faceId ? px + 160 : px + 30;
+    const tw = faceId ? pw - 190 : pw - 60;
+    wrapClipRet(g, text, tx, 176, tw, 19, 26, C.text, 4);
+
+    beat.opts.forEach((o, i) => {
+      const y = oy + i * 74;
+      const over = UI.hit(px + 24, y, pw - 48, 64, () => {
+        const res = SG.resolveStoryBeat(st, i);
+        toast(res.opt.note, C.gold);
+        MM.audio.sfx('coin');
+        nextBeat();
+      });
+      d.fillRR(g, px + 24, y, pw - 48, 64, 10, over ? 'rgba(255,153,51,.3)' : 'rgba(255,255,255,.07)');
+      d.strokeRR(g, px + 24, y, pw - 48, 64, 10, over ? '#fff' : C.line, 1.5);
+      d.text(g, `${i + 1}.  ${o.t}`, px + 44, y + 25, { size: 16, align: 'left', fill: C.text });
+      d.text(g, effectText(o.fx), px + 44, y + 47, { size: 12, weight: 700, align: 'left', fill: C.gold });
+    });
+    d.text(g, 'This choice is remembered. Later chapters will refer to it.', W / 2, 96 + slabH + 26, {
+      size: 13,
+      fill: C.dim2,
     });
   }
 
@@ -522,7 +668,7 @@
         const chosen = SG.resolveDilemma(st, i);
         toast(chosen.note, C.gold);
         MM.audio.sfx('coin');
-        G.screen = 'play';
+        nextBeat();
       });
       d.fillRR(g, W / 2 - 400, y, 800, 62, 10, over ? 'rgba(255,153,51,.3)' : 'rgba(255,255,255,.07)');
       d.strokeRR(g, W / 2 - 400, y, 800, 62, 10, over ? '#fff' : C.line, 1.5);
@@ -824,6 +970,38 @@
     });
   }
 
+  function wrapClipRet(g2, text, x, y, maxw, size, lh, col, maxLines) {
+    const words = String(text).split(' ');
+    const lines = [];
+    let line = '';
+    words.forEach((w) => {
+      const test = line ? line + ' ' + w : w;
+      if (d.measure(g2, test, size, 700) > maxw && line) {
+        lines.push(line);
+        line = w;
+      } else line = test;
+    });
+    if (line) lines.push(line);
+    const shown = lines.slice(0, maxLines || 99);
+    shown.forEach((l, i) => d.text(g2, l, x, y + i * lh, { size, weight: 700, align: 'left', fill: col }));
+    return y + shown.length * lh;
+  }
+
+  function wrapCentreClip(g2, text, cx, y, maxw, size, lh, col, maxLines) {
+    const words = String(text).split(' ');
+    const lines = [];
+    let line = '';
+    words.forEach((w) => {
+      const test = line ? line + ' ' + w : w;
+      if (d.measure(g2, test, size, 900) > maxw && line) {
+        lines.push(line);
+        line = w;
+      } else line = test;
+    });
+    if (line) lines.push(line);
+    lines.slice(0, maxLines || 99).forEach((l, i) => d.text(g2, l, cx, y + i * lh, { size, fill: col }));
+  }
+
   function wrapCentre(g2, text, cx, y, maxw, size, lh, col) {
     const words = String(text).split(' ');
     const lines = [];
@@ -842,7 +1020,22 @@
 
   /* --------------------------------------------------------------- main loop */
   let last = performance.now();
+  let crashes = 0;
   function frame(now) {
+    try {
+      drawFrame(now);
+    } catch (e) {
+      // A thrown draw must never kill requestAnimationFrame and freeze the board.
+      if (crashes++ < 3) console.error('render error', e);
+      G.sel = null;
+      G.previewKey = '';
+      G.previews = null;
+    }
+    MM.input.endFrame();
+    requestAnimationFrame(frame);
+  }
+
+  function drawFrame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     G.t += dt;
@@ -858,6 +1051,7 @@
       case 'draft': drawDraft(); break;
       case 'planks': drawPlanks(); break;
       case 'play': drawPlay(); break;
+      case 'story': drawStory(); break;
       case 'dilemma': drawDilemma(); break;
       case 'resolve': drawResolve(); break;
       case 'election': drawElection(); break;
@@ -881,8 +1075,6 @@
       }
     }
     UI.tooltip(g);
-    MM.input.endFrame();
-    requestAnimationFrame(frame);
   }
 
   // keyboard: numbers pick dilemma options, Esc backs out

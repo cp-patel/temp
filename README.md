@@ -67,6 +67,25 @@ points a week for ten weeks. That's 40 decisions to win 272 of 543 seats.
    panel shows a **projected seat change** for each move before you commit.
 5. **WHEN TO CASH OUT** — buzz evaporates. Bank it with GROUND PUSH or BOOTH MANAGEMENT.
 
+## 📖 The storyline
+
+Story arcs are **multi-week chains that trigger off your campaign's actual condition**,
+not a fixed script — the CK2 trick of letting scripted chapters dovetail with emergent
+state, so the story is about *your* campaign.
+
+| Arc | Fires when | What it does |
+| --- | --- | --- |
+| **THE TAPE** | your HEAT crosses 4.5 | a clip of your war room leaks. Deny it, blame a volunteer, or release the *full* tape yourself — and chapters 2 and 3 read back your choice |
+| **THE MIDNIGHT PHONE CALL** | you drafted Palti Ji, or credibility slips | a rival MP wants in at 11:40 PM. Take him, demand he resign first, or quietly record the call |
+| **THE BENCHED STAR** | **a leader you drafted has never been used** | the game notices your habits: your ignored campaigner starts giving interviews about "internal democracy" |
+| **THE MERGER** | the mahagathbandhan forms | frames the rubber-band mechanic as a story beat and hands you three ways to fight it |
+| **THE LONG MARCH** | you ran a FARMERS or JOBS manifesto | forty thousand people walk on the capital with a list of demands |
+
+Choices set flags that later chapters read, so the same arc plays differently across
+campaigns. Weeks now resolve into a **newspaper front page** — masthead, a headline
+chosen from what actually happened, your seat swing, what every rival did, and a
+"THEY SAID IT" jab from the rival front that's doing best.
+
 ## 🎬 Things that happen to you
 
 * **INTEL** leaks the rivals' moves **one week early** — so blocking and counter-punching
@@ -109,8 +128,10 @@ Tuning this surfaced four real design bugs, all fixed:
 * **a single dominant passive** — Mitron Ji's buzz multiplier was worth 2.5× any other
   leader, so his power moved into his *action*, where it costs AP.
 
-The UI is verified separately by a Playwright run that plays through **real canvas
-clicks** — menu → draft → manifesto → select region → queue moves (AP 4→2) → end week
+Two more Playwright suites guard the front end. `tools/screens-test.js` asserts **every
+screen renders a working exit control** — it caught a rewrite that silently dropped the
+CONTINUE button and left the week report a dead end. And a click-driven playthrough plays
+through **real canvas clicks** — menu → draft → manifesto → select region → queue moves (AP 4→2) → end week
 → resolve → next week, with zero console errors.
 
 ## 🏗 Layout
@@ -119,6 +140,7 @@ clicks** — menu → draft → manifesto → select region → queue moves (AP 
 index.html            the strategy game
 arcade.html           MITRON MAYHEM, the 14-microgame reflex mode
 tools/balance.js      headless balance harness (node tools/balance.js 250)
+tools/screens-test.js dead-end screen guard (node tools/screens-test.js)
 
 src/util.js           canvas primitives, palette, maths     ┐ shared engine,
 src/audio.js          WebAudio synth: tabla, drone, plucks  │ borrowed by both

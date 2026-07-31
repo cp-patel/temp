@@ -160,7 +160,44 @@ than a good one, comparing two different casts. The correct experiment is a cont
 swap: replace one leader with a **higher**-solo-value leader that clashes with a
 team-mate, and check the team gets worse. It does, by 20 seats.
 
-## 8. Tone and safety rails
+## 8. The storyline layer
+
+Research into emergent narrative in strategy games
+([GDC: Emergent Stories in Crusader Kings II](https://gdcvault.com/play/1020774/Emergent-Stories-in-Crusader-Kings),
+[Kill Screen on CK2's event chains](https://killscreen.com/previously/articles/fascinating-story-ai-behind-crusader-kings-2s-dark-chain-events/),
+[PCGamesN on CK2](https://www.pcgamesn.com/crusader-kings-ii/how-crusader-kings-2-caught-paradox-by-surprise))
+points at one mechanism: **scripted chapters dovetailing with emergent state**. Players
+supply the meaning; the designer supplies chapters that happen to fit. A fixed linear
+story would fight the strategy layer instead of feeding it.
+
+So arcs here are *conditional*, not sequential:
+
+* `trigger(st)` reads live state — heat, credibility, drafted cast, whether the alliance
+  formed, which planks you ran. THE TAPE only exists if you played dirty.
+* **THE BENCHED STAR reads `st.usage`** — a tally of which of your leaders you've actually
+  given assignments to. Ignore a campaigner for three weeks and the story notices. That
+  is the dovetail: a scripted chapter about *your* specific neglect.
+* Choices set flags (`st.arcFlags`), and later beats are functions of those flags, so
+  chapter 3 of THE TAPE is a vindication or an inquiry depending on chapter 1.
+* One beat fires per week and running arcs get priority, so chains always finish.
+
+Presentation carries the tone: weeks resolve into a **newspaper front page** whose
+headline is selected from what actually happened that week, and story beats arrive as
+**breaking-news slabs** sized to their own prose.
+
+### Two bugs this layer produced, both caught by tests
+
+1. **A dead-end screen.** Rewriting the week report as a newspaper silently dropped its
+   CONTINUE button — the game rendered perfectly and became unplayable. This is now a
+   permanent guard: `tools/screens-test.js` walks all eleven screens and asserts each
+   registers at least one clickable target.
+2. **A crash that froze the board.** `cloneLite` (used by the per-action seat previews)
+   didn't copy the new `usage` map, so selecting a region threw *inside the render loop*,
+   which killed `requestAnimationFrame` — one exception, permanent freeze. Fixed at the
+   source, and the loop now catches draw errors and always re-arms, because no single bad
+   frame should ever be able to end the session.
+
+## 9. Tone and safety rails
 
 * Characters are **nicknamed archetypes** (MITRON JI, MUFFLER MAN, SHABDKOSH SIR), not
   named individuals — recognisable as satire, while never putting invented words in a
@@ -173,15 +210,18 @@ team-mate, and check the team gets worse. It does, by 20 seats.
   any allegation about a real person.
 * A plain-language disclaimer sits on the title screen and in the README.
 
-## 9. Extending it
+## 10. Extending it
 
 * **A leader** → one entry in `SG.LEADERS` (passive key + action) + a case in
   `applyAction` + a face config in `faces.js`.
 * **A region** → one entry in `SG.REGIONS` with hand-placed board coordinates.
 * **A dilemma** → one entry in `SG.DILEMMAS`; effect keys are interpreted by
-  `resolveDilemma` and auto-described in the UI by `effectText`.
+  `SG.applyFx` and auto-described in the UI by `effectText`.
+* **A story arc** → one entry in `SG.ARCS`: a `trigger(st)` predicate plus beats, each
+  with `q` (string or `(st, flags) => string`), options, optional `flag`, and the same
+  `fx` vocabulary as dilemmas.
 
-After any change, run `node tools/balance.js 250` — it will tell you if you broke the
+After any change, run `node tools/balance.js 250` and `node tools/screens-test.js` — it will tell you if you broke the
 skill gap, made a manifesto dominant, or killed a draft.
 
 ---
