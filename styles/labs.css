@@ -1508,3 +1508,13 @@ input[type="range"]::-moz-range-thumb {
 .vfit__verdict b {
   color: var(--ink);
 }
+
+/* The row the chart is currently emphasising. Marked with weight and a rule, not
+   with colour alone — the table view exists precisely for readers who cannot use
+   the chart's hue channel. */
+.ccurve__table tr.is-focus td {
+  color: var(--ink);
+  font-weight: 640;
+  background: var(--surface-3);
+  box-shadow: inset 2px 0 0 var(--accent);
+}

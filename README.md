@@ -132,7 +132,7 @@ js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
 tests/unit/                 78 assertions — util, store, plan engine
-tests/e2e/                  95 checks in real Chromium, incl. a full first-visitor walkthrough
+tests/e2e/                  96 checks in real Chromium, incl. a full first-visitor walkthrough
                             and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```

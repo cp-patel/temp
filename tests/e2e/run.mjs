@@ -209,6 +209,26 @@ async function main() {
   const xpAfterUse = await page.evaluate(() => window.Store.state().xp);
   check("using labs awards XP", xpAfterUse > 0, `${xpAfterUse} XP`);
 
+  /* Every plotted lab must expose its numbers without hovering. Two of them read
+     values out only on mouseenter, which is nothing at all on a phone and nothing
+     at all to a screen reader — and the table view that fixed it immediately
+     exposed a wrong model in one of the charts, where a series was flat across
+     its whole domain and the bars made that look deliberate. */
+  const hoverOnly = await page.evaluate(() =>
+    [...document.querySelectorAll(".lab")]
+      .filter((lab) => lab.querySelector(".ccurve__plot"))
+      .filter((lab) => {
+        const rows = lab.querySelectorAll("table tbody tr").length;
+        return rows < 3;
+      })
+      .map((lab) => (lab.querySelector(".lab__t") || lab).innerText.split("\n")[0])
+  );
+  check(
+    "every plotted lab reads its values out without hover",
+    hoverOnly.length === 0,
+    hoverOnly.join("; ")
+  );
+
   /* ---------------- quiz, completion, persistence ---------------- */
   section("progress");
   await go("#/chapter/role");

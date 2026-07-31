@@ -3480,9 +3480,12 @@
       var tableBtn = el("button", "btn btn--outline btn--sm");
       tableBtn.type = "button";
       tableBtn.style.marginTop = "var(--s-3)";
+      /* Open by default. Hidden-by-default is one click away from the problem the
+         table exists to solve — on a phone, hover gives you nothing, so a reader
+         who does not find the button has no way to read a value at all. Still
+         collapsible, for anyone who wants the chart on its own. */
       var table = el("div", "ccurve__table");
-      table.hidden = true;
-      var showTable = false;
+      var showTable = true;
       tableBtn.onclick = function () {
         showTable = !showTable;
         table.hidden = !showTable;
@@ -3491,7 +3494,7 @@
           : "Show the numbers";
         update();
       };
-      tableBtn.innerHTML = "Show the numbers";
+      tableBtn.innerHTML = "Hide the numbers";
       right.appendChild(chart);
       right.appendChild(tableBtn);
       right.appendChild(table);
@@ -3693,33 +3696,58 @@
         "</div>" +
         '<div class="ccurve__plot ccurve__plot--emphasis" data-plot></div>' +
         '<div class="ccurve__xlab">1 agent → 8 agents</div>';
+      /* Verdict sits with the controls, not the chart: it is a judgement about the
+         settings you just dragged, and putting it there also keeps the two columns
+         near the same height once the table below is counted. */
       var verdict = el("div");
       verdict.style.marginTop = "var(--s-4)";
+      left.appendChild(verdict);
       right.appendChild(chart);
-      right.appendChild(verdict);
+
+      /* The chart's values were reachable only by hovering, which fails on touch
+         and on a screen reader. The table also shows both topologies at once —
+         the comparison the shape toggle otherwise makes you flip back and forth
+         to see, which is the actual point of the lab. */
+      var ctbl = el("div", "ccurve__table");
+      ctbl.style.marginTop = "var(--s-4)";
+      right.appendChild(ctbl);
 
       grid.appendChild(left);
       grid.appendChild(right);
       root.appendChild(grid);
       root.appendChild(
         foot(
-          "A <b>sequential chain</b> multiplies: every agent must succeed, so reliability " +
-            "is <code>r^n</code>. An <b>orchestrator</b> with isolated workers only needs the " +
-            "lead and one worker to succeed for a given subtask, so it degrades far more " +
-            "slowly — which is why it is the topology that survives production. Try 95% " +
-            "across five agents in a chain: individually excellent, collectively a coin " +
-            "flip you would not ship."
+          "A <b>sequential chain</b> multiplies: every agent must succeed and a failure " +
+            "corrupts everything downstream, so reliability is <code>r^n</code> with nothing " +
+            "to arrest it. An <b>orchestrator</b> degrades far more slowly for one reason — " +
+            "a worker's failure is <b>isolated, so it is detectable and retryable</b>, which " +
+            "turns that worker's failure rate from <code>(1−r)</code> into <code>(1−r)²</code>. " +
+            "That is the entire argument for the topology — and it cuts both ways: an " +
+            "orchestrator without per-subtask validation buys you nothing, and bolting " +
+            "retries onto a chain buys you nothing either, because a corrupted handoff " +
+            "does not announce itself as a failure to retry. Try 95% across five agents in " +
+            "a chain: individually excellent, collectively a coin flip you would not ship. " +
+            "Then drop reliability to 80% and compare the two topologies at eight agents."
         )
       );
 
-      /* Chain: every step must succeed. Orchestrator: the lead must succeed and
-         each worker's failure costs only its own subtask, so the expected share
-         of completed work degrades linearly rather than geometrically. */
-      function successAt(count) {
+      /* Both series are the probability of a fully correct run, so they belong on
+         one scale. The difference between them is retryability, and that is the
+         whole mechanism: a chain's failure corrupts everything downstream, so it
+         multiplies unchecked. An orchestrator's worker failure is isolated, so it
+         is detectable and can be retried once — which turns that worker's failure
+         rate from (1−r) into (1−r)², a much slower decay.
+
+         The earlier version plotted expected *share of completed work* for the
+         orchestrator against *probability of success* for the chain. Two different
+         measures on one axis is the dual-axis mistake wearing a disguise, and it
+         showed up as a suspiciously flat line the moment the table view existed. */
+      function successAt(count, which) {
         var r = per / 100;
-        if (shape === "chain") return Math.pow(r, count);
+        if ((which || shape) === "chain") return Math.pow(r, count);
         if (count <= 1) return r;
-        return r * (1 - (1 - r) / 2);
+        var worker = 1 - Math.pow(1 - r, 2); // one retry, because it is isolated
+        return r * Math.pow(worker, count - 1);
       }
 
       function update() {
@@ -3785,6 +3813,25 @@
           "</div>" +
           esc(msg) +
           "</div>";
+
+        var rows = "";
+        for (var k = 1; k <= 8; k++) {
+          rows +=
+            "<tr" +
+            (k === n ? ' class="is-focus"' : "") +
+            "><td>" +
+            k +
+            "</td><td>" +
+            Math.round(successAt(k, "chain") * 100) +
+            "%</td><td>" +
+            Math.round(successAt(k, "orch") * 100) +
+            "%</td></tr>";
+        }
+        ctbl.innerHTML =
+          "<table><thead><tr><th>Agents</th><th>Chain</th>" +
+          "<th>Orchestrator</th></tr></thead><tbody>" +
+          rows +
+          "</tbody></table>";
 
         L.touched("compounding");
       }
@@ -3863,6 +3910,13 @@
         '<div class="ccurve__plot ccurve__plot--signed" data-plot></div>' +
         '<div class="ccurve__xlab">month 1 → month 12 · the baseline is break-even</div>';
       right.appendChild(chart);
+
+      /* Table twin: hover was the only way to read a month's position, which is
+         no way at all on a phone — and the crossing month is the one number the
+         whole lab exists to produce. */
+      var btbl = el("div", "ccurve__table");
+      btbl.style.marginTop = "var(--s-4)";
+      right.appendChild(btbl);
 
       grid.appendChild(left);
       grid.appendChild(right);
@@ -3961,6 +4015,30 @@
           })(i, v);
           plot.appendChild(cell);
         });
+
+        var trs = rows
+          .map(function (v, i) {
+            var crossed = v >= 0 && (i === 0 || rows[i - 1] < 0);
+            return (
+              "<tr" +
+              (crossed ? ' class="is-focus"' : "") +
+              "><td>" +
+              (i + 1) +
+              "</td><td>" +
+              (v >= 0 ? "+" : "−") +
+              "$" +
+              U.commas(Math.abs(Math.round(v))) +
+              "</td><td>" +
+              (crossed ? "breaks even" : v >= 0 ? "ahead" : "paying it off") +
+              "</td></tr>"
+            );
+          })
+          .join("");
+        btbl.innerHTML =
+          "<table><thead><tr><th>Month</th><th>Cumulative</th>" +
+          "<th>Position</th></tr></thead><tbody>" +
+          trs +
+          "</tbody></table>";
 
         L.touched("breakeven");
       }
