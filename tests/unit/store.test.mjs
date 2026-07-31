@@ -96,6 +96,52 @@ describe("damaged stored state", () => {
     assert.equal(typeof Store.state().xp, "number");
   });
 
+  test("reports whether this browser can keep anything", () => {
+    /* Private browsing, blocked site data and a full quota all make writes fail.
+       The app degrades to in-memory perfectly well, which is the problem: a
+       learner loses a session's work at the moment the tab closes, having been
+       told progress is saved locally. */
+    const util = loadModule("js/core/util.js");
+
+    const working = loadModule("js/core/store.js", {
+      U: util.U,
+      localStorage: makeMemoryStorage(),
+    }).Store;
+    assert.equal(working.persists(), true);
+
+    const throwing = loadModule("js/core/store.js", {
+      U: util.U,
+      localStorage: {
+        getItem() {
+          throw new Error("blocked");
+        },
+        setItem() {
+          throw new Error("blocked");
+        },
+        removeItem() {
+          throw new Error("blocked");
+        },
+      },
+    }).Store;
+    assert.equal(throwing.persists(), false);
+    // …and still works in memory for the length of the session.
+    throwing.complete("role", true);
+    assert.equal(throwing.isDone("role"), true);
+    assert.equal(throwing.state().xp, throwing.XP.chapter);
+
+    /* A browser that accepts the write and silently discards it is the case a
+       bare try/catch calls a success, which is why the probe reads back. */
+    const lying = loadModule("js/core/store.js", {
+      U: util.U,
+      localStorage: {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+      },
+    }).Store;
+    assert.equal(lying.persists(), false);
+  });
+
   test("import still rejects a payload that is not an object", () => {
     const { Store } = freshStore();
     for (const bad of ['"hi"', "[1,2]", "null", "7"]) {

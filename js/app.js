@@ -929,6 +929,21 @@
 
     render();
 
+    /* Say it once if nothing can be saved. The app works fine in memory, and that
+       is exactly why this needs saying: the failure is invisible until the tab
+       closes and a session's work goes with it. Worth interrupting for, because
+       the mitigation — export from Settings — has to happen before the loss. */
+    if (!Store.persists()) {
+      setTimeout(function () {
+        Toast.show(
+          "Progress won't be saved",
+          "This browser is blocking local storage. Export from Settings to keep it.",
+          "warn",
+          "alert"
+        );
+      }, 900);
+    }
+
     // First visit: offer to personalise. Never blocks — the whole roadmap is
     // usable without a profile, and the prompt is skippable and re-openable
     // from Settings or the My Plan page.

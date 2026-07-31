@@ -117,11 +117,34 @@
     return saneState(out);
   }
 
+  /* Can this browser actually keep anything? Private browsing, blocked site data
+     and a full quota all make writes fail, and the app degrades to in-memory
+     perfectly well — which is the problem. A learner who completes six chapters
+     and closes the tab loses all of it, having been told by the README that
+     progress is stored locally. Write a sentinel and read it back: a browser that
+     accepts setItem and silently discards it fails this too, which a bare
+     try/catch would call a success. */
+  var persistsProbe = null;
+
+  function persists() {
+    if (persistsProbe !== null) return persistsProbe;
+    try {
+      var probe = KEY + ".probe";
+      localStorage.setItem(probe, "1");
+      persistsProbe = localStorage.getItem(probe) === "1";
+      localStorage.removeItem(probe);
+    } catch (e) {
+      persistsProbe = false;
+    }
+    return persistsProbe;
+  }
+
   function save() {
     try {
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch (e) {
       /* storage full or blocked — degrade to in-memory only */
+      persistsProbe = false;
     }
     listeners.forEach(function (fn) {
       fn(state);
@@ -465,6 +488,9 @@
     state.started = U.today();
     save();
   };
+
+  /* Exposed so the shell can say so once, and Settings can say so permanently. */
+  S.persists = persists;
 
   S.export = function () {
     return JSON.stringify(state, null, 2);

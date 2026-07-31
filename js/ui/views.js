@@ -2188,7 +2188,12 @@
     var expRow = el("div", "setrow");
     expRow.innerHTML =
       '<div><div class="setrow__t">Export progress</div>' +
-      '<div class="setrow__d">Download a JSON snapshot — useful for moving to another browser.</div></div>';
+      '<div class="setrow__d">' +
+      (Store.persists()
+        ? "Download a JSON snapshot — useful for moving to another browser."
+        : "<b>This browser is blocking local storage</b>, so nothing here survives " +
+          "closing the tab. Export is the only way to keep this session's work.") +
+      "</div></div>";
     var expBtn = el("button", "btn btn--outline btn--sm");
     expBtn.innerHTML = Icons.get("down", 14) + " Export";
     expBtn.onclick = function () {

@@ -666,6 +666,11 @@ body.is-landing .topbar {
   color: var(--emerald);
 }
 
+.toast--warn .toast__icon {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
 .toast--xp .toast__icon {
   background: var(--amber-soft);
   color: var(--amber);

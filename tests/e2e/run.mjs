@@ -1453,6 +1453,90 @@ async function main() {
     await dctx.close();
   }
 
+  /* Storage that refuses to work at all — private browsing, blocked site data, a
+     full quota. The app degrades to in-memory cleanly, which is exactly why it
+     has to say so: the failure is invisible until the tab closes and takes the
+     session with it. */
+  {
+    const nctx = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      colorScheme: "dark",
+    });
+    await nctx.addInitScript(() => {
+      Object.defineProperty(window, "localStorage", {
+        configurable: true,
+        get() {
+          throw new DOMException("The operation is insecure.", "SecurityError");
+        },
+      });
+    });
+    const np = await nctx.newPage();
+    const nErrors = [];
+    np.on("pageerror", (e) => nErrors.push(e.message));
+    np.on("console", (m) => {
+      if (m.type() === "error") nErrors.push(m.text());
+    });
+    await np.goto(BASE + "#/dashboard", { waitUntil: "networkidle" });
+    await np.waitForTimeout(1400);
+
+    const warned = await np.evaluate(() =>
+      [...document.querySelectorAll(".toast")].some((t) =>
+        /won't be saved/i.test(t.innerText)
+      )
+    );
+    check("a browser that cannot persist is told so", warned);
+
+    let renders = 0;
+    for (const r of [
+      "#/plan",
+      "#/roadmap",
+      "#/review",
+      "#/labs",
+      "#/projects",
+    ]) {
+      await np.goto(BASE + r, { waitUntil: "networkidle" });
+      await np.waitForTimeout(150);
+      if (await np.evaluate(() => document.body.innerText.length > 200))
+        renders++;
+    }
+    await np.goto(BASE + "#/settings", { waitUntil: "networkidle" });
+    await np.waitForTimeout(300);
+    const exportCopy = await np.evaluate(() => {
+      const r = [...document.querySelectorAll(".setrow")].find((x) =>
+        /Export progress/.test(x.innerText)
+      );
+      return r ? r.innerText : "";
+    });
+    check(
+      "settings explains that export is the only way to keep it",
+      /blocking local storage/i.test(exportCopy),
+      exportCopy.slice(0, 60)
+    );
+
+    await np.goto(BASE + "#/chapter/role", { waitUntil: "networkidle" });
+    await np.evaluate(() => Store.skipOnboarding());
+    await np.evaluate(() => {
+      const m = document.querySelector(".modal");
+      if (m) m.remove();
+    });
+    await np.waitForTimeout(250);
+    await np.locator(".chdone .btn").click();
+    await np.waitForTimeout(250);
+    const inMemory = await np.evaluate(() => ({
+      done: Store.isDone("role"),
+      xp: Store.state().xp,
+    }));
+    check(
+      "and it still works for the length of the session",
+      renders === 5 &&
+        inMemory.done &&
+        inMemory.xp >= 50 &&
+        nErrors.length === 0,
+      `renders=${renders} ${JSON.stringify(inMemory)} ${nErrors.slice(0, 1)}`
+    );
+    await nctx.close();
+  }
+
   /* ---------------- the first visitor's whole path ---------------- */
   /* Everything above drives the app with state pre-seeded from JS, because that
      is how you test a screen. Nobody arrives that way. This walks the actual
