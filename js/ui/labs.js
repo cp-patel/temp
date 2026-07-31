@@ -3756,11 +3756,35 @@
             "That is the entire argument for the topology — and it cuts both ways: an " +
             "orchestrator without per-subtask validation buys you nothing, and bolting " +
             "retries onto a chain buys you nothing either, because a corrupted handoff " +
-            "does not announce itself as a failure to retry. Try 95% across five agents in " +
-            "a chain: individually excellent, collectively a coin flip you would not ship. " +
-            "Then drop reliability to 80% and compare the two topologies at eight agents."
+            "does not announce itself as a failure to retry. Try <b>95% across five " +
+            "agents</b> in a chain: individually excellent, and already <b>one run in " +
+            cited(95, 5) +
+            "</b> fails. Then drop reliability to <b>80% at eight agents</b> and compare " +
+            "the two topologies — " +
+            citedPct(80, 8, "chain") +
+            "% against " +
+            citedPct(80, 8, "orch") +
+            "%."
         )
       );
+
+      /* The footer cites specific settings, so it computes them from the same model
+         the chart uses rather than stating them. The previous version called 95%
+         across five agents "a coin flip"; it is 77%, and the lab's own readout
+         said "1 in 4" three inches away. A claim a reader can check against the
+         widget beside it has to be derived, not written. */
+      function at(count, r, which) {
+        var q = r / 100;
+        if (which === "chain") return Math.pow(q, count);
+        if (count <= 1) return q;
+        return q * Math.pow(1 - Math.pow(1 - q, 2), count - 1);
+      }
+      function cited(r, count) {
+        return String(Math.round(1 / (1 - at(count, r, "chain"))));
+      }
+      function citedPct(r, count, which) {
+        return String(Math.round(at(count, r, which) * 100));
+      }
 
       /* Both series are the probability of a fully correct run, so they belong on
          one scale. The difference between them is retryability, and that is the
@@ -3787,9 +3811,17 @@
 
         var end = successAt(n);
         mm.set("end", Math.round(end * 100) + "<small>%</small>");
+        /* "1 in N" is how people talk about rare failure and it stops meaning
+           anything once failure is the common case: at 80% across eight agents
+           the rate is 83%, and 1/(1-0.17) rounds to 1, so the tile read "1 in 1
+           runs fail" while the one beside it said 17% succeed. Past a coin flip,
+           state the percentage instead. */
+        var failRate = 1 - end;
         mm.set(
           "fail",
-          "1 in " + Math.max(1, Math.round(1 / Math.max(1e-6, 1 - end)))
+          failRate >= 0.5
+            ? Math.round(failRate * 100) + "<small>%</small>"
+            : "1 in " + Math.max(2, Math.round(1 / Math.max(1e-6, failRate)))
         );
         mm.set("naive", per + "<small>%</small>");
 

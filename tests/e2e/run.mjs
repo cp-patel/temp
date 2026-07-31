@@ -225,6 +225,54 @@ async function main() {
         (lab) => (lab.querySelector(".lab__t") || lab).innerText.split("\n")[0]
       )
   );
+  /* A lab footer that cites settings is a claim the reader can check against the
+     widget three inches away, so it has to be derived rather than written. The
+     compounding lab called 95% across five agents "a coin flip" while its own tile
+     said "1 in 4" — 77%. This drives the lab to the settings its footer names and
+     compares the two. */
+  const footClaim = await page.evaluate(() => {
+    const lab = [...document.querySelectorAll(".lab")].find((l) =>
+      /chains of agents/i.test(l.innerText)
+    );
+    if (!lab) return null;
+    const sliders = [...lab.querySelectorAll('input[type="range"]')];
+    sliders[0].value = 80;
+    sliders[0].dispatchEvent(new Event("input", { bubbles: true }));
+    sliders[1].value = 8;
+    sliders[1].dispatchEvent(new Event("input", { bubbles: true }));
+    const foot = lab.querySelector(".lab__foot").innerText;
+    const row = [...lab.querySelectorAll(".ccurve__table tbody tr")][7];
+    const cells = row
+      ? [...row.querySelectorAll("td")].map((t) => t.innerText)
+      : [];
+    return { foot, chain: cells[1], orch: cells[2] };
+  });
+  await page.waitForTimeout(200);
+  check(
+    "a lab footer's cited numbers match the lab",
+    !!footClaim &&
+      footClaim.foot.includes(footClaim.chain) &&
+      footClaim.foot.includes(footClaim.orch),
+    footClaim
+      ? `footer cites ${footClaim.chain}/${footClaim.orch}?`
+      : "lab not found"
+  );
+
+  /* "1 in N" stops meaning anything once failure is the common case: at 80%
+     across eight agents the tile read "1 in 1 runs fail" beside "17% succeed". */
+  const failTile = await page.evaluate(() => {
+    const lab = [...document.querySelectorAll(".lab")].find((l) =>
+      /chains of agents/i.test(l.innerText)
+    );
+    const tiles = [...lab.querySelectorAll(".metric")].map((m) => m.innerText);
+    return tiles.join(" | ");
+  });
+  check(
+    "the failure tile stays meaningful past a coin flip",
+    !/1 in 1/.test(failTile),
+    failTile
+  );
+
   check(
     "every plotted lab reads its values out without hover",
     hoverOnly.length === 0,
