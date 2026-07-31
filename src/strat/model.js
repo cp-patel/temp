@@ -666,6 +666,16 @@
       st.dilemma = st.rng() < 0.75 ? SG.DILEMMAS[Math.floor(st.rng() * SG.DILEMMAS.length)] : null;
     }
 
+    // diary: one line of history per week, small and serialisable
+    st.history = st.history || [];
+    st.history.push({
+      week: report.week,
+      delta: report.delta,
+      headline: report.headline,
+      seats: report.seatsAfter.P,
+      event: report.events.length ? report.events[0].t : null,
+    });
+
     st.weekReport = report;
     return report;
   };
@@ -802,6 +812,9 @@
       seatTax: st.seatTax,
       cooldown: { ...st.cooldown },
       usage: { ...(st.usage || {}) },
+      intel: (st.intel || []).map((i) => ({ ...i })),
+      ap: st.ap,
+      apMax: st.apMax,
       alliance: st.alliance,
       allianceBroken: st.allianceBroken,
       queue: st.queue.map((q) => ({ ...q })),
@@ -822,6 +835,21 @@
       };
     });
     return c;
+  };
+
+  /* -------------------------------------------------------------- persistence
+     Everything in the state is plain data except the rng closure. On restore we
+     re-seed from (seed, week) — future randomness differs from the unsaved
+     timeline, which is fine: replay determinism is not a feature, resuming is. */
+  SG.serialize = function (st) {
+    return JSON.stringify(st, (k, v) => (k === 'rng' || k === 'weekReport' ? undefined : v));
+  };
+
+  SG.deserialize = function (json) {
+    const st = JSON.parse(json);
+    st.rng = mulberry32(((st.seed | 0) + st.week * 7919) | 0);
+    st.weekReport = null;
+    return st;
   };
 
   /* ------------------------------------------------------------------ finish */

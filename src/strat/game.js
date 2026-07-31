@@ -99,14 +99,59 @@
     G.toast = { text, col: col || C.gold, t: 0 };
   }
 
+  /* ---------------------------------------------------------------- autosave
+     A campaign is ~20 minutes; losing it to a closed tab is unforgivable.
+     Saved after every state change, cleared when the campaign ends. */
+  const SAVE_KEY = 'chunav-campaign-v1';
+  let savedCache; // undefined = not probed yet; null = no save; else the parsed state
+  function autosave() {
+    try {
+      // never delete here: the save must survive the reveal + coalition screens,
+      // where st.finished is already true but the result is not yet locked in.
+      // finishUp() clears it once the outcome is final.
+      if (G.st && !G.st.finished) localStorage.setItem(SAVE_KEY, SG.serialize(G.st));
+      savedCache = undefined;
+    } catch (e) {}
+  }
+  function clearSave() {
+    try {
+      localStorage.removeItem(SAVE_KEY);
+    } catch (e) {}
+    savedCache = undefined;
+  }
+  function savedCampaign() {
+    if (savedCache !== undefined) return savedCache;
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      const st = raw ? SG.deserialize(raw) : null;
+      savedCache = st && !st.finished && st.week <= st.maxWeeks ? st : null;
+    } catch (e) {
+      savedCache = null;
+    }
+    return savedCache;
+  }
+  function resumeCampaign() {
+    const st = savedCampaign();
+    if (!st) return toast('No campaign to resume.', C.red);
+    G.st = st;
+    savedCache = undefined; // the cached object is now the live game — reprobe next time
+    G.sel = null;
+    G.previewKey = '';
+    G.advice = null;
+    MM.audio.sfx('conch');
+    nextBeat();
+  }
+
   /* ------------------------------------------------------------------ start */
   function beginCampaign() {
     G.st = SG.newGame({ leaders: G.draft.slice(), planks: G.planks.slice(), difficulty: G.difficulty });
     G.sel = null;
     G.screen = 'play';
     G.log = [];
+    G.advice = null;
     store.data.plays++;
     store.save();
+    autosave();
     MM.audio.sfx('conch');
   }
 
@@ -129,7 +174,10 @@
       d.text(g, L.nick, x, y + 88, { size: 10.5, fill: C.dim });
     });
 
-    const items = [
+    const items = [];
+    const saved = savedCampaign();
+    if (saved) items.push([`▶ RESUME CAMPAIGN (week ${saved.week} of ${saved.maxWeeks})`, resumeCampaign]);
+    items.push(
       ['NEW CAMPAIGN', () => (G.screen = 'draft')],
       ['HOW TO PLAY', () => (G.screen = 'howto')],
       ['ARCADE MODE (the old microgames)', () => (location.href = 'arcade.html')],
@@ -137,13 +185,13 @@
         store.data.muted = !store.data.muted;
         MM.audio.setMuted(store.data.muted);
         store.save();
-      }],
-    ];
+      }]
+    );
     items.forEach((it, i) => {
       const w = 440;
       const x = W / 2 - w / 2;
-      const y = 296 + i * 52;
-      UI.button(g, x, y, w, 42, it[0], { fn: it[1], size: 17 });
+      const y = (saved ? 278 : 296) + i * 50;
+      UI.button(g, x, y, w, 40, it[0], { fn: it[1], size: 16, hoverBg: i === 0 && saved ? C.green : undefined });
     });
 
     d.text(
@@ -351,7 +399,7 @@
       const def = SG.REGIONS.find((z) => z.id === q.regionId);
       d.text(g, `${q.icon || '•'} ${q.name} → ${def.name}`, px + 10, qy, { size: 11.5, align: 'left', fill: C.text });
       const bx = px + pw - 54;
-      if (UI.button(g, bx, qy - 7, 44, 14, 'undo', { fn: () => (SG.unqueue(st, i), (G.previewKey = '')), size: 9.5, r: 4 })) {
+      if (UI.button(g, bx, qy - 7, 44, 14, 'undo', { fn: () => (SG.unqueue(st, i), (G.previewKey = ''), autosave()), size: 9.5, r: 4 })) {
       }
     });
 
@@ -399,6 +447,7 @@
       const over = UI.hit(x + 8, yy, w - 16, 22, chk.ok ? () => {
         SG.queue(st, a, G.sel);
         G.previewKey = '';
+        autosave();
         MM.audio.sfx('coin');
         MM.fx.pop('+' + a.name, UI.mouse.x, UI.mouse.y - 10, { size: 15, c: C.gold });
       } : null, (a.desc || '') + (chk.ok ? '' : '\n⛔ ' + chk.why), !chk.ok);
@@ -423,7 +472,21 @@
   }
 
   function drawIntelPanel(st, x, y, w, h) {
+    if (G.advice) return drawAdvicePanel(st, x, y, w, h);
     UI.panel(g, x, y, w, h, 'YOUR CAMPAIGN');
+    UI.button(g, x + w - 118, y + 4, 112, 22, '💡 ADVISOR', {
+      fn: () => {
+        G.advice = SG.advise(st);
+        if (!G.advice.length) {
+          G.advice = null;
+          toast('The advisor shrugs. Nothing affordable to suggest.', C.red);
+        }
+        MM.audio.sfx('ui');
+      },
+      size: 11,
+      r: 6,
+      tip: 'Ask the war room for this week\'s plan.\nFree — accept any, all, or none of it.',
+    });
     const m = SG.mods(st, 'P');
     st.leaders.P.forEach((id, i) => {
       SG.leaderChip(g, x + 8, y + 36 + i * 46, w - 16, 42, id);
@@ -446,6 +509,89 @@
     d.text(g, 'Block it, out-shout it, or let it land. Your call.', x + w / 2, y + h - 12, { size: 10.5, weight: 700, fill: C.dim2 });
   }
 
+  /* The war room's suggested week: each row queues with one click. */
+  function drawAdvicePanel(st, x, y, w, h) {
+    UI.panel(g, x, y, w, h, '💡 THE WAR ROOM SUGGESTS');
+    UI.button(g, x + w - 62, y + 4, 56, 22, 'close', { fn: () => (G.advice = null), size: 10, r: 6 });
+    d.text(g, 'A plan, not an order. Click a line to queue it.', x + 12, y + 44, {
+      size: 12,
+      align: 'left',
+      fill: C.dim,
+    });
+    G.advice.forEach((a, i) => {
+      const ay = y + 62 + i * 62;
+      const def = SG.REGIONS.find((z) => z.id === a.regionId);
+      const act = SG.actionsFor(st, 'P').find((z) => z.id === a.actionId);
+      const chk = act ? SG.canQueue(st, act, a.regionId) : { ok: false, why: 'unavailable' };
+      const queuedAlready = st.queue.some((q) => q.actionId === a.actionId && q.regionId === a.regionId);
+      const over = UI.hit(x + 8, ay, w - 16, 54, chk.ok && !queuedAlready ? () => {
+        SG.queue(st, act, a.regionId);
+        G.previewKey = '';
+        autosave();
+        MM.audio.sfx('coin');
+      } : null, chk.ok ? null : '⛔ ' + chk.why, !chk.ok || queuedAlready);
+      d.fillRR(g, x + 8, ay, w - 16, 54, 9, queuedAlready ? 'rgba(34,181,115,.18)' : over ? 'rgba(255,153,51,.3)' : 'rgba(255,255,255,.07)');
+      d.strokeRR(g, x + 8, ay, w - 16, 54, 9, queuedAlready ? C.green : over ? '#fff' : C.line, 1.4);
+      d.text(g, (a.icon || '•') + ' ' + a.name + '  →  ' + (def.short || def.name), x + 18, ay + 18, {
+        size: 12.5,
+        align: 'left',
+        fill: queuedAlready ? C.green : C.text,
+      });
+      d.text(g, queuedAlready ? '✔ queued' : 'why: ' + a.reason, x + 18, ay + 38, {
+        size: 11,
+        weight: 700,
+        align: 'left',
+        fill: queuedAlready ? C.green : C.gold,
+      });
+    });
+    d.text(g, 'The advisor plays a solid game. A great one is on you.', x + w / 2, y + h - 12, {
+      size: 10.5,
+      weight: 700,
+      fill: C.dim2,
+    });
+  }
+
+  /* ---------------------------------------------------------- first briefing
+     One-time overlay on a player's very first campaign week. Four lines, one
+     button — not a tutorial maze. */
+  function briefingVisible() {
+    return !store.data.coached && G.screen === 'play' && G.st && G.st.week === 1;
+  }
+
+  function drawBriefing() {
+    g.save();
+    // a full-canvas hit registered FIRST: UI.click scans in reverse, so the
+    // card's own button (registered later) wins, and everything underneath is
+    // swallowed instead of falling through the dim to the play screen.
+    UI.hit(0, 0, W, H, () => {});
+    g.fillStyle = 'rgba(5,8,18,.78)';
+    g.fillRect(0, 0, W, H);
+    const bx = W / 2 - 330;
+    const by = H / 2 - 190;
+    d.fillRR(g, bx, by, 660, 360, 14, 'rgba(14,22,44,.98)');
+    d.strokeRR(g, bx, by, 660, 360, 14, C.gold, 2);
+    d.text(g, 'WEEK 1 — YOUR FIRST BRIEFING', W / 2, by + 34, { size: 20, fill: C.gold });
+    const lines = [
+      ['1.', 'Click a REGION on the map. Green issue tag = your manifesto lands ×1.6 there.'],
+      ['2.', 'Spend your 4 AP. Every action shows its projected SEAT change before you commit.'],
+      ['3.', 'BUZZ ⚡ decays 45% a week — bank it with GROUND PUSH before it evaporates.'],
+      ['4.', 'Stuck? The 💡 ADVISOR button suggests a full week. Accept any of it, or none.'],
+    ];
+    lines.forEach((l, i) => {
+      d.text(g, l[0], bx + 34, by + 84 + i * 52, { size: 16, align: 'left', fill: C.saffron });
+      wrapClipRet(g, l[1], bx + 62, by + 84 + i * 52, 560, 13.5, 18, C.text, 2);
+    });
+    UI.button(g, W / 2 - 110, by + 300, 220, 40, 'CHALO, SHURU KAREIN', {
+      fn: () => {
+        store.data.coached = true;
+        store.save();
+      },
+      hoverBg: C.green,
+      size: 15,
+    });
+    g.restore();
+  }
+
   /* ------------------------------------------------------------- week resolve */
   function endWeek() {
     const st = G.st;
@@ -453,7 +599,9 @@
     G.sel = null;
     G.previewKey = '';
     G.report = rep;
+    G.advice = null;
     G.screen = 'resolve';
+    autosave();
     MM.audio.sfx(rep.delta >= 0 ? 'good' : 'bad');
     if (rep.delta > 6) MM.fx.confetti(40);
   }
@@ -640,6 +788,7 @@
         const res = SG.resolveStoryBeat(st, i);
         toast(res.opt.note, C.gold);
         MM.audio.sfx('coin');
+        autosave();
         nextBeat();
       });
       d.fillRR(g, px + 24, y, pw - 48, 64, 10, over ? 'rgba(255,153,51,.3)' : 'rgba(255,255,255,.07)');
@@ -668,6 +817,7 @@
         const chosen = SG.resolveDilemma(st, i);
         toast(chosen.note, C.gold);
         MM.audio.sfx('coin');
+        autosave();
         nextBeat();
       });
       d.fillRR(g, W / 2 - 400, y, 800, 62, 10, over ? 'rgba(255,153,51,.3)' : 'rgba(255,255,255,.07)');
@@ -793,6 +943,7 @@
 
   function finishUp() {
     const st = G.st;
+    clearSave();
     if (st.result.seats.P > store.data.best) {
       store.data.best = st.result.seats.P;
       st.result.newBest = true;
@@ -876,15 +1027,183 @@
       SG.face(g, x, H - 118, 0.5, id, { mood: r.majority ? 'smile' : 'sad' });
     });
 
-    UI.button(g, W / 2 - 250, H - 56, 230, 42, '↻ NEW CAMPAIGN', {
+    UI.button(g, W / 2 - 345, H - 56, 200, 42, '📖 CAMPAIGN DIARY', { fn: () => (G.screen = 'diary'), size: 13 });
+    UI.button(g, W / 2 - 130, H - 56, 200, 42, '⬇ RESULT CARD', { fn: downloadResultCard, size: 13, tip: 'Download a PNG of this result to share.' });
+    UI.button(g, W / 2 + 85, H - 56, 130, 42, '↻ AGAIN', {
       fn: () => {
         G.draft = [];
         G.planks = [];
         G.screen = 'draft';
       },
       hoverBg: C.green,
+      size: 13,
     });
-    UI.button(g, W / 2 + 20, H - 56, 230, 42, 'MAIN MENU', { fn: () => (G.screen = 'title') });
+    UI.button(g, W / 2 + 228, H - 56, 117, 42, 'MENU', { fn: () => (G.screen = 'title'), size: 13 });
+  }
+
+  /* ------------------------------------------------------------------- diary
+     The run, retold: week-by-week swings plus the arc choices you made. This is
+     where "that campaign where I released the full tape" becomes a story. */
+  const FLAG_STORIES = {
+    'tape.denied': 'You called the tape a deepfake. Nobody believed you, but the buzz survived.',
+    'tape.blamed': 'You blamed a volunteer for the tape. He is famous now. You are not forgiven.',
+    'tape.released': 'You released the FULL tape yourself. Analysts still call it "the gamble".',
+    'tape.faced': 'You took every question on prime time for four hours. Respect was earned.',
+    'tape.shouted': 'Your spokesperson out-shouted three anchors in one week. Ratings soared, dignity sank.',
+    'tape.ignored': 'You let the tape story die of boredom while you campaigned twice as hard.',
+    'defector.took': 'You sent the white Fortuner at midnight. The defector came. So did the headlines.',
+    'defector.principled': 'You told the midnight caller to resign publicly first. He hung up. Your workers grew taller.',
+    'defector.recorded': 'You recorded the midnight call and kept a small, radioactive asset.',
+    'star.appeased': 'You handed your restless star the big rally. Insufferable, and brilliant.',
+    'star.benched': 'You benched your star. He waited. Loudly. Near the opposition.',
+    'star.promoted': 'You put your critic in charge of the manifesto. It became 94 pages long.',
+    'merger.framed': 'When they merged against you, you made "one against many" your battle cry.',
+    'merger.arithmetic': 'You attacked the merger\'s seat-sharing maths until their allies briefed against each other.',
+    'merger.flooded': 'You ignored the merger circus and quietly flooded the swing regions.',
+    'march.met': 'You met the long march at the city\'s edge and sat on the road with them.',
+    'march.committee': 'You sent the march a committee. It will report after the election. Obviously.',
+    'march.conceded': 'You conceded the marchers\' demand outright. The treasury made a small, wounded noise.',
+  };
+
+  function drawDiary() {
+    const st = G.st;
+    bg();
+    UI.panel(g, W / 2 - 470, 40, 940, H - 130, '📖 THE CAMPAIGN DIARY — how it actually went');
+
+    // week strip: a mini bar chart of your projection over time
+    const hist = st.history || [];
+    const cx0 = W / 2 - 430;
+    const cw = 860;
+    const barW = Math.min(64, cw / Math.max(1, hist.length) - 8);
+    // scale bars to the run's own range so week-to-week movement is visible
+    const lo = Math.min(...hist.map((z) => z.seats), SG.MAJORITY) * 0.88;
+    const hi = Math.max(...hist.map((z) => z.seats), SG.MAJORITY) * 1.04;
+    const scale = (v) => 18 + ((v - lo) / Math.max(1, hi - lo)) * 102;
+    hist.forEach((hh, i) => {
+      const x = cx0 + i * (cw / Math.max(1, hist.length)) + 4;
+      const hgt = scale(hh.seats);
+      const col = hh.delta > 0 ? C.green : hh.delta < 0 ? C.red : C.dim2;
+      d.fillRR(g, x, 208 - hgt, barW, hgt, 3, col);
+      d.text(g, 'W' + hh.week, x + barW / 2, 222, { size: 10, fill: C.dim2 });
+      d.text(g, hh.seats + '', x + barW / 2, 208 - hgt - 9, { size: 10, fill: C.dim });
+      UI.hit(x, 208 - hgt, barW, hgt, null, `Week ${hh.week}: ${hh.seats} seats (${hh.delta >= 0 ? '+' : ''}${hh.delta})\n${hh.headline}`);
+    });
+    // majority line
+    const my = 208 - (hist.length ? scale(SG.MAJORITY) : 60);
+    g.strokeStyle = 'rgba(255,255,255,.4)';
+    g.setLineDash([4, 4]);
+    g.beginPath();
+    g.moveTo(cx0, my);
+    g.lineTo(cx0 + cw, my);
+    g.stroke();
+    g.setLineDash([]);
+    d.text(g, 'majority', cx0 + cw - 4, my - 8, { size: 9.5, align: 'right', fill: C.dim2 });
+
+    // best & worst week
+    if (hist.length) {
+      const best = hist.reduce((a, b) => (b.delta > a.delta ? b : a));
+      const worst = hist.reduce((a, b) => (b.delta < a.delta ? b : a));
+      d.text(g, `▲ Best week: W${best.week} (${best.delta >= 0 ? '+' : ''}${best.delta}) — “${best.headline}”`, W / 2 - 430, 254, { size: 13, align: 'left', fill: C.green });
+      d.text(g, `▼ Worst week: W${worst.week} (${worst.delta >= 0 ? '+' : ''}${worst.delta}) — “${worst.headline}”`, W / 2 - 430, 276, { size: 13, align: 'left', fill: C.red });
+    }
+
+    // the choices that defined the run
+    d.text(g, 'THE CHOICES THAT DEFINED IT', W / 2 - 430, 312, { size: 13, align: 'left', fill: C.gold });
+    let dy = 336;
+    let told = 0;
+    Object.entries(st.arcFlags || {}).forEach(([arcId, flags]) => {
+      Object.keys(flags).forEach((f) => {
+        const line = FLAG_STORIES[arcId + '.' + f];
+        if (line && told < 6) {
+          dy = wrapClipRet(g, '• ' + line, W / 2 - 430, dy, 860, 13, 18, C.text, 2) + 8;
+          told++;
+        }
+      });
+    });
+    if (!told) d.text(g, '• A clean, quiet campaign. No tapes, no midnight calls. Historians will be bored.', W / 2 - 430, dy, { size: 13, weight: 700, align: 'left', fill: C.dim });
+
+    // who did the work
+    const u = st.usage || {};
+    const workhorse = st.leaders.P.slice().sort((a, b) => (u[b] || 0) - (u[a] || 0))[0];
+    if (workhorse) {
+      SG.face(g, W / 2 - 380, H - 168, 0.52, workhorse);
+      d.text(g, `WORKHORSE OF THE CAMPAIGN: ${SG.leaderById(workhorse).nick} — ${u[workhorse] || 0} assignments`, W / 2 - 320, H - 178, {
+        size: 13,
+        align: 'left',
+        fill: C.gold,
+      });
+      d.text(g, 'The rest of the cast will mention this in interviews for years.', W / 2 - 320, H - 158, { size: 11.5, weight: 700, align: 'left', fill: C.dim });
+    }
+
+    UI.button(g, W / 2 - 110, H - 74, 220, 40, '← BACK TO RESULT', { fn: () => (G.screen = 'end'), size: 14 });
+  }
+
+  /* ------------------------------------------------------------- result card
+     A downloadable PNG of the outcome — the shareable artifact. Pure canvas,
+     works from file://. Exposed on SG for tests. */
+  SG.buildResultCard = function () {
+    const st = G.st;
+    const r = st.result;
+    const cv2 = document.createElement('canvas');
+    cv2.width = 1000;
+    cv2.height = 560;
+    const q = cv2.getContext('2d');
+    // backdrop
+    const gr = q.createLinearGradient(0, 0, 0, 560);
+    gr.addColorStop(0, '#1b2350');
+    gr.addColorStop(1, '#080d1c');
+    q.fillStyle = gr;
+    q.fillRect(0, 0, 1000, 560);
+    MM.d.sunburst(q, 500, 180, 700, 22, 0.2, 'rgba(255,153,51,.10)', 'rgba(255,255,255,.03)');
+    MM.d.text(q, 'CHUNAV CHANAKYA', 500, 52, { size: 30, fill: C.saffron, stroke: '#12060a', lw: 6 });
+    MM.d.text(q, r.ending.title, 500, 130, { size: 58, fill: C.gold, stroke: '#12060a', lw: 10 });
+    MM.d.text(q, `${r.seats.P} of ${SG.TOTAL_SEATS} seats`, 500, 186, { size: 26, fill: '#fff' });
+    // seat bar
+    let sx = 150;
+    ['P', 'A', 'B', 'O'].forEach((p) => {
+      const ww = (r.seats[p] / SG.TOTAL_SEATS) * 700;
+      q.fillStyle = SG.PARTIES[p].color;
+      q.fillRect(sx, 216, ww + 0.5, 26);
+      sx += ww;
+    });
+    q.strokeStyle = '#fff';
+    q.setLineDash([4, 4]);
+    q.beginPath();
+    const mx = 150 + (SG.MAJORITY / SG.TOTAL_SEATS) * 700;
+    q.moveTo(mx, 208);
+    q.lineTo(mx, 250);
+    q.stroke();
+    q.setLineDash([]);
+    // the cast
+    st.leaders.P.forEach((id, i) => {
+      SG.face(q, 285 + i * 145, 360, 0.75, id, { mood: r.majority ? 'smile' : 'sad' });
+      MM.d.text(q, SG.leaderById(id).nick, 285 + i * 145, 468, { size: 12, fill: 'rgba(255,255,255,.7)' });
+    });
+    MM.d.text(q, `manifesto: ${st.planks.map((p) => SG.plankById(p).name).join(' + ')}   ·   credibility ${Math.round(st.cred)}   ·   heat ${st.heat.toFixed(1)}`, 500, 508, {
+      size: 14,
+      fill: 'rgba(255,255,255,.65)',
+    });
+    MM.d.text(q, 'an affectionate parody — chunav chanakya, the meme election strategy game', 500, 538, {
+      size: 11,
+      weight: 700,
+      fill: 'rgba(255,255,255,.4)',
+    });
+    return cv2.toDataURL('image/png');
+  };
+
+  function downloadResultCard() {
+    try {
+      const url = SG.buildResultCard();
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chunav-chanakya-${G.st.result.seats.P}-seats.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast('Result card downloaded. Go on, post it.', C.green);
+    } catch (e) {
+      toast('Could not build the card in this browser.', C.red);
+    }
   }
 
   /* ------------------------------------------------------------------ how to */
@@ -1050,13 +1369,17 @@
       case 'howto': drawHowto(); break;
       case 'draft': drawDraft(); break;
       case 'planks': drawPlanks(); break;
-      case 'play': drawPlay(); break;
+      case 'play':
+        drawPlay();
+        if (!store.data.coached && G.st && G.st.week === 1) drawBriefing();
+        break;
       case 'story': drawStory(); break;
       case 'dilemma': drawDilemma(); break;
       case 'resolve': drawResolve(); break;
       case 'election': drawElection(); break;
       case 'coalition': drawCoalition(); break;
       case 'end': drawEnd(); break;
+      case 'diary': drawDiary(); break;
     }
 
     MM.fx.draw(g);
@@ -1084,14 +1407,15 @@
       const i = +e.code.slice(5) - 1;
       if (G.st.dilemma && G.st.dilemma.opts[i]) {
         toast(SG.resolveDilemma(G.st, i).note, C.gold);
-        G.screen = 'play';
+        autosave();
+        nextBeat();
       }
     }
     if (e.code === 'Escape') {
       if (G.sel) G.sel = null;
       else if (G.screen === 'play') G.screen = 'title';
     }
-    if (e.code === 'Enter' && G.screen === 'play') endWeek();
+    if (e.code === 'Enter' && G.screen === 'play' && !briefingVisible()) endWeek();
     if (e.code === 'KeyM') {
       store.data.muted = !store.data.muted;
       MM.audio.setMuted(store.data.muted);

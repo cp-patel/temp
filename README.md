@@ -30,6 +30,13 @@ in Safari/Firefox, which block `localStorage` on `file://`.
 **Mouse drives everything.** `ENTER` ends the week · `ESC` backs out · `1-3` answers a
 dilemma · `M` mutes.
 
+New in the latest build: **autosave + resume** (close the tab mid-campaign, pick it up
+from the title screen), a **💡 ADVISOR** that suggests a full week with reasons (the
+same bot the balance harness plays — accept any of it or none), a one-time **Week 1
+briefing** instead of a tutorial maze, a **campaign diary** that retells your run
+(seat chart, best/worst week, your arc choices as prose, your hardest-working leader),
+and a downloadable **result card** PNG to share.
+
 ## 🧠 The game in one paragraph
 
 **BUZZ** is momentum and it decays 45% a week. **VOTE SHARE** is permanent. Turning one

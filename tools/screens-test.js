@@ -7,6 +7,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
   const errs=[]; p.on('pageerror',e=>errs.push('PAGEERROR: '+e.message));
   p.on('console',m=>{if(m.type()==='error')errs.push('CONSOLE: '+m.text());});
   await p.goto('file:///home/user/temp/index.html'); await p.waitForTimeout(700);
+  await p.evaluate(()=>{SG.store.data.coached=true;});
 
   // build a mid-campaign state that has a story beat, a dilemma and a report ready
   await p.evaluate(()=>{
@@ -20,7 +21,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
     SG.finish(st);
     st.result.coalitionPossible=true; st.result.majority=false;
   });
-  const screens=['title','howto','draft','planks','play','story','dilemma','resolve','election','coalition','end'];
+  const screens=['title','howto','draft','planks','play','story','dilemma','resolve','election','coalition','end','diary'];
   let bad=[];
   for(const sc of screens){
     await p.evaluate(x=>{SG.G.screen=x;},sc);

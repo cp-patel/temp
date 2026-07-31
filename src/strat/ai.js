@@ -190,5 +190,39 @@
     }
   };
 
+  /* ------------------------------------------------------------------ advisor
+     The smart bot doubles as the in-game advisor: run it on a CLONE, read the
+     queue it built, and explain each pick in plain words. The player can then
+     accept any suggestion with one click — or ignore the lot. */
+  SG.advise = function (st) {
+    const c = SG.cloneLite(st);
+    c.dilemma = null;
+    try {
+      SG.bots.smart(c);
+    } catch (e) {
+      return [];
+    }
+    // only the bot's NEW picks — the clone starts with the player's own queue
+    return c.queue.slice(st.queue.length).slice(0, 4).map((q) => {
+      const def = SG.REGIONS.find((z) => z.id === q.regionId);
+      const r = st.regions[q.regionId];
+      const bits = [];
+      if (st.planks.includes(def.issue)) bits.push('on-message');
+      const gap = Math.max(r.share.A, r.share.B) - r.share.P;
+      if (Math.abs(gap) < 8) bits.push('close race');
+      else if (gap > 0) bits.push('behind here');
+      else bits.push('defend the lead');
+      if (r.buzz.P > 30 && (q.actionId === 'ground' || q.actionId === 'booth')) bits.push('bank the buzz');
+      if (def.seats >= 60) bits.push(def.seats + ' seats');
+      return {
+        actionId: q.actionId,
+        regionId: q.regionId,
+        name: q.name,
+        icon: q.icon,
+        reason: bits.slice(0, 3).join(' · '),
+      };
+    });
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = SG;
 })(typeof window !== 'undefined' ? window : globalThis);
