@@ -1,8 +1,8 @@
 # devhub-mcp
 
 A personal MCP server that wraps GitHub and Linear behind a small number of semantically
-rich tools, so an LLM client can answer "what should I review today?" or "what of mine is
-blocked?" in one or two tool calls instead of ten.
+rich tools, so an LLM client can answer "what should I review today?", "what of mine is
+blocked?" or "write my standup" in one or two tool calls instead of ten.
 
 It is **read-only**. No tool creates, edits or deletes anything in GitHub or Linear.
 
@@ -206,7 +206,7 @@ connection failing — the reason is on stderr, naming the variable to fix.
 
 ## Tools
 
-All six return compact, pre-digested JSON. List tools share the envelope
+All seven return compact, pre-digested JSON. List tools share the envelope
 `{ items, total_found, has_more }`, plus `warnings` (upstream failures) and `notes`
 (server-side truncation) when relevant.
 
@@ -278,6 +278,23 @@ Linear issues assigned to you, most-stalled first.
 Each item: `identifier`, `title`, `state`, `priority`, `project`, `days_in_state`, `url`, and
 `reason` when filtering to blocked.
 
+### `get_standup_notes`
+
+The retrospective tool: what you did recently and what is in flight, ready to summarise.
+
+| Input | Type | Default | Notes |
+|---|---|---|---|
+| `days_back` | integer 1–14 | `1` | 1 for daily standup, 3 after a weekend, 7 for a weekly |
+| `scope` | `"work" \| "personal" \| "both"` | `"both"` | Linear is always included |
+
+Four sections — `merged_prs`, `opened_prs` (opened in the window and still open),
+`completed_issues`, `in_progress_issues` — plus a `summary` line like
+"Merged 2 PRs, opened 1, completed 1 ticket; 3 in progress." The summary counts upstream
+totals, so a 30-PR day says 30 even though each list caps at 10.
+
+Search-only (no per-PR enrichment): at most four GitHub searches plus one Linear query.
+The window boundary is a UTC calendar date, applied identically to GitHub and Linear.
+
 ### `search_my_work`
 
 Free-text search across GitHub PR titles/bodies and Linear issue titles at once — the escape
@@ -288,10 +305,10 @@ hatch when the specific tools do not fit.
 | `query` | string, 2–200 chars | — | Plain words; qualifiers are neither needed nor honoured |
 | `scope` | `"work" \| "personal" \| "both"` | `"both"` | Linear is always searched |
 | `max_results` | integer 1–25 | `10` | |
+| `only_mine` | boolean | `false` | `true` narrows to PRs you authored and issues assigned to you |
 
-Unlike the other tools this is **not** restricted to your own items — only to what your tokens
-can see. Results are interleaved across sources so one prolific upstream cannot crowd out the
-others.
+By default this is **not** restricted to your own items — only to what your tokens can see.
+Results are interleaved across sources so one prolific upstream cannot crowd out the others.
 
 ## How "blocked" is decided
 

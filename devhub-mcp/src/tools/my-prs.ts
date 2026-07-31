@@ -54,7 +54,7 @@ export const myPrsDescription = `Returns the open pull requests YOU authored, ol
 
 Each item: repo, number, title, author, age_days, additions/deletions, changed_files, ci, draft, url, source — plus the review roll-up: approvals (count of distinct approving reviewers), changes_requested (boolean), awaiting (logins of requested reviewers who have not reviewed yet), and days_since_activity (whole days since the last commit, review or review comment).
 
-Use this when the user asks about their own PRs, whether anything of theirs is ready to merge, who has not reviewed yet, or what they should nudge. This is the mirror image of get_my_review_queue: that one is PRs waiting on the user, this one is PRs the user is waiting on others for. For one specific PR in depth, use get_pr_context.
+Use this when the user asks about their own PRs, whether anything of theirs is ready to merge, who has not reviewed yet, or what they should nudge. This is the mirror image of get_my_review_queue: that one is PRs waiting on the user, this one is PRs the user is waiting on others for. For one specific PR in depth, use get_pr_context. For what the user already shipped (merged PRs, standup material), use get_standup_notes instead — this tool covers OPEN PRs only.
 
 Returns { items, total_found, has_more }, plus warnings if one account failed.
 

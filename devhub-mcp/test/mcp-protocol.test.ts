@@ -37,10 +37,11 @@ const ALL_TOOLS = [
   'get_my_linear_issues',
   'whats_blocked',
   'search_my_work',
+  'get_standup_notes',
 ] as const;
 
 describe('tool surface', () => {
-  it('registers exactly the six specified tools', async () => {
+  it('registers exactly the expected tools', async () => {
     const { ctx } = createFakeContext();
     const client = await connect(ctx);
 
@@ -89,6 +90,9 @@ describe('tool surface', () => {
     expect(byName.get('get_my_linear_issues')).toContain('whats_blocked');
     expect(byName.get('search_my_work')).toContain('whats_blocked');
     expect(byName.get('whats_blocked')).toContain('get_my_open_prs');
+    // The retrospective/queue boundary is the newest ambiguity: both sides must disambiguate.
+    expect(byName.get('get_my_open_prs')).toContain('get_standup_notes');
+    expect(byName.get('get_standup_notes')).toContain('get_my_review_queue');
 
     await client.close();
   });

@@ -229,7 +229,7 @@ describe('search_my_work', () => {
     expect(query).toContain('org:acme');
   });
 
-  it('does not restrict results to PRs the user authored', async () => {
+  it('does not restrict results to PRs the user authored by default', async () => {
     const { ctx, work } = createFakeContext({
       work: { searchItems: [] },
       linearHandler: linearHandlerFor({ search: [] }),
@@ -241,5 +241,39 @@ describe('search_my_work', () => {
     // This is the escape hatch: topic search across everything visible, not just "mine".
     expect(query).not.toContain('author:');
     expect(query).not.toContain('review-requested:');
+  });
+
+  it('narrows to authored PRs and assigned issues with only_mine', async () => {
+    const captured: { variables?: Record<string, unknown> | undefined }[] = [];
+    const { ctx, work } = createFakeContext({
+      work: { searchItems: [] },
+      personal: { searchItems: [] },
+      linearHandler: (query, variables) => {
+        captured.push({ variables });
+        return { searchIssues: { totalCount: 0, nodes: [] } };
+      },
+    });
+
+    await searchMyWork(ctx, { query: 'retry', scope: 'work', only_mine: true });
+
+    // GitHub side: the author qualifier uses this scope's own login.
+    expect(work.calls.find((call) => call.includes('search('))).toContain('author:work-login');
+    // Linear side: the filter narrows to the configured assignee email.
+    expect(captured[0]?.variables?.filter).toEqual({ assignee: { email: { eq: 'me@example.com' } } });
+  });
+
+  it('caches only_mine and unrestricted searches separately', async () => {
+    const { ctx, work } = createFakeContext({
+      work: { searchItems: [] },
+      personal: { searchItems: [] },
+      linearHandler: linearHandlerFor({ search: [] }),
+    });
+
+    await searchMyWork(ctx, { query: 'retry', scope: 'work' });
+    const after = work.calls.length;
+    await searchMyWork(ctx, { query: 'retry', scope: 'work', only_mine: true });
+
+    // Same query text, different meaning — must not share a cache entry.
+    expect(work.calls.length).toBeGreaterThan(after);
   });
 });

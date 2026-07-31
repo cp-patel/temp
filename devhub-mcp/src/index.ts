@@ -55,6 +55,12 @@ import {
   searchDescription,
   searchInputSchema,
 } from './tools/search.js';
+import {
+  TOOL_NAME as STANDUP_TOOL,
+  getStandupNotes,
+  standupDescription,
+  standupInputSchema,
+} from './tools/standup.js';
 
 const SERVER_NAME = 'devhub-mcp';
 const SERVER_VERSION = '0.1.0';
@@ -184,6 +190,17 @@ export function buildServer(ctx: ToolContext): McpServer {
       annotations: readOnly,
     },
     async (args) => safeTool(SEARCH_TOOL, () => searchMyWork(ctx, args)),
+  );
+
+  server.registerTool(
+    STANDUP_TOOL,
+    {
+      title: 'Standup notes',
+      description: standupDescription,
+      inputSchema: standupInputSchema,
+      annotations: readOnly,
+    },
+    async (args) => safeTool(STANDUP_TOOL, () => getStandupNotes(ctx, args)),
   );
 
   return server;

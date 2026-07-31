@@ -136,8 +136,10 @@ const MY_ISSUES_QUERY_ORDER_BY = `query DevhubMyIssuesOrdered($filter: IssueFilt
   }
 }`;
 
-const SEARCH_ISSUES_QUERY = `query DevhubSearchIssues($term: String!, $first: Int!) {
-  searchIssues(term: $term, first: $first) {
+// `searchIssues` accepts an IssueFilter alongside the term (verified in the SDK's generated
+// SearchIssuesQueryVariables). Leaving $filter unset is valid GraphQL for a nullable variable.
+const SEARCH_ISSUES_QUERY = `query DevhubSearchIssues($term: String!, $first: Int!, $filter: IssueFilter) {
+  searchIssues(term: $term, first: $first, filter: $filter) {
     totalCount
     nodes {${ISSUE_FIELDS}
     }
@@ -229,8 +231,11 @@ export async function searchIssues(
   linear: LinearApi,
   term: string,
   first: number,
+  filter?: Record<string, unknown>,
 ): Promise<{ nodes: readonly LinearIssueNode[]; totalCount: number }> {
-  const response = await linear.rawRequest<SearchQueryResult>(SEARCH_ISSUES_QUERY, { term, first });
+  const variables: Record<string, unknown> = { term, first };
+  if (filter !== undefined) variables.filter = filter;
+  const response = await linear.rawRequest<SearchQueryResult>(SEARCH_ISSUES_QUERY, variables);
   const payload = response.data?.searchIssues;
   // As above: a missing payload is a failure to report, not an empty result set.
   if (payload === undefined || payload === null) {

@@ -13,6 +13,7 @@ import { getMyOpenPrs } from '../src/tools/my-prs.js';
 import { getPrContext } from '../src/tools/pr-context.js';
 import { getMyLinearIssues } from '../src/tools/linear-issues.js';
 import { searchMyWork } from '../src/tools/search.js';
+import { getStandupNotes } from '../src/tools/standup.js';
 import { whatsBlocked } from '../src/tools/whats-blocked.js';
 import {
   createFakeContext,
@@ -226,6 +227,36 @@ describe('response budget', () => {
 
     expect(payloadChars(result)).toBeLessThanOrEqual(MAX_RESPONSE_CHARS);
     expect(result.items.length).toBeGreaterThan(0);
+  });
+
+  it('get_standup_notes stays under budget with every section saturated', async () => {
+    const mergedHeavy = paddedGithub(25);
+    const { ctx } = createFakeContext({
+      work: {
+        ...mergedHeavy,
+        searchItems: (mergedHeavy.searchItems ?? []).map((item) => ({
+          ...item,
+          pull_request: { merged_at: '2026-07-30T10:00:00.000Z' },
+        })),
+      },
+      personal: paddedGithub(25, 500),
+      linearHandler: linearHandlerFor({
+        issues: Array.from({ length: 50 }, (_unused, index) =>
+          paddedIssue(index),
+        ).map((issue, index) =>
+          index % 2 === 0
+            ? { ...issue, state: { name: 'Done', type: 'completed' }, completedAt: '2026-07-30T20:00:00.000Z' }
+            : { ...issue, state: { name: 'In Progress', type: 'started' } },
+        ),
+      }),
+    });
+
+    const result = await getStandupNotes(ctx, { days_back: 1, scope: 'both' });
+
+    expect(payloadChars(result)).toBeLessThanOrEqual(MAX_RESPONSE_CHARS);
+    expect(result.merged_prs.length).toBeGreaterThan(0);
+    expect(result.completed_issues.length).toBeGreaterThan(0);
+    expect(result.in_progress_issues.length).toBeGreaterThan(0);
   });
 
   it('whats_blocked stays under budget with all three sections saturated', async () => {
