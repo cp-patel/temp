@@ -1381,6 +1381,164 @@ async function main() {
     await cctx.close();
   }
 
+  /* ---------------- every link and control, activated ---------------- */
+  /* The contents-link bug survived twenty iterations because the suite asserted a
+     table of contents *exists* without ever activating a link in it. These two
+     sweeps are the generalisation: every link must resolve, and every kind of
+     control must survive being clicked. */
+  section("links and controls");
+  {
+    const actx = await browser.newContext({
+      viewport: { width: 1440, height: 950 },
+      colorScheme: "dark",
+    });
+    const ap = await actx.newPage();
+    ap.on("pageerror", (e) => errors.push(`sweep pageerror: ${e.message}`));
+    ap.on("console", (m) => {
+      if (m.type() === "error") errors.push(`sweep console: ${m.text()}`);
+    });
+    const aGo = async (hash) => {
+      await ap.goto(BASE + hash, { waitUntil: "networkidle" });
+      await ap.addStyleTag({
+        content: "html{scroll-behavior:auto !important}",
+      });
+      await ap.evaluate(() => Store.skipOnboarding());
+      await ap.waitForTimeout(180);
+    };
+
+    const PAGES = [
+      "",
+      "#/dashboard",
+      "#/plan",
+      "#/roadmap",
+      "#/library",
+      "#/labs",
+      "#/review",
+      "#/projects",
+      "#/glossary",
+      "#/settings",
+    ];
+
+    /* 1. Static: no link points at a chapter that does not exist, and every
+       in-page anchor carries a handler — without one the hash reaches the router,
+       which does not recognise "#s-ingestion" and falls through to the landing
+       route, replacing the page. */
+    await aGo("");
+    const chapterIds = new Set(
+      await ap.evaluate(() => window.Curriculum.chapters.map((c) => c.id))
+    );
+    const KNOWN_HASHES = new Set([...PAGES.filter(Boolean), "#/"]);
+    const linkProblems = [];
+    const linkSeen = new Set();
+    let linkCount = 0;
+    for (const r of [
+      ...PAGES,
+      ...[...chapterIds].map((id) => "#/chapter/" + id),
+    ]) {
+      /* Hash assignment, not goto: the router re-renders on hashchange, so a
+         full load per chapter would be 44 boots for no extra coverage. */
+      await ap.evaluate((h) => {
+        location.hash = h || "#/";
+      }, r);
+      await ap.waitForTimeout(70);
+      const links = await ap.evaluate(() =>
+        [...document.querySelectorAll("a[href]")].map((a) => ({
+          h: a.getAttribute("href"),
+          handled: typeof a.onclick === "function",
+          cls: (a.className || "").toString().split(" ")[0],
+        }))
+      );
+      for (const l of links) {
+        const key = `${l.h}|${l.cls}|${l.handled}`;
+        if (linkSeen.has(key)) continue;
+        linkSeen.add(key);
+        linkCount++;
+        if (/^https?:/.test(l.h)) continue;
+        if (l.h.startsWith("#/chapter/")) {
+          if (!chapterIds.has(l.h.replace("#/chapter/", "")))
+            linkProblems.push(`${r || "/"} ${l.h} — no such chapter`);
+          continue;
+        }
+        if (KNOWN_HASHES.has(l.h)) continue;
+        if (!l.handled)
+          linkProblems.push(
+            `${r || "/"} ${l.h} (.${l.cls}) — in-page anchor the router will not recognise`
+          );
+      }
+    }
+    check(
+      `all ${linkCount} distinct links resolve or are handled in place`,
+      linkProblems.length === 0,
+      linkProblems.slice(0, 3).join("; ")
+    );
+
+    /* 2. Behavioural: click one of every kind of control and require the app to
+       still be on a route it recognises, with content on it. */
+    const clickProblems = [];
+    const clickSeen = new Set();
+    let clicked = 0;
+    const validHash = (h) =>
+      h === "" ||
+      h === "#/" ||
+      h.startsWith("#/chapter/") ||
+      KNOWN_HASHES.has(h);
+
+    for (const route of [
+      ...PAGES,
+      "#/chapter/rag-architecture",
+      "#/chapter/tokens",
+      "#/chapter/agent-loop",
+    ]) {
+      await aGo(route);
+      const sigs = await ap.evaluate(() => {
+        const out = new Set();
+        document
+          .querySelectorAll("a[href], button, [role=button], [role=switch]")
+          .forEach((e) => {
+            if (e.closest(".skiplink, #palette")) return;
+            const r = e.getBoundingClientRect();
+            if (r.width < 4 || r.height < 4) return;
+            out.add(
+              e.tagName.toLowerCase() +
+                "." +
+                ((e.className || "").toString().trim().split(/\s+/)[0] || "-")
+            );
+          });
+        return [...out];
+      });
+      for (const sig of sigs) {
+        const key = route + "|" + sig;
+        if (clickSeen.has(key)) continue;
+        clickSeen.add(key);
+        const tag = sig.split(".")[0];
+        const cls = sig.split(".").slice(1).join(".");
+        const sel = cls === "-" ? tag : `${tag}.${cls.replace(/\./g, "\\.")}`;
+        await aGo(route);
+        try {
+          await ap.locator(sel).first().click({ timeout: 3000 });
+          clicked++;
+        } catch {
+          continue; // disabled or covered in this state; not this check's business
+        }
+        await ap.waitForTimeout(300);
+        const st = await ap.evaluate(() => ({
+          hash: location.hash,
+          len: document.body.innerText.length,
+        }));
+        if (!validHash(st.hash) || st.len < 300)
+          clickProblems.push(
+            `${route || "/"} ${sig} -> "${st.hash}" len=${st.len}`
+          );
+      }
+    }
+    check(
+      `clicking each of ${clicked} control kinds leaves a working page`,
+      clickProblems.length === 0,
+      clickProblems.slice(0, 3).join("; ")
+    );
+    await actx.close();
+  }
+
   /* ---------------- history, anchors and the reader's place ---------------- */
   section("history and anchors");
   {
