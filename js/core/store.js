@@ -15,6 +15,10 @@
     cards: {}, // cardId -> { box, due, seen, right }
     projects: {}, // projectId -> { taskIndex: true }
     labs: {}, // labId -> true (first interaction awards XP)
+    /* portfolio: the numbers and write-up behind each project. The only learner
+       state here that is prose rather than a tick, because it is the only state
+       whose purpose is to leave the browser. */
+    evidence: {}, // projectId -> { metrics: {key: string}, notes: string }
     xp: 0,
     days: {}, // 'YYYY-MM-DD' -> xp earned that day
     streak: { n: 0, last: null, best: 0 },
@@ -92,6 +96,27 @@
       if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
         delete out.progress[id];
       }
+    });
+    /* Same treatment as progress: a wrong-typed record is dropped rather than
+       written onto, and a metrics bag that is not an object would otherwise throw
+       on the first keystroke in the evidence form. */
+    Object.keys(out.evidence).forEach(function (id) {
+      var rec = out.evidence[id];
+      if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
+        delete out.evidence[id];
+        return;
+      }
+      if (
+        !rec.metrics ||
+        typeof rec.metrics !== "object" ||
+        Array.isArray(rec.metrics)
+      ) {
+        rec.metrics = {};
+      }
+      Object.keys(rec.metrics).forEach(function (k) {
+        if (typeof rec.metrics[k] !== "string") delete rec.metrics[k];
+      });
+      if (typeof rec.notes !== "string") rec.notes = "";
     });
     if (out.profile !== null && typeof out.profile === "object") {
       if (!Array.isArray(out.profile.skills)) out.profile.skills = [];
@@ -338,6 +363,55 @@
     p[idx] = true;
     award(XP.task, "Project milestone");
     return true;
+  };
+
+  /* ---- portfolio evidence ---- */
+
+  S.evidence = function (pid) {
+    var rec = state.evidence[pid];
+    if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
+      rec = state.evidence[pid] = { metrics: {}, notes: "" };
+    }
+    if (!rec.metrics || typeof rec.metrics !== "object") rec.metrics = {};
+    if (typeof rec.notes !== "string") rec.notes = "";
+    return rec;
+  };
+
+  S.setMetric = function (pid, key, value) {
+    var rec = S.evidence(pid);
+    value = typeof value === "string" ? value.trim() : "";
+    if (value) rec.metrics[key] = value;
+    else delete rec.metrics[key];
+    save();
+  };
+
+  S.setEvidenceNotes = function (pid, text) {
+    var rec = S.evidence(pid);
+    rec.notes = typeof text === "string" ? text : "";
+    save();
+  };
+
+  /* How much of the portfolio is actually written down. Counted here rather than
+     in the view so the projects page and the export cannot disagree. */
+  S.evidenceCount = function (pid) {
+    var rec = state.evidence[pid];
+    if (!rec || typeof rec !== "object") return { metrics: 0, notes: 0 };
+    return {
+      metrics: Object.keys(rec.metrics || {}).filter(function (k) {
+        return (rec.metrics[k] || "").length > 0;
+      }).length,
+      notes: (rec.notes || "").trim().length,
+    };
+  };
+
+  S.portfolio = function () {
+    if (!global.Curriculum || !global.Curriculum.portfolioFor) return null;
+    return global.Curriculum.portfolioFor({
+      projectTasks: clone(state.projects),
+      evidence: clone(state.evidence),
+      notes: clone(state.notes),
+      readiness: S.readiness(),
+    });
   };
 
   S.projDone = function (pid) {

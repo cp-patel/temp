@@ -149,16 +149,25 @@
       at: 55,
       name: "Interview-capable",
       note: "You would survive most loops. The gaps below are what a panel would find.",
+      /* From here up, the score is a claim worth putting in a portfolio. Below it,
+         the export omits the line entirely rather than advertising a low number —
+         a portfolio is a document you choose the contents of, not a disclosure
+         form, and "22% — Learning the shape" at the top of a case study undoes
+         everything under it. Flagged on the band rather than hardcoded as 55 so
+         the threshold moves with the calibration. */
+      claim: true,
     },
     {
       at: 75,
       name: "Interview-ready",
       note: "You can answer the hard questions with numbers from your own work.",
+      claim: true,
     },
     {
       at: 90,
       name: "Hire-ready",
       note: "Deployed work, measured, with the failures written up. Very few candidates reach this.",
+      claim: true,
     },
   ];
 

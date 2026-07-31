@@ -2379,6 +2379,95 @@
       });
       node.appendChild(cl);
 
+      /* Evidence capture. The numbers here are the difference between "I built a
+         RAG system" and something an interviewer can push on, and until now the
+         app had nowhere to put them — every learner was expected to remember, for
+         months, which figures mattered. The fields are the ones this project's own
+         tasks tell you to measure. */
+      if ((pr.metrics || []).length) {
+        var ev = el("details", "evid");
+        var evCount = Store.evidenceCount(pr.id);
+        var sum = el("summary", "evid__sum");
+        function paintSummary() {
+          var c = Store.evidenceCount(pr.id);
+          sum.innerHTML =
+            '<span class="evid__ic">' +
+            Icons.get("doc", 14) +
+            "</span>" +
+            '<span class="u-grow"><b>Evidence</b>' +
+            '<span class="evid__meta">' +
+            c.metrics +
+            " of " +
+            pr.metrics.length +
+            " numbers recorded" +
+            (c.notes ? " · notes written" : "") +
+            "</span></span>" +
+            '<span class="evid__chev">' +
+            Icons.get("chevDown", 14) +
+            "</span>";
+        }
+        paintSummary();
+        ev.appendChild(sum);
+
+        var fields = el("div", "evid__fields");
+        pr.metrics.forEach(function (m) {
+          var rec = Store.evidence(pr.id);
+          var f = el("label", "evfield");
+          var inputId = "ev-" + pr.id + "-" + m.key;
+          var mch = chapter(m.ch);
+          f.innerHTML =
+            '<span class="evfield__l">' +
+            esc(m.label) +
+            "</span>" +
+            '<span class="evfield__h">' +
+            esc(m.hint) +
+            (mch
+              ? ' <a href="#/chapter/' + mch.id + '">How to measure it</a>'
+              : "") +
+            "</span>";
+          var inp = el("input", "evfield__i");
+          inp.type = "text";
+          inp.id = inputId;
+          inp.value = rec.metrics[m.key] || "";
+          inp.placeholder = "—";
+          inp.setAttribute("aria-label", m.label);
+          /* Debounced: this writes to localStorage, and a keystroke-per-write on
+             28 fields is the one place in the app that could feel slow. */
+          inp.addEventListener(
+            "input",
+            U.debounce(function () {
+              Store.setMetric(pr.id, m.key, inp.value);
+              paintSummary();
+            }, 350)
+          );
+          f.appendChild(inp);
+          fields.appendChild(f);
+        });
+
+        var noteWrap = el("label", "evfield evfield--wide");
+        noteWrap.innerHTML =
+          '<span class="evfield__l">What you would say about it</span>' +
+          '<span class="evfield__h">Two or three sentences: the decision you got ' +
+          "wrong first, and what the numbers above made you change. This is the " +
+          "part interviewers remember.</span>";
+        var ta = el("textarea", "evfield__t");
+        ta.rows = 4;
+        ta.value = Store.evidence(pr.id).notes || "";
+        ta.setAttribute("aria-label", "Notes on " + pr.title);
+        ta.addEventListener(
+          "input",
+          U.debounce(function () {
+            Store.setEvidenceNotes(pr.id, ta.value);
+            paintSummary();
+          }, 350)
+        );
+        noteWrap.appendChild(ta);
+        fields.appendChild(noteWrap);
+
+        ev.appendChild(fields);
+        node.appendChild(ev);
+      }
+
       var foot = el("div", "proj__foot");
       node.appendChild(foot);
 
@@ -2407,7 +2496,152 @@
 
     root.appendChild(head);
     root.appendChild(grid);
+    if (Store.portfolio) root.appendChild(portfolioPanel());
   };
+
+  /* The export. Everything else in this app measures; this is the only thing that
+     produces something you can send to someone, which is the point at which the
+     curriculum's claim — that you should be able to prove the result works —
+     stops being rhetorical. */
+  function portfolioPanel() {
+    var wrap = el("div", "port");
+    var report = Store.portfolio();
+
+    var body = el("div");
+
+    function paint() {
+      report = Store.portfolio();
+      body.innerHTML = "";
+
+      if (!report || !report.started) {
+        var empty = el("div", "port__note");
+        empty.innerHTML =
+          Icons.get("info", 15) +
+          " <span>Tick a milestone above and record its numbers, and this becomes " +
+          "a Markdown case study you can paste into a README or a post. Nothing is " +
+          "invented — it only ever contains what you have written down.</span>";
+        body.appendChild(empty);
+        return;
+      }
+
+      var stat = el("div", "readout");
+      var claimAt = C.portfolioClaimAt ? C.portfolioClaimAt() : null;
+      var rd = Store.readiness();
+      stat.innerHTML =
+        '<div class="metric metric--accent"><div class="metric__n">' +
+        report.started +
+        '</div><div class="metric__l">Projects</div></div>' +
+        '<div class="metric"><div class="metric__n">' +
+        report.projects.reduce(function (n, p) {
+          return n + p.metricsFilled;
+        }, 0) +
+        '</div><div class="metric__l">Numbers</div></div>' +
+        '<div class="metric metric--emerald"><div class="metric__n">' +
+        report.words +
+        '</div><div class="metric__l">Words</div></div>';
+      body.appendChild(stat);
+
+      /* Name what is missing. A generator that quietly omits the gaps produces a
+         document that reads well and collapses in the follow-up question. */
+      if (report.missing.length) {
+        var gaps = el("div", "port__gaps");
+        gaps.innerHTML =
+          '<div class="u-eyebrow" style="margin-bottom:var(--s-3)">' +
+          "Not yet evidenced</div>";
+        report.missing.forEach(function (m) {
+          var r = el("div", "port__gap");
+          r.innerHTML =
+            Icons.get("alert", 13) +
+            " <span><b>" +
+            esc(m.title) +
+            "</b> — " +
+            esc(m.why) +
+            "</span>";
+          gaps.appendChild(r);
+        });
+        body.appendChild(gaps);
+      }
+
+      if (rd && claimAt !== null && rd.overall < claimAt) {
+        var hold = el("div", "port__note");
+        hold.innerHTML =
+          Icons.get("gauge", 15) +
+          " <span>Your readiness score is left out of the export below. It joins it " +
+          "at <b>" +
+          claimAt +
+          "%</b> — you are at " +
+          rd.overall +
+          "%, and a case study that opens by quoting a low self-assessment undoes " +
+          "everything under it.</span>";
+        body.appendChild(hold);
+      }
+
+      var pre = el("pre", "port__pre");
+      pre.textContent = report.markdown;
+      body.appendChild(pre);
+
+      var acts = el("div", "u-row u-wrap");
+      acts.style.marginTop = "var(--s-5)";
+
+      var copy = el("button", "btn btn--primary");
+      copy.innerHTML = Icons.get("copy", 15) + " Copy Markdown";
+      copy.onclick = function () {
+        U.copy(report.markdown).then(
+          function () {
+            Toast.show(
+              "Copied",
+              report.words + " words on your clipboard",
+              "win",
+              "check"
+            );
+          },
+          function () {
+            /* Clipboard access is refusable and refused more often than people
+               expect — an insecure origin, a permission prompt declined, or
+               `file://` in some browsers. The text is on screen either way, so say
+               what to do rather than failing silently. */
+            Toast.show(
+              "Could not copy",
+              "Select the text above, or use Download",
+              "warn",
+              "alert"
+            );
+          }
+        );
+      };
+      acts.appendChild(copy);
+
+      var dl = el("button", "btn btn--outline");
+      dl.innerHTML = Icons.get("down", 15) + " Download .md";
+      dl.onclick = function () {
+        U.download(
+          "ai-engineering-portfolio.md",
+          report.markdown,
+          "text/markdown"
+        );
+      };
+      acts.appendChild(dl);
+
+      body.appendChild(acts);
+    }
+
+    wrap.innerHTML =
+      '<div class="u-eyebrow">The artefact</div>' +
+      "<h2>Portfolio export</h2>" +
+      '<p class="port__lede">\u201cI built a RAG system\u201d is worth nothing next ' +
+      "to \u201crecall@5 went from 0.61 to 0.82 with a cross-encoder over the top " +
+      "50, on a 40-question set with graded relevance labels\u201d. The second " +
+      "sentence is also " +
+      "much harder to fake, which is why it is the one that gets asked about. " +
+      "Record the numbers above and this assembles them.</p>";
+    wrap.appendChild(body);
+    paint();
+    /* Repaint on any state change: ticking a milestone or typing a number in the
+       cards above must be reflected here without a reload, or the panel is quietly
+       showing a stale document. */
+    App.onLeave(Store.subscribe(U.debounce(paint, 400)));
+    return wrap;
+  }
 
   /* =========================================================
      FLASHCARD REVIEW
@@ -2729,12 +2963,7 @@
     var expBtn = el("button", "btn btn--outline btn--sm");
     expBtn.innerHTML = Icons.get("down", 14) + " Export";
     expBtn.onclick = function () {
-      var blob = new Blob([Store.export()], { type: "application/json" });
-      var a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "forge-ai-progress.json";
-      a.click();
-      URL.revokeObjectURL(a.href);
+      U.download("forge-ai-progress.json", Store.export(), "application/json");
       Toast.show("Exported", "Saved to your downloads", "win", "check");
     };
     expRow.appendChild(expBtn);

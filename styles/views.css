@@ -2607,3 +2607,221 @@
     flex-wrap: wrap;
   }
 }
+
+/* ============================================================
+   Portfolio evidence + export
+
+   The only place in this app that takes prose *in*, and the only one whose output
+   is meant to leave the browser.
+   ============================================================ */
+
+.evid {
+  margin-top: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.evid__sum {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  cursor: pointer;
+  list-style: none;
+  /* WCAG 2.5.8 target size — a summary is the whole toggle. */
+  min-height: 40px;
+}
+
+/* Safari draws its own marker on <summary> regardless of list-style. */
+.evid__sum::-webkit-details-marker {
+  display: none;
+}
+
+.evid__sum b {
+  display: block;
+  font-size: var(--t-sm);
+  color: var(--ink);
+}
+
+.evid__meta {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.evid__ic {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 7px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.evid__chev {
+  flex: none;
+  color: var(--ink-3);
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.evid[open] .evid__chev {
+  transform: rotate(180deg);
+}
+
+.evid__fields {
+  display: grid;
+  gap: var(--s-4);
+  padding: 0 var(--s-4) var(--s-4);
+  border-top: 1px solid var(--line-faint);
+  padding-top: var(--s-4);
+}
+
+.evfield {
+  display: block;
+}
+
+.evfield__l {
+  display: block;
+  font-size: var(--t-xs);
+  font-weight: 640;
+  color: var(--ink-1);
+}
+
+.evfield__h {
+  display: block;
+  font-size: 0.66rem;
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin: 3px 0 6px;
+}
+
+.evfield__h a {
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.evfield__i,
+.evfield__t {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--t-xs);
+  /* A metric is almost always a number, and a proportional font makes 0.61 and
+     0.82 hard to compare down a column. */
+  font-variant-numeric: tabular-nums;
+}
+
+.evfield__t {
+  font-variant-numeric: normal;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 76px;
+}
+
+.evfield__i:focus-visible,
+.evfield__t:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.port {
+  margin-top: var(--s-8);
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.port h2 {
+  font-size: var(--t-xl);
+  margin: var(--s-2) 0 var(--s-3);
+}
+
+.port__lede {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.65;
+  /* 0.525em per character: `ch` is the advance width of "0" and runs ~24% wide. */
+  max-width: 42em;
+  margin-bottom: var(--s-5);
+}
+
+.port__note {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.6;
+  margin-bottom: var(--s-4);
+}
+
+.port__note svg {
+  flex: none;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+.port__note b {
+  color: var(--ink);
+}
+
+.port__gaps {
+  margin: var(--s-5) 0;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.port__gap {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.6;
+  padding: 2px 0;
+}
+
+.port__gap svg {
+  flex: none;
+  color: var(--amber);
+  margin-top: 3px;
+}
+
+.port__gap b {
+  color: var(--ink-1);
+}
+
+/* The document itself. Scrolls in its own box rather than making the page long —
+   a finished portfolio is several hundred lines. */
+.port__pre {
+  margin: var(--s-5) 0 0;
+  max-height: 26rem;
+  overflow: auto;
+  padding: var(--s-5);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.7;
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  /* Long stack strings and URLs must wrap rather than scroll the page sideways. */
+  overflow-wrap: break-word;
+}

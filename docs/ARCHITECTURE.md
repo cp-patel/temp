@@ -148,6 +148,39 @@ wrong first:
    validator assert that invariant, because it is the difference between advice
    that agrees with the roadmap and advice that contradicts it.
 
+## The portfolio export
+
+`js/content/portfolio.js` is the only part of this app whose output is meant to
+leave the browser, which changes what "correct" means for it: a bug is not a wrong
+pixel, it is a claim in a document with the learner's name on it.
+
+The rule it is built around is that **it can only ever contain what was written
+down.** An unrecorded measure gets no row; a project with milestones ticked and no
+numbers is reported as a gap rather than described in prose. A generator that fills
+gaps produces exactly the document that collapses in the follow-up question, and
+that failure lands on the learner, not on us.
+
+Two smaller decisions worth keeping:
+
+- **The readiness score is quoted only from `Interview-capable` up**, flagged as
+  `claim: true` on the band rather than hardcoded as 55, so the threshold moves
+  with the calibration. A case study that opens with a low self-assessment undoes
+  everything under it, and a portfolio is a document you choose the contents of,
+  not a disclosure form.
+- **Values are escaped for the table they land in.** A pipe or a newline in a
+  metric field would otherwise break the Markdown table around it, and "cost | per
+  user" is a plausible thing to type.
+
+The metric fields themselves live on the projects in `meta.js`, each naming the
+chapter that teaches how to measure it. The validator requires that chapter to be
+one the project's own milestones already draw on — a metric about something the
+project does not build is a question the learner cannot answer.
+
+`Store.evidence` is the only learner state that is prose rather than a tick, and
+the only state whose purpose is to leave the browser, so it goes through the same
+`saneState` repair as everything else and has a round-trip test through
+export/import.
+
 ## The session planner
 
 `js/content/session.js` answers "I have 25 minutes" with an ordered list. Same

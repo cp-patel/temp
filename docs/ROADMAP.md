@@ -17,6 +17,7 @@ Written so the next change doesn't have to rediscover the reasoning.
 | Personalisation | 5 tracks, 14 claimable skills, 17 per-chapter delta notes             |
 | Diagnostic      | 7 weighted competencies, 4-part scoring, ranked next actions          |
 | Planning        | Week-by-week schedule, plus a per-session planner from 10 to 90 min   |
+| Output          | Markdown portfolio export, 28 prompted measures across 6 projects     |
 | Reference       | 52-term glossary, 91 external resources                               |
 | Tooling         | Validator, unit + e2e suites, docs check, scaffolder, CI              |
 | Deployment      | Static; GitHub Pages workflow included; runs from `file://`           |

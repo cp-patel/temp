@@ -679,7 +679,12 @@ async function main() {
       for (let i = 1; i < hs.length; i++) if (hs[i] > hs[i - 1] + 1) skips++;
       const unl = [];
       document.querySelectorAll("button, a[href]").forEach((e) => {
-        if ((e.innerText || "").trim()) return;
+        /* textContent, not innerText: innerText is "" for anything not rendered,
+           and the evidence forms live inside a collapsed <details>. A link there is
+           labelled — a screen reader reads it the moment the section opens — so
+           checking innerText reported it as nameless. An accessible name comes from
+           the content, whether or not the box happens to be open. */
+        if ((e.innerText || e.textContent || "").trim()) return;
         if (e.getAttribute("aria-label") || e.getAttribute("title")) return;
         unl.push(
           `${e.tagName.toLowerCase()}.${(e.className || "?").toString().split(" ")[0]}`
@@ -1959,6 +1964,203 @@ async function main() {
     );
 
     await sctx.close();
+  }
+
+  /* ---------------- portfolio evidence and export ---------------- */
+  /* The only output that leaves the browser and gets read by someone making a
+     hiring decision. A bug here is not a wrong pixel, it is a claim in a document
+     with the learner's name on it. */
+  section("portfolio");
+  {
+    const pctx = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      colorScheme: "dark",
+    });
+    const pp = await pctx.newPage();
+    pp.on("pageerror", (e) => errors.push(`portfolio pageerror: ${e.message}`));
+    pp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`portfolio console: ${m.text()}`);
+    });
+    await pp.goto(BASE + "#/projects", { waitUntil: "networkidle" });
+    await pp.evaluate(() => Store.skipOnboarding());
+    await pp.waitForTimeout(500);
+
+    const fresh = await pp.evaluate(() => ({
+      panel: !!document.querySelector(".port"),
+      forms: document.querySelectorAll(".evid").length,
+      projects: window.Curriculum.projects.length,
+      fields: document.querySelectorAll(".evfield__i").length,
+      metrics: window.Curriculum.projects.reduce(
+        (n, p) => n + p.metrics.length,
+        0
+      ),
+      areas: document.querySelectorAll(".evfield__t").length,
+      pre: (document.querySelector(".port__pre") || {}).textContent || "",
+      note: (document.querySelector(".port__note") || {}).innerText || "",
+    }));
+    check(
+      "every project offers an evidence form with one field per metric",
+      fresh.forms === fresh.projects &&
+        fresh.fields === fresh.metrics &&
+        fresh.areas === fresh.projects,
+      JSON.stringify(fresh)
+    );
+    check(
+      "an untouched portfolio shows guidance, not an empty document",
+      !fresh.pre && /Tick a milestone/i.test(fresh.note),
+      JSON.stringify({ pre: fresh.pre.slice(0, 60), note: fresh.note })
+    );
+
+    /* Type into the real inputs rather than calling the store: this is the path a
+       learner takes, and it exercises the debounce that writes it. */
+    const target = await pp.evaluate(() => {
+      const p = window.Curriculum.projects.filter((x) => x.id === "p-rag")[0];
+      return { key: p.metrics[0].key, label: p.metrics[0].label, id: p.id };
+    });
+    /* The forms start collapsed — six projects of seven fields each, open by
+       default, would bury the page. Open the one under test the way a learner
+       would. */
+    /* Located by the field's own id, not by card text: a "RAG System" text filter
+       also matched the capstone, whose milestone links carry the title of the
+       "Diagnosing a RAG System That Lies" chapter. */
+    const evForm = pp.locator(`.evid:has(#ev-${target.id}-${target.key})`);
+    check(
+      "evidence forms start collapsed",
+      !(await evForm.evaluate((n) => n.hasAttribute("open"))),
+      "open by default"
+    );
+    await evForm.locator(".evid__sum").click();
+    await pp.waitForTimeout(250);
+    await pp
+      .locator(`#ev-${target.id}-${target.key}`)
+      .fill("40 questions, graded 0-2");
+    await pp.waitForTimeout(600);
+    check(
+      "the summary counts what has been recorded",
+      /1 of \d+ numbers recorded/.test(
+        await evForm.locator(".evid__meta").innerText()
+      ),
+      await evForm.locator(".evid__meta").innerText()
+    );
+    const stored = await pp.evaluate(
+      (t) => Store.evidence(t.id).metrics[t.key],
+      target
+    );
+    check(
+      "typing a number into the form persists it",
+      stored === "40 questions, graded 0-2",
+      String(stored)
+    );
+
+    /* A number with no milestone ticked must not manufacture a case study. */
+    const beforeTick = await pp.evaluate(() => Store.portfolio().started);
+    check(
+      "a recorded number alone does not start a case study",
+      beforeTick === 0,
+      String(beforeTick)
+    );
+
+    const after = await pp.evaluate(() => {
+      const p = window.Curriculum.projects.filter((x) => x.id === "p-rag")[0];
+      p.tasks.forEach((_, i) => Store.projTask("p-rag", i));
+      const r = Store.portfolio();
+      return {
+        started: r.started,
+        words: r.words,
+        hasValue: r.markdown.includes("40 questions, graded 0-2"),
+        /* Nothing unrecorded may appear as a row. */
+        inventedRows: p.metrics
+          .slice(1)
+          .filter((m) => r.markdown.includes("| " + m.label + " |")).length,
+        missing: r.missing.length,
+      };
+    });
+    check(
+      "ticking milestones assembles a case study from only what was recorded",
+      after.started === 1 &&
+        after.hasValue &&
+        after.inventedRows === 0 &&
+        after.words > 100,
+      JSON.stringify(after)
+    );
+
+    await visit(pp, BASE + "#/projects");
+    await pp.waitForTimeout(600);
+    const rendered = await pp.evaluate(() => {
+      const pre = document.querySelector(".port__pre");
+      return {
+        shown: !!pre,
+        matchesEngine: pre
+          ? pre.textContent === Store.portfolio().markdown
+          : false,
+        gaps: document.querySelectorAll(".port__gap").length,
+        buttons: [...document.querySelectorAll(".port button")].map((b) =>
+          b.innerText.trim()
+        ),
+      };
+    });
+    check(
+      "the panel renders exactly the document the engine produced",
+      rendered.shown && rendered.matchesEngine,
+      JSON.stringify(rendered)
+    );
+    check(
+      "unevidenced projects are named rather than quietly omitted",
+      rendered.gaps >= 1 && rendered.buttons.length === 2,
+      JSON.stringify(rendered)
+    );
+
+    /* The readiness claim: absent while the score is low, present once it is a
+       claim worth making. */
+    const claim = await pp.evaluate(() => {
+      const at = window.Curriculum.portfolioClaimAt();
+      const low = Store.readiness().overall;
+      const before = Store.portfolio().markdown.includes("Self-assessed");
+      const C = window.Curriculum;
+      C.chapters.forEach((c) => {
+        Store.complete(c.id);
+        if ((c.quiz || []).length)
+          Store.saveQuiz(c.id, c.quiz.length, c.quiz.length);
+        if (c.lab) Store.labTouched(c.lab);
+      });
+      C.projects.forEach((p) =>
+        p.tasks.forEach((_, i) => {
+          if (!(Store.state().projects[p.id] || {})[i]) Store.projTask(p.id, i);
+        })
+      );
+      const high = Store.readiness().overall;
+      return {
+        at,
+        low,
+        high,
+        before,
+        after: Store.portfolio().markdown.includes("Self-assessed"),
+      };
+    });
+    check(
+      "a low readiness score is left out of the export, a high one is quoted",
+      claim.low < claim.at &&
+        claim.high >= claim.at &&
+        claim.before === false &&
+        claim.after === true,
+      JSON.stringify(claim)
+    );
+
+    /* Download uses a blob URL, so intercept the download rather than the network. */
+    await visit(pp, BASE + "#/projects");
+    await pp.waitForTimeout(600);
+    const dlPromise = pp
+      .waitForEvent("download", { timeout: 5000 })
+      .catch(() => null);
+    await pp.locator('.port button:has-text("Download")').click();
+    const dl = await dlPromise;
+    check(
+      "the download button produces a .md file",
+      !!dl && /\.md$/.test(dl.suggestedFilename()),
+      dl ? dl.suggestedFilename() : "no download fired"
+    );
+
+    await pctx.close();
   }
 
   /* ---------------- every link and control, activated ---------------- */

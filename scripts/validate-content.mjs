@@ -723,6 +723,131 @@ if (C.competencies) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Portfolio metrics
+ * ------------------------------------------------------------------ *
+ * The export is the only output of this app that a stranger reads with a hiring
+ * decision in mind, so the fields it prompts for have to be answerable. A metric
+ * about something the project does not build is a question the learner cannot
+ * answer, which is why each one has to name a chapter the project's own
+ * milestones already draw on.
+ */
+C.projects.forEach((p, i) => {
+  const w = `projects[${i}] "${p.id}" metrics`;
+  if (!Array.isArray(p.metrics) || p.metrics.length < 3) {
+    err(w, `needs at least 3, has ${(p.metrics || []).length}`);
+    return;
+  }
+  const own = new Set(p.tasks.map((t) => t.ch).filter(Boolean));
+  const keys = new Set();
+  p.metrics.forEach((m, mi) => {
+    const mw = `${w}[${mi}] "${m.key || ""}"`;
+    for (const f of ["key", "label", "hint", "ch"]) {
+      if (!m[f]) err(mw, `missing "${f}"`);
+    }
+    if (keys.has(m.key)) err(mw, "duplicate metric key");
+    keys.add(m.key);
+    if (m.ch && !chapterIds.has(m.ch)) {
+      err(mw, `references unknown chapter "${m.ch}"`);
+    } else if (m.ch && !own.has(m.ch)) {
+      err(
+        mw,
+        `references "${m.ch}", which none of this project's milestones use — ` +
+          `the metric is asking about something the project does not build`
+      );
+    }
+    if ((m.hint || "").length < 40) {
+      warn(
+        mw,
+        "hint is thin — it is the only guidance on what good looks like"
+      );
+    }
+    if ((m.label || "").length > 48) {
+      warn(mw, `label "${m.label}" will wrap awkwardly in the export table`);
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Portfolio export
+ * ------------------------------------------------------------------ */
+if (C.portfolioFor) {
+  const empty = C.portfolioFor({});
+  if (empty.started !== 0 || empty.words !== 0) {
+    err("portfolioFor", "an empty portfolio is not empty");
+  }
+  for (const p of C.projects) {
+    if (empty.markdown.includes(p.title)) {
+      err("portfolioFor", `"${p.title}" appears in an empty export`);
+    }
+  }
+
+  /* Everything ticked, nothing measured: the document must contain no Results
+     table anywhere, because inventing a number is the one thing this must never
+     do. */
+  const ticked = { projectTasks: {}, evidence: {} };
+  for (const p of C.projects) {
+    ticked.projectTasks[p.id] = {};
+    p.tasks.forEach((_, i) => (ticked.projectTasks[p.id][i] = true));
+  }
+  const bare = C.portfolioFor(ticked);
+  if (bare.markdown.includes("### Results")) {
+    err("portfolioFor", "produced a results table with no recorded numbers");
+  }
+  if (bare.missing.length !== C.projects.length) {
+    err(
+      "portfolioFor",
+      `${C.projects.length} unevidenced projects but ${bare.missing.length} named`
+    );
+  }
+
+  /* Every metric must be able to reach the document — a key the export ignores is
+     a field the learner filled in for nothing. */
+  const withValues = { projectTasks: ticked.projectTasks, evidence: {} };
+  for (const p of C.projects) {
+    withValues.evidence[p.id] = { metrics: {}, notes: "" };
+    p.metrics.forEach((m) => {
+      withValues.evidence[p.id].metrics[m.key] = "VALUE_" + m.key;
+    });
+  }
+  const full = C.portfolioFor(withValues);
+  for (const p of C.projects) {
+    for (const m of p.metrics) {
+      if (!full.markdown.includes("VALUE_" + m.key)) {
+        err("portfolioFor", `"${p.id}/${m.key}" never reaches the export`);
+      }
+      if (!full.markdown.includes("| " + m.label + " |")) {
+        err("portfolioFor", `"${p.id}/${m.key}" has no labelled row`);
+      }
+    }
+  }
+  if (full.missing.length) {
+    err(
+      "portfolioFor",
+      `every number recorded but ${full.missing.length} gaps still reported`
+    );
+  }
+
+  /* The claim threshold has to be a real, monotonic band boundary or the readiness
+     line would appear and vanish as a learner improved. */
+  if (C.portfolioClaimAt) {
+    const at = C.portfolioClaimAt();
+    if (typeof at !== "number") {
+      err("portfolioClaimAt", "no band is marked as claimable");
+    } else {
+      for (const b of C.readinessBands) {
+        if (b.at > at && !b.claim)
+          err(
+            "readinessBands",
+            `"${b.name}" is above the claim line but not claimable`
+          );
+        if (b.at < at && b.claim)
+          err("readinessBands", `"${b.name}" claims below the claim line`);
+      }
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Session planner
  * ------------------------------------------------------------------ *
  * The one promise this feature makes is that the plan fits the minutes asked

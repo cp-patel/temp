@@ -192,6 +192,46 @@ packing that with a third of the next chapter loses the thread, and reporting
 eleven idle minutes wastes them. So there is a **stretch item** — one named
 chapter, offered rather than scheduled, and never counted in the total.
 
+### Portfolio export
+
+Everything else in the app measures. This is the only thing that produces
+something you can send to someone — which matters, because the claim the whole
+curriculum makes is that you should be able to **prove** the result works, and the
+proof has to leave the browser to be worth anything.
+
+What makes a case study credible in this field is specifically numbers. "I built a
+RAG system" is worth nothing next to "recall@5 went from 0.61 to 0.82 with a
+cross-encoder over the top 50, on a 40-question set with graded relevance labels".
+The second sentence is also much harder to fake, which is exactly why it is the one
+that gets asked about — so every project carries the numbers **its own milestones
+tell you to collect** — 28 fields across the six projects, each linked to the
+chapter that teaches you how to measure it:
+
+| Project      | Asks you for                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| Extraction   | Hand-labelled cases · worst per-field precision · repair-retry rate · confidence correlation                            |
+| Chat service | p95 TTFT · cost saved by prompt caching · cost per conversation · small-model routing share                             |
+| RAG          | Eval set size · recall@5 before **and** after reranking · best chunking + margin · faithfulness · unanswerables refused |
+| Agent        | Tools exposed vs used · trajectory pass rate · runs stopped by a budget cap · median and p95 cost per run               |
+| Eval harness | Cases · judge/human agreement · share graded by code · CI width · regressions blocked                                   |
+| Ship it      | Real users · cost per user per month · traces read · failure modes fixed · post-mortem                                  |
+
+Fill them in on the projects page and the export assembles a Markdown case study
+per project — brief, stack, what it demonstrates, a results table, your write-up,
+and the milestone checklist. Copy it or download the `.md`.
+
+It **never invents a number.** An unrecorded measure gets no row, and the panel
+names what is missing ("_RAG System — 1 of 6 numbers still blank_") rather than
+producing a document that reads well and collapses in the follow-up question. Both
+ticked and unticked milestones are listed: showing only the done ones is a claim
+about scope, showing both is a claim about progress.
+
+One deliberate omission: your readiness score joins the export only at
+**Interview-capable** and above. A case study that opens by quoting a low
+self-assessment undoes everything under it — a portfolio is a document you choose
+the contents of, not a disclosure form. The threshold is a flag on the band, so it
+moves with the calibration rather than being a number in two places.
+
 ### Progress tracking
 
 - Chapter completion, quiz scores with explanations, inline knowledge checks

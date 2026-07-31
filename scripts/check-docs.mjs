@@ -121,7 +121,11 @@ for (const part of C.readinessParts) partPct[part.id] = part.weight * 100;
 const compPct = {};
 for (const k of C.competencies) compPct[k.id] = Math.round(k.weight * 100);
 
+const metricFields = C.projects.reduce((n, p) => n + p.metrics.length, 0);
+const claimBand = (C.readinessBands || []).filter((b) => b.claim)[0];
+
 const TRUTH = {
+  metricFields,
   competencies: C.competencies.length,
   readOnlyScore,
   partReading: partPct.reading,
@@ -213,6 +217,7 @@ const RULES = [
   ["README.md", /(\d+)% after Agents/, "bandAgents"],
   ["README.md", /(\d+)% after Evaluation/, "bandEvals"],
   ["README.md", /(\d+)% after Production/, "bandProduction"],
+  ["README.md", /(\d+) fields across the six projects/, "metricFields"],
 ];
 
 /* Every row of the competency table, against the weight it claims. A share that
@@ -307,6 +312,29 @@ for (const [file, re, key] of RULES) {
   }
   if (got !== TRUTH[key])
     fails.push(`${file}: claims ${key} = ${got}, actual ${TRUTH[key]}`);
+}
+
+/* The band the portfolio export starts quoting. Named in the README, so a
+   recalibration that moved the `claim` flag would otherwise leave the prose
+   pointing at the wrong band. */
+{
+  const readmeSrc = (cache["README.md"] ??= readFileSync(
+    join(ROOT, "README.md"),
+    "utf8"
+  ));
+  const m = readmeSrc.match(/joins the export only at\s+\*\*([^*]+)\*\*/);
+  if (!m) {
+    fails.push("README.md: no sentence names the portfolio claim band");
+  } else {
+    checked++;
+    if (!claimBand) {
+      fails.push("no readiness band is marked claimable");
+    } else if (m[1].trim() !== claimBand.name) {
+      fails.push(
+        `README.md: says the export quotes from "${m[1].trim()}", actual "${claimBand.name}"`
+      );
+    }
+  }
 }
 
 /* The competency table's shares. */

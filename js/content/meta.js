@@ -153,6 +153,37 @@
         "Turn messy free text — support emails, meeting notes, invoices — into validated JSON. The unglamorous workhorse of applied AI, and the fastest way to internalise structured output and schema design.",
       stack: "Python · Pydantic · any LLM API · pytest",
       proves: "Prompt design, structured output, schema validation, retries",
+      /* The numbers an interviewer will ask for, drawn from what this project's own
+         tasks already tell you to measure. Authored rather than parsed out of the
+         task prose, but the validator checks that each one names a chapter this
+         project actually uses — a metric about something the project does not build
+         is a question you cannot answer. */
+      metrics: [
+        {
+          key: "cases",
+          label: "Hand-labelled test cases",
+          hint: "How many, and how many of those were adversarial. A number under 20 invites the follow-up you do not want.",
+          ch: "eval-datasets",
+        },
+        {
+          key: "precision",
+          label: "Worst per-field precision",
+          hint: "Not the average. The field that performs worst is the one that decides whether this is shippable.",
+          ch: "eval-metrics",
+        },
+        {
+          key: "repairRate",
+          label: "Share of inputs needing a repair retry",
+          hint: "Directly the cost of your schema design. A high rate means the schema is fighting the model.",
+          ch: "prompt-failures",
+        },
+        {
+          key: "confidence",
+          label: "Confidence/correctness correlation",
+          hint: "Usually barely. Saying so, with the number, is a stronger answer than claiming it works.",
+          ch: "llm-judge",
+        },
+      ],
       tasks: [
         {
           t: "Define a Pydantic model for the target schema with real constraints (enums, ranges, optional fields)",
@@ -190,6 +221,32 @@
         "A streaming chat backend you would not be embarrassed to put behind a load balancer. This is the project that teaches you that most of AI engineering is ordinary backend engineering done carefully.",
       stack: "FastAPI · SSE · Redis · Docker",
       proves: "Streaming, state management, caching, cost control, resilience",
+      metrics: [
+        {
+          key: "ttft",
+          label: "p95 time-to-first-token",
+          hint: "The number users feel. p50 flatters you; quote both if you like, but lead with p95.",
+          ch: "streaming",
+        },
+        {
+          key: "cacheDelta",
+          label: "Cost saved by prompt caching",
+          hint: "As a percentage of the input bill. Anything under 30% means the cached prefix is not byte-identical.",
+          ch: "resilience",
+        },
+        {
+          key: "costPerConv",
+          label: "Cost per conversation",
+          hint: "With the turn count it assumes. A per-conversation figure with no turn count is not a figure.",
+          ch: "cost-latency",
+        },
+        {
+          key: "routeSplit",
+          label: "Share of turns routed to the small model",
+          hint: "And what it saved. This is the cheapest lever in the project and the one interviewers probe.",
+          ch: "model-choice",
+        },
+      ],
       tasks: [
         {
           t: "Stream tokens over SSE with correct backpressure and client-disconnect handling",
@@ -231,6 +288,44 @@
         "Pick a corpus that matters to you — your company's docs, a codebase, a book collection — and build retrieval that actually answers questions about it. Then prove it works.",
       stack: "Postgres + pgvector (or Qdrant) · BM25 · a reranker · FastAPI",
       proves: "Chunking, hybrid search, reranking, citation, RAG evaluation",
+      metrics: [
+        {
+          key: "evalSize",
+          label: "Eval set size",
+          hint: "With graded relevance labels, not just questions. Every other number here is only as good as this one.",
+          ch: "eval-datasets",
+        },
+        {
+          key: "recallBefore",
+          label: "recall@5 before reranking",
+          hint: "The baseline you improved on. Without it the improvement is unverifiable.",
+          ch: "hybrid-rerank",
+        },
+        {
+          key: "recallAfter",
+          label: "recall@5 after reranking",
+          hint: "The pair is the answer, not either number alone.",
+          ch: "hybrid-rerank",
+        },
+        {
+          key: "chunking",
+          label: "Best chunking strategy, and its margin",
+          hint: "You compared three. Name the winner and by how much — the margin is the interesting part.",
+          ch: "chunking",
+        },
+        {
+          key: "faithfulness",
+          label: "Faithfulness score",
+          hint: "The share of claims that map to a retrieved chunk. This is the number that separates a demo from a system.",
+          ch: "rag-architecture",
+        },
+        {
+          key: "noAnswer",
+          label: "Unanswerable questions correctly refused",
+          hint: "Out of the 10 you wrote. A system that answers all of them is worse than one that answers none.",
+          ch: "rag-debug",
+        },
+      ],
       tasks: [
         {
           t: "Build an ingestion pipeline that preserves document structure and metadata",
@@ -272,6 +367,32 @@
         "An agent that does something genuinely useful with 4–6 tools, hard budgets, and a trace you can debug. The goal is not autonomy — it is reliability under a spending cap.",
       stack: "Any agent framework or hand-rolled loop · OpenTelemetry · MCP",
       proves: "Tool design, agent loop control, memory, guardrails, tracing",
+      metrics: [
+        {
+          key: "tools",
+          label: "Tools, and how many the agent actually uses",
+          hint: "The gap between exposed and used is the most honest thing you can say about an agent.",
+          ch: "tool-use",
+        },
+        {
+          key: "trajectoryPass",
+          label: "Trajectory eval pass rate",
+          hint: "Over your 20 cases. Right answer by the wrong route still fails, and saying so shows you understand the eval.",
+          ch: "agent-evals",
+        },
+        {
+          key: "budgetKill",
+          label: "Runs stopped by a budget cap",
+          hint: "A non-zero number is a feature. Zero means your caps are too loose to have been tested.",
+          ch: "agent-guardrails",
+        },
+        {
+          key: "costPerRun",
+          label: "Median and p95 cost per run",
+          hint: "The p95 is where agents hurt. A median-only answer reads as not having looked.",
+          ch: "agent-loop",
+        },
+      ],
       tasks: [
         {
           t: "Write 4–6 tools with descriptions written for a model, not a human reader",
@@ -318,6 +439,38 @@
       stack: "pytest · a judge model · GitHub Actions · a tracing backend",
       proves:
         "Eval design, LLM-as-judge calibration, regression gating, statistics",
+      metrics: [
+        {
+          key: "cases",
+          label: "Cases in the suite",
+          hint: "Split into realistic traffic and adversarial. The split matters more than the total.",
+          ch: "eval-datasets",
+        },
+        {
+          key: "judgeAgreement",
+          label: "Judge/human agreement",
+          hint: "Over your 40 labels. An uncalibrated judge is a random number generator with good manners.",
+          ch: "llm-judge",
+        },
+        {
+          key: "deterministic",
+          label: "Share graded by code, not a model",
+          hint: "Higher is better and cheaper. This number is the clearest signal that you understand eval design.",
+          ch: "eval-metrics",
+        },
+        {
+          key: "ciWidth",
+          label: "Confidence interval width at your sample size",
+          hint: "The reason a 3-point move is noise. Quoting it unprompted is a senior signal.",
+          ch: "evals-ci",
+        },
+        {
+          key: "caught",
+          label: "Regressions the CI gate has blocked",
+          hint: "The payoff. One real catch is worth more than the whole harness described in the abstract.",
+          ch: "evals-ci",
+        },
+      ],
       tasks: [
         {
           t: "Assemble 60+ cases: 40 from real or realistic traffic, 20 adversarial edge cases",
@@ -359,6 +512,38 @@
         "One AI product, deployed, with real users who are not you. Nothing on this roadmap teaches as much as ten strangers using your thing in ways you didn't anticipate.",
       stack: "Your choice — but it must be publicly reachable and observable",
       proves: "Everything. Judgement, prioritisation, and operational nerve.",
+      metrics: [
+        {
+          key: "users",
+          label: "People using it who are not you",
+          hint: "Ten is the target. This is the number that makes everything else on this page credible.",
+          ch: "deployment",
+        },
+        {
+          key: "costPerUser",
+          label: "Cost per active user per month",
+          hint: "With the arithmetic shown. Nobody believes a unit-economics number without its working.",
+          ch: "cost-latency",
+        },
+        {
+          key: "traces",
+          label: "Traces read end to end",
+          hint: "Reading traces is the skill. The count is a proxy for whether you actually did.",
+          ch: "observability",
+        },
+        {
+          key: "failures",
+          label: "Top failure modes found, and fixed",
+          hint: "Name them. Specific failures you found and closed are the most persuasive thing in an interview.",
+          ch: "observability",
+        },
+        {
+          key: "postmortem",
+          label: "Post-mortem published",
+          hint: "A link. This is your best artefact, and it is the one almost nobody has.",
+          ch: "interview-prep",
+        },
+      ],
       tasks: [
         {
           t: "Pick one narrow problem for one specific person; resist scope creep aggressively",
