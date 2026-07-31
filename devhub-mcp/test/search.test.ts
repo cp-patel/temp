@@ -3,28 +3,66 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { quoteSearchTerms, searchMyWork } from '../src/tools/search.js';
+import { describePrState, sanitizeSearchTerms, searchMyWork } from '../src/tools/search.js';
 import { createFakeContext, linearHandlerFor, linearIssueNode, searchItem } from './helpers/fakes.js';
 
-describe('quoteSearchTerms', () => {
-  it('quotes the phrase so it cannot be read as qualifiers', () => {
-    expect(quoteSearchTerms('checkout timeout')).toBe('"checkout timeout"');
+describe('sanitizeSearchTerms', () => {
+  it('leaves ordinary keywords untouched, preserving AND semantics', () => {
+    // Critically NOT quoted: GitHub reads a quoted string as an exact-phrase match, which
+    // measured 54 results against 99,339 for the same words unquoted.
+    expect(sanitizeSearchTerms('checkout timeout')).toBe('checkout timeout');
   });
 
-  it('neutralises an injected qualifier', () => {
-    // Without quoting, this would silently change whose PRs are searched.
-    const quoted = quoteSearchTerms('author:someone-else secret');
-    expect(quoted).toBe('"author:someone-else secret"');
-    expect(quoted.startsWith('"')).toBe(true);
+  it('defuses an injected qualifier by removing the colon', () => {
+    // Without this, the user's text could override whose PRs are searched.
+    expect(sanitizeSearchTerms('author:someone-else secret')).toBe('author someone-else secret');
   });
 
-  it('strips embedded quotes and backslashes that would break out', () => {
-    expect(quoteSearchTerms('say "hi" org:evil')).toBe('"say hi org:evil"');
-    expect(quoteSearchTerms('a\\"b')).toBe('"a b"');
+  it('defuses scope-widening qualifiers', () => {
+    expect(sanitizeSearchTerms('org:other-company')).not.toContain(':');
+    expect(sanitizeSearchTerms('repo:someone/private')).not.toContain(':');
+    expect(sanitizeSearchTerms('user:someone-else')).not.toContain(':');
+  });
+
+  it('strips quotes and backslashes so a quoted context cannot be reopened', () => {
+    expect(sanitizeSearchTerms('say "hi" org:evil')).toBe('say hi org evil');
+    expect(sanitizeSearchTerms('a\\"b')).toBe('a b');
   });
 
   it('collapses whitespace', () => {
-    expect(quoteSearchTerms('  a   b  ')).toBe('"a b"');
+    expect(sanitizeSearchTerms('  a   b  ')).toBe('a b');
+  });
+
+  it('is idempotent, so applying it twice is safe', () => {
+    const once = sanitizeSearchTerms('org:evil "x" retry');
+    expect(sanitizeSearchTerms(once)).toBe(once);
+  });
+
+  it('reduces qualifier-only input to nothing', () => {
+    expect(sanitizeSearchTerms(':::')).toBe('');
+  });
+});
+
+describe('describePrState', () => {
+  it('reports merged when merged_at is set', () => {
+    expect(describePrState({ state: 'closed', pull_request: { merged_at: '2026-07-01T00:00:00Z' } })).toBe('merged');
+  });
+
+  it('distinguishes closed from merged', () => {
+    expect(describePrState({ state: 'closed', pull_request: { merged_at: null } })).toBe('closed');
+  });
+
+  it('reports draft for an open draft', () => {
+    expect(describePrState({ state: 'open', draft: true })).toBe('draft');
+  });
+
+  it('reports open for a plain open PR', () => {
+    expect(describePrState({ state: 'open' })).toBe('open');
+  });
+
+  it('does not claim a closed PR is a draft', () => {
+    // Draft status persists on closed PRs; the closed state is the more important fact.
+    expect(describePrState({ state: 'closed', draft: true, pull_request: { merged_at: null } })).toBe('closed');
   });
 });
 
@@ -131,13 +169,64 @@ describe('search_my_work', () => {
 
   it('marks a draft PR as draft rather than open', async () => {
     const { ctx } = createFakeContext({
-      work: { searchItems: [searchItem({ number: 1, draft: true })] },
+      work: { searchItems: [searchItem({ number: 1, draft: true, state: 'open' })] },
       personal: { searchItems: [] },
       linearHandler: linearHandlerFor({ search: [] }),
     });
 
     const result = await searchMyWork(ctx, { query: 'x' });
     expect(result.items[0]?.state).toBe('draft');
+  });
+
+  it('reports merged and closed PRs accurately, since it does not pin is:open', async () => {
+    const { ctx } = createFakeContext({
+      work: {
+        searchItems: [
+          searchItem({ number: 1, state: 'closed', pull_request: { merged_at: '2026-07-01T00:00:00Z' } }),
+          searchItem({ number: 2, state: 'closed', pull_request: { merged_at: null } }),
+        ],
+      },
+      personal: { searchItems: [] },
+      linearHandler: linearHandlerFor({ search: [] }),
+    });
+
+    const result = await searchMyWork(ctx, { query: 'x' });
+    const byNumber = new Map(result.items.map((item) => [item.number, item.state]));
+
+    expect(byNumber.get(1)).toBe('merged');
+    expect(byNumber.get(2)).toBe('closed');
+  });
+
+  it('refuses a query that is nothing but qualifier syntax', async () => {
+    const { ctx, work, linear } = createFakeContext({
+      work: { searchItems: [searchItem()] },
+      linearHandler: linearHandlerFor({ search: [linearIssueNode()] }),
+    });
+
+    const result = await searchMyWork(ctx, { query: ':::' });
+
+    // Searching an empty term would fall through to bare qualifiers and match everything.
+    expect(result.items).toEqual([]);
+    expect(result.notes?.join(' ')).toMatch(/no searchable terms/);
+    expect(work.calls).toEqual([]);
+    expect(linear.calls).toEqual([]);
+  });
+
+  it('does not send a colon to GitHub even when the user typed one', async () => {
+    const { ctx, work } = createFakeContext({
+      work: { searchItems: [] },
+      linearHandler: linearHandlerFor({ search: [] }),
+    });
+
+    await searchMyWork(ctx, { query: 'org:other-company secrets', scope: 'work' });
+    const query = work.calls.find((call) => call.includes('search(')) ?? '';
+    // Isolate just the user-supplied terms: everything between "search(" and our own qualifiers.
+    const userPortion = query.slice(query.indexOf('search(') + 'search('.length, query.indexOf('is:pr'));
+
+    expect(userPortion).toBe('org other-company secrets ');
+    expect(userPortion).not.toContain(':');
+    // Our scope qualifier is still the authoritative one.
+    expect(query).toContain('org:acme');
   });
 
   it('does not restrict results to PRs the user authored', async () => {

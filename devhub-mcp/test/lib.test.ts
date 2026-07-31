@@ -163,6 +163,44 @@ describe('TtlCache', () => {
     expect(await cache.wrap('k', async () => 'recovered')).toBe('recovered');
   });
 
+  it('shares one upstream fetch between identical concurrent calls', async () => {
+    let calls = 0;
+    const cache = new TtlCache(60_000, () => 1_000);
+    const produce = async (): Promise<number> => {
+      calls += 1;
+      await new Promise((resolve) => {
+        setTimeout(resolve, 5);
+      });
+      return 7;
+    };
+
+    // Both start before either finishes, so a naive cache would fetch twice.
+    const [a, b] = await Promise.all([cache.wrap('k', produce), cache.wrap('k', produce)]);
+
+    expect(a).toBe(7);
+    expect(b).toBe(7);
+    expect(calls).toBe(1);
+  });
+
+  it('propagates a rejection to every concurrent caller without caching it', async () => {
+    let calls = 0;
+    const cache = new TtlCache(60_000, () => 1_000);
+    const failing = async (): Promise<number> => {
+      calls += 1;
+      await new Promise((resolve) => {
+        setTimeout(resolve, 5);
+      });
+      throw new Error('upstream down');
+    };
+
+    const results = await Promise.allSettled([cache.wrap('k', failing), cache.wrap('k', failing)]);
+
+    expect(results.every((result) => result.status === 'rejected')).toBe(true);
+    expect(calls).toBe(1);
+    // The in-flight entry must be cleared, so a retry actually retries.
+    expect(await cache.wrap('k', async () => 99)).toBe(99);
+  });
+
   it('keys independently of object property order', () => {
     expect(cacheKey('t', { a: 1, b: 2 })).toBe(cacheKey('t', { b: 2, a: 1 }));
     expect(cacheKey('t', { a: 1 })).not.toBe(cacheKey('t', { a: 2 }));

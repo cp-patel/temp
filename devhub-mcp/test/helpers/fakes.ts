@@ -209,7 +209,6 @@ export interface FakeContext {
 export const FAKE_IDENTITY: Identity = {
   workLogin: 'work-login',
   personalLogin: 'personal-login',
-  linearUserId: 'linear-user-id',
   linearUserName: 'Test User',
 };
 

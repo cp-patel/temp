@@ -42,6 +42,10 @@ export interface GithubSearchItem {
   readonly repository_url: string;
   readonly draft?: boolean | undefined;
   readonly user: { readonly login: string } | null;
+  /** "open" | "closed". The queue tools pin `is:open`, but `search_my_work` does not. */
+  readonly state?: string | undefined;
+  /** Present on PR hits; a non-null `merged_at` distinguishes merged from merely closed. */
+  readonly pull_request?: { readonly merged_at?: string | null | undefined } | null | undefined;
 }
 
 export interface GithubApi {
@@ -52,8 +56,12 @@ export interface GithubApi {
       order?: 'asc' | 'desc';
       per_page?: number;
       /**
-       * Required since GitHub's 2025 issues-search migration. Verified present in
-       * @octokit/openapi-types as `components.parameters["issues-advanced-search"]?: string`.
+       * Opts into GitHub's advanced issues search.
+       *
+       * Typed as a string, not a boolean: GitHub's own OpenAPI spec declares
+       * `components.parameters["issues-advanced-search"]?: string` and documents it as
+       * "Set to `true` to use advanced search", so the value sent is the string "true".
+       * Passing it is the forward-compatible choice as the legacy implementation is retired.
        */
       advanced_search?: string;
     }): Promise<{ data: { total_count: number; items: readonly GithubSearchItem[] } }>;
@@ -271,8 +279,7 @@ export interface Identity {
   readonly workLogin: string;
   /** Login behind GITHUB_PERSONAL_TOKEN. */
   readonly personalLogin: string;
-  /** Linear user id resolved from LINEAR_USER_EMAIL. */
-  readonly linearUserId: string;
+  /** Display name of the Linear account, reported at startup so a mix-up is visible. */
   readonly linearUserName: string;
 }
 
@@ -294,13 +301,13 @@ export function scopeQualifier(config: DevhubConfig, scope: GithubScope): string
 
 interface ViewerQueryResult {
   readonly viewer: {
-    readonly id: string;
     readonly name: string;
+    /** Compared against LINEAR_USER_EMAIL at startup; null on accounts that hide it. */
     readonly email: string | null;
   } | null;
 }
 
-const VIEWER_QUERY = `query DevhubViewer { viewer { id name email } }`;
+const VIEWER_QUERY = `query DevhubViewer { viewer { name email } }`;
 
 /**
  * Fail fast: one cheap authenticated call per client.
@@ -368,7 +375,6 @@ export async function validateStartup(clients: DevhubClients): Promise<Identity>
   return {
     workLogin: work.login,
     personalLogin: personal.login,
-    linearUserId: linear.viewer.id,
     linearUserName: linear.viewer.name,
   };
 }

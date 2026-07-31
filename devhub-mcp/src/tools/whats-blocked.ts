@@ -68,6 +68,11 @@ export interface BlockedSections {
 export function authoredBlockedReason(item: PrItem): string | undefined {
   if (item.draft === true) return undefined;
 
+  // `approvals` is absent only when enrichment failed for this row. Treating that as "zero
+  // approvals" would invent a blocker for a PR that may well be approved and ready, so an
+  // unassessable PR is excluded here and disclosed in the response notes instead.
+  if (item.approvals === undefined) return undefined;
+
   if (item.changes_requested === true) {
     // If the author already pushed after the review, the ball is back with the reviewer and
     // this PR is not blocked on the author. `pushed_since_review` compares the head commit
@@ -79,7 +84,7 @@ export function authoredBlockedReason(item: PrItem): string | undefined {
       : `changes requested, not addressed for ${since}d`;
   }
 
-  if (item.age_days > STALE_AUTHORED_DAYS && (item.approvals ?? 0) === 0) {
+  if (item.age_days > STALE_AUTHORED_DAYS && item.approvals === 0) {
     const awaiting = item.awaiting ?? [];
     const who = awaiting.length > 0 ? ` — awaiting ${awaiting.join(', ')}` : ' — no reviewer has responded';
     return `open ${item.age_days}d with no approval${who}`;
@@ -178,6 +183,15 @@ export async function whatsBlocked(ctx: ToolContext): Promise<BlockedSections> {
       blocked: blockedIssues.length,
       blocking: youAreBlocking.length,
     });
+
+    // Never let a row silently vanish: a PR whose enrichment failed cannot be assessed for
+    // staleness, so say how many were skipped rather than implying they are fine.
+    const unassessable = authored.items.filter((item) => item.approvals === undefined && item.draft !== true).length;
+    if (unassessable > 0) {
+      notes.push(
+        `${unassessable} of your open PR${unassessable === 1 ? '' : 's'} could not be assessed (GitHub did not return their review state) and ${unassessable === 1 ? 'is' : 'are'} not counted above.`,
+      );
+    }
 
     if (warnings.length > 0) {
       notes.push('One or more upstreams failed; sections above may be incomplete.');

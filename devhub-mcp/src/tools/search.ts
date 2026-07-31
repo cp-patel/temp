@@ -77,15 +77,41 @@ function normalizeArgs(args: SearchArgs): { query: string; scope: Scope; maxResu
 }
 
 /**
- * Escape a user's free text for GitHub search.
+ * Neutralise GitHub search qualifiers in free text, without changing match semantics.
  *
- * Bare qualifier-looking input (`author:someone`) would silently change the query's meaning,
- * so the whole phrase is quoted and embedded quotes are stripped. That keeps the scope
- * qualifiers we add authoritative.
+ * Every GitHub qualifier has the form `key:value`, so removing colons makes one impossible to
+ * form — which keeps the scope qualifiers this server adds authoritative.
+ *
+ * Quoting the whole phrase would also block injection, but it is the wrong tool: GitHub treats
+ * a quoted string as an exact-phrase match. Measured against the live API, `"checkout timeout
+ * regression"` returns 54 matches where the same words unquoted return 99,339 — so quoting
+ * would silently hide almost everything the user was looking for.
+ *
+ * Double quotes and backslashes are dropped too, so the caller cannot reopen a quoted context.
  */
-export function quoteSearchTerms(query: string): string {
-  const cleaned = query.replace(/["\\]/g, ' ').replace(/\s+/g, ' ').trim();
-  return `"${cleaned}"`;
+export function sanitizeSearchTerms(query: string): string {
+  return query
+    .replace(/["\\:]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Report a PR's real state.
+ *
+ * This tool intentionally does not pin `is:open` — "did I ever open a PR about X?" needs
+ * history — so unlike the queue tools it must distinguish merged from closed from open.
+ * Reporting everything as "open" would be actively misleading.
+ */
+export function describePrState(item: {
+  state?: string | undefined;
+  draft?: boolean | undefined;
+  pull_request?: { merged_at?: string | null | undefined } | null | undefined;
+}): string {
+  if (item.pull_request?.merged_at !== null && item.pull_request?.merged_at !== undefined) return 'merged';
+  if (item.state === 'closed') return 'closed';
+  if (item.draft === true) return 'draft';
+  return item.state ?? 'open';
 }
 
 async function searchGithubScope(
@@ -96,7 +122,9 @@ async function searchGithubScope(
 ): Promise<{ total: number; items: SearchResultItem[] }> {
   const api = ctx.clients.github(scope);
   const qualifier = scopeQualifier(ctx.clients.config, scope);
-  const q = `${quoteSearchTerms(query)} is:pr archived:false ${qualifier}`;
+  // Sanitised again here even though the caller already did: this function owns the guarantee
+  // that no caller can inject a qualifier, and the transform is idempotent.
+  const q = `${sanitizeSearchTerms(query)} is:pr archived:false ${qualifier}`;
 
   const response = await api.search.issuesAndPullRequests({
     q,
@@ -106,23 +134,32 @@ async function searchGithubScope(
 
   return {
     total: response.data.total_count,
-    items: response.data.items.map((item) => {
-      const repo = repoFromApiUrl(item.repository_url);
-      return {
-        title: truncateText(item.title, CAPS.title),
-        type: 'pr' as const,
-        state: item.draft === true ? 'draft' : 'open',
-        url: item.html_url,
-        source: scope,
-        repo,
-        number: item.number,
-      };
-    }),
+    items: response.data.items.map((item) => ({
+      title: truncateText(item.title, CAPS.title),
+      type: 'pr' as const,
+      state: describePrState(item),
+      url: item.html_url,
+      source: scope,
+      repo: repoFromApiUrl(item.repository_url),
+      number: item.number,
+    })),
   };
 }
 
 export async function searchMyWork(ctx: ToolContext, args: SearchArgs): Promise<Envelope<SearchResultItem>> {
-  const { query, scope, maxResults } = normalizeArgs(args);
+  const { query: rawQuery, scope, maxResults } = normalizeArgs(args);
+  const query = sanitizeSearchTerms(rawQuery);
+
+  // Input like ":::" satisfies the schema's length minimum but sanitises to nothing. Searching
+  // on an empty term would drop to bare qualifiers and match every PR in scope, which is the
+  // opposite of what was asked for.
+  if (query === '') {
+    return buildEnvelope({
+      items: [],
+      totalFound: 0,
+      notes: ['The query contained no searchable terms after removing qualifier syntax.'],
+    });
+  }
 
   return ctx.cache.wrap(cacheKey(TOOL_NAME, { query, scope, maxResults }), async () => {
     const warnings: UpstreamFailure[] = [];

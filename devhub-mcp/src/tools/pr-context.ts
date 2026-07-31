@@ -112,7 +112,16 @@ function reviewerStates(
       latest.set(login, { state: review.state.toUpperCase(), at });
     }
   }
+  // Rank before truncating: on a PR with dozens of reviewers, an arbitrary 15 could omit the
+  // one person blocking the merge. Blockers first, then approvals, then everything else.
+  const rank = (state: string): number => {
+    if (state === 'CHANGES_REQUESTED') return 0;
+    if (state === 'APPROVED') return 1;
+    return 2;
+  };
+
   return [...latest.entries()]
+    .sort(([, a], [, b]) => rank(a.state) - rank(b.state) || b.at - a.at)
     .slice(0, MAX_REVIEWERS)
     .map(([reviewer, { state }]) => ({ reviewer, state: state.toLowerCase() }));
 }

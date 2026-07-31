@@ -114,7 +114,11 @@ function githubHint(upstream: Upstream, status: number | undefined, message: str
     case 404:
       return `not found, or invisible to ${tokenVar} — fine-grained PATs report unauthorised repos as 404`;
     case 422:
-      return `GitHub rejected the search query as invalid: ${message}`;
+      // The most common real cause is a misconfigured scope target: GitHub rejects a search
+      // whose `org:`/`user:` qualifier names something it cannot resolve.
+      return `GitHub rejected the query — check ${
+        upstream === 'github-work' ? 'GITHUB_WORK_ORG' : 'GITHUB_PERSONAL_USERNAME'
+      } names an org/user this token can see: ${message}`;
     case 503:
     case 502:
     case 500:

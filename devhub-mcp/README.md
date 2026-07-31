@@ -306,7 +306,14 @@ which moves on any edit and would make a long-stalled issue look freshly touched
 - **Caching.** Identical calls within 60 seconds are served from an in-memory cache. Failed
   calls are never cached, so a transient outage is retryable immediately.
 - **Rate limits.** On a GitHub 403/429 with rate-limit headers, the server reports minutes
-  until reset rather than retrying in a loop.
+  until reset rather than retrying in a loop. Note that GitHub's *search* endpoint has its own
+  much tighter budget (about 30 requests per minute) separate from the 5,000/hour REST budget.
+  Each tool call makes at most one search per scope, and the 60s cache absorbs repeats.
+- **Search query handling.** Free-text search strips colons from your terms before sending
+  them, so a query cannot smuggle in a qualifier (`org:`, `author:`, `repo:`) that would
+  override the scope this server pins. Colons are removed rather than the phrase being quoted,
+  because GitHub reads a quoted string as an *exact phrase* match — measured live, a quoted
+  three-word query returned 54 results where the same words unquoted returned 99,339.
 - **Enrichment cost.** GitHub's REST search returns neither diff stats nor CI state, so each
   PR needs follow-up calls. Three things keep that bounded:
   - search results are merged, sorted and trimmed *before* enrichment, so `scope: "both"` with

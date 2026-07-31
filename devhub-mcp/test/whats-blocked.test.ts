@@ -80,6 +80,13 @@ describe('authoredBlockedReason', () => {
     expect(authoredBlockedReason(pr({ age_days: 60, draft: true }))).toBeUndefined();
     expect(authoredBlockedReason(pr({ draft: true, changes_requested: true }))).toBeUndefined();
   });
+
+  it('does not invent a blocker for a PR whose review state is unknown', () => {
+    // Enrichment failed, so `approvals` is absent. Defaulting it to 0 would report a stale
+    // unapproved PR that might actually be approved and ready to merge.
+    const { approvals: _dropped, ...withoutApprovals } = pr({ age_days: 40 });
+    expect(authoredBlockedReason(withoutApprovals as PrItem)).toBeUndefined();
+  });
 });
 
 describe('blockingOthersReason', () => {

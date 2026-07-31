@@ -34,6 +34,12 @@ export function cacheKey(tool: string, args: unknown): string {
 
 export class TtlCache {
   private readonly entries = new Map<string, Entry>();
+  /**
+   * Requests currently in flight, so two identical concurrent calls share one upstream fetch
+   * instead of racing. Without this, a client that fires the same tool twice before the first
+   * returns pays twice — and `whats_blocked` makes exactly that kind of concurrent fan-out.
+   */
+  private readonly inFlight = new Map<string, Promise<unknown>>();
 
   /** `now` is injectable so TTL behaviour is testable without fake timers. */
   constructor(
@@ -65,13 +71,26 @@ export class TtlCache {
   async wrap<T>(key: string, produce: () => Promise<T>): Promise<T> {
     const hit = this.get<T>(key);
     if (hit !== undefined) return hit;
-    const value = await produce();
-    this.set(key, value);
-    return value;
+
+    // Join an identical request already in progress rather than starting a second one.
+    const pending = this.inFlight.get(key);
+    if (pending !== undefined) return pending as Promise<T>;
+
+    const promise = produce();
+    this.inFlight.set(key, promise);
+    try {
+      const value = await promise;
+      this.set(key, value);
+      return value;
+    } finally {
+      // Cleared on both paths: a rejection must not linger and poison later calls.
+      this.inFlight.delete(key);
+    }
   }
 
   clear(): void {
     this.entries.clear();
+    this.inFlight.clear();
   }
 
   get size(): number {
