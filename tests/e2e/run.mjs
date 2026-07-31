@@ -103,8 +103,19 @@ async function main() {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
   });
 
+  /* A goto whose URL differs from the current one only in the fragment is a
+     same-document navigation: the page does not reload and the app's scripts do
+     not re-run. That has cost real time three times in this suite's history —
+     a review deck read before its seed landed, a "first visit" that was not one,
+     and a set of filter counts painted before the state they counted existed.
+     Reload when the URL is unchanged. */
+  const visit = async (p2, url) => {
+    if ((await p2.url()) === url) await p2.reload({ waitUntil: "networkidle" });
+    else await p2.goto(url, { waitUntil: "networkidle" });
+  };
+
   const go = async (hash) => {
-    await page.goto(BASE + hash, { waitUntil: "networkidle" });
+    await visit(page, BASE + hash);
     await page.addStyleTag({
       content: "html{scroll-behavior:auto !important}",
     });
@@ -1399,6 +1410,90 @@ async function main() {
         : "no failures"
     );
     await cctx.close();
+  }
+
+  /* ---------------- the library tells you what a filter would show ---------------- */
+  section("library filters");
+  {
+    const fctx = await browser.newContext({
+      viewport: { width: 1440, height: 950 },
+      colorScheme: "dark",
+    });
+    const fp = await fctx.newPage();
+    fp.on("pageerror", (e) => errors.push(`library pageerror: ${e.message}`));
+    fp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`library console: ${m.text()}`);
+    });
+    await fp.goto(BASE, { waitUntil: "networkidle" });
+    await fp.evaluate(() => {
+      Store.skipOnboarding();
+      window.Curriculum.chapters
+        .slice(0, 9)
+        .forEach((c) => Store.complete(c.id, true));
+    });
+    await visit(fp, BASE + "#/library");
+    await fp.waitForTimeout(500);
+
+    const read = () =>
+      fp.evaluate(() => ({
+        cards: document.querySelectorAll(".libcard").length,
+        line: (document.querySelector(".libcount") || {}).innerText || "",
+        pills: Object.fromEntries(
+          [...document.querySelectorAll(".fpill")].map((b) => [
+            b.dataset.k + ":" + b.dataset.v,
+            Number((b.querySelector("[data-c]") || {}).textContent),
+          ])
+        ),
+        greyed: document.querySelectorAll(".fpill.is-none").length,
+      }));
+
+    const base = await read();
+    /* Faceted: each count is what that option yields with the other filters as
+       they stand, so it always matches what clicking it produces. Before this,
+       filtering 44 chapters to 6 changed only the length of the grid. */
+    check(
+      "each filter says how many chapters it would show",
+      base.pills["state:done"] === 9 &&
+        base.pills["state:todo"] === 35 &&
+        base.pills["state:lab"] === 17 &&
+        base.pills["diff:beginner"] +
+          base.pills["diff:intermediate"] +
+          base.pills["diff:advanced"] ===
+          44,
+      JSON.stringify(base.pills)
+    );
+    check(
+      "and the result line matches the grid",
+      /44 of 44/.test(base.line) && base.cards === 44,
+      `${base.line} vs ${base.cards} cards`
+    );
+
+    await fp.locator(".fpill", { hasText: "Has lab" }).click();
+    await fp.waitForTimeout(350);
+    const lab = await read();
+    await fp.locator(".fpill", { hasText: "Advanced" }).click();
+    await fp.waitForTimeout(350);
+    const both = await read();
+    check(
+      "a count predicts exactly what clicking it produces",
+      lab.cards === base.pills["state:lab"] &&
+        both.cards === lab.pills["diff:advanced"] &&
+        /17 of 44/.test(lab.line) &&
+        new RegExp(`${both.cards} of 44`).test(both.line),
+      `${base.pills["state:lab"]}->${lab.cards}, ${lab.pills["diff:advanced"]}->${both.cards}`
+    );
+
+    await fp.locator("input").first().fill("kubernetes");
+    await fp.waitForTimeout(450);
+    const none = await read();
+    check(
+      "a filter that would empty the grid is greyed before you click it",
+      none.cards === 0 &&
+        none.greyed === 8 &&
+        (await fp.locator(".empty").count()) === 1,
+      JSON.stringify({ cards: none.cards, greyed: none.greyed })
+    );
+    await fctx.close();
   }
 
   /* ---------------- the glossary is a stepping stone, not a dead end ---------------- */

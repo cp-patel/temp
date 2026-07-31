@@ -1534,10 +1534,45 @@
     var input = search.querySelector("input");
     filters.appendChild(search);
 
+    /* One matcher for the grid and for the counts on the chips, or the two drift
+       and the numbers stop being trustworthy. `override` lets a chip ask "how many
+       would I match?" without changing the current selection. */
+    function matches(c, override) {
+      var f = { diff: filter.diff, state: filter.state, q: filter.q };
+      if (override) f[override.k] = override.v;
+      if (f.diff !== "all" && c.difficulty !== f.diff) return false;
+      if (f.state === "done" && !Store.isDone(c.id)) return false;
+      if (f.state === "todo" && Store.isDone(c.id)) return false;
+      if (f.state === "lab" && !c.lab) return false;
+      var q = (f.q || "").toLowerCase();
+      if (q) {
+        var hay = (
+          c.title +
+          " " +
+          c.subtitle +
+          " " +
+          (c.tags || []).join(" ")
+        ).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    }
+
+    function countFor(key, id) {
+      return C.chapters.filter(function (c) {
+        return matches(c, { k: key, v: id });
+      }).length;
+    }
+
     function pillGroup(key, opts) {
       opts.forEach(function (o) {
         var b = el("button", "fpill" + (filter[key] === o.id ? " is-on" : ""));
-        b.textContent = o.label;
+        /* Faceted: the number is what this option would yield with the other
+           filters as they stand, so it always matches what clicking produces.
+           Without it there was no numeric feedback anywhere — filtering 44 down
+           to 6 changed only the length of the grid, and nothing told you which
+           filters were worth applying. */
+        b.innerHTML = esc(o.label) + '<span class="fpill__n" data-c></span>';
         b.onclick = function () {
           filter[key] = o.id;
           U.qa(".fpill", filters).forEach(function (x) {
@@ -1547,6 +1582,7 @@
           paint();
         };
         b.dataset.k = key;
+        b.dataset.v = o.id;
         filters.appendChild(b);
       });
     }
@@ -1563,32 +1599,41 @@
       { id: "advanced", label: "Advanced" },
     ]);
 
+    var resultLine = el("div", "libcount");
     var grid = el("div", "libgrid");
 
     function paint() {
-      var q = filter.q.toLowerCase();
       var list = C.chapters.filter(function (c) {
-        if (filter.diff !== "all" && c.difficulty !== filter.diff) return false;
-        if (filter.state === "done" && !Store.isDone(c.id)) return false;
-        if (filter.state === "todo" && Store.isDone(c.id)) return false;
-        if (filter.state === "lab" && !c.lab) return false;
-        if (q) {
-          var hay = (
-            c.title +
-            " " +
-            c.subtitle +
-            " " +
-            (c.tags || []).join(" ")
-          ).toLowerCase();
-          if (hay.indexOf(q) === -1) return false;
-        }
-        return true;
+        return matches(c);
       });
+
+      U.qa(".fpill", filters).forEach(function (b) {
+        var slot = b.querySelector("[data-c]");
+        if (!slot) return;
+        var n = countFor(b.dataset.k, b.dataset.v);
+        slot.textContent = n;
+        // A filter that would empty the grid says so before you click it.
+        b.classList.toggle("is-none", n === 0);
+      });
+
+      resultLine.innerHTML =
+        "<b>" +
+        list.length +
+        "</b> of " +
+        C.chapters.length +
+        " chapters" +
+        (list.length === C.chapters.length ? "" : " match");
 
       grid.innerHTML = "";
       if (!list.length) {
         grid.appendChild(
-          emptyState("Nothing matches", "Try a different filter.", null, null)
+          emptyState(
+            "Nothing matches",
+            "Every filter is still applied. Clear the text, or widen a filter — " +
+              "the number on each one tells you what it would show.",
+            null,
+            null
+          )
         );
         return;
       }
@@ -1648,6 +1693,7 @@
 
     root.appendChild(head);
     root.appendChild(filters);
+    root.appendChild(resultLine);
     root.appendChild(grid);
     paint();
   };

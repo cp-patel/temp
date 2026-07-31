@@ -1954,3 +1954,39 @@
   color: var(--ink-2);
   background: var(--surface-3);
 }
+
+/* ---- Library: filter counts and the result line ----
+   Filtering 44 chapters down to 6 used to change only the length of the grid.
+   The count on each filter is what it would yield with the others as they stand,
+   so it doubles as a summary of the curriculum: 17 chapters have a lab, 6 of
+   those are advanced. */
+
+.fpill__n {
+  margin-left: 0.45em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+.fpill.is-on .fpill__n {
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* A filter that would empty the grid says so before you click it. */
+.fpill.is-none {
+  opacity: 0.5;
+}
+
+.libcount {
+  margin: var(--s-5) 0 var(--s-4);
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+}
+
+.libcount b {
+  font-family: var(--font-mono);
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
