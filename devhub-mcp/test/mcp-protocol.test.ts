@@ -38,6 +38,7 @@ const ALL_TOOLS = [
   'whats_blocked',
   'search_my_work',
   'get_standup_notes',
+  'get_devhub_config',
 ] as const;
 
 describe('tool surface', () => {
@@ -124,6 +125,49 @@ describe('tool surface', () => {
 
     // scope has no default on purpose: guessing it could hit the wrong credential.
     expect((schema.required ?? []).sort()).toEqual(['number', 'repo', 'scope']);
+
+    await client.close();
+  });
+});
+
+describe('get_devhub_config', () => {
+  it('reports resolved identities and limits without any upstream call', async () => {
+    const { ctx, work, personal, linear } = createFakeContext();
+    const client = await connect(ctx);
+
+    const result = await client.callTool({ name: 'get_devhub_config', arguments: {} });
+    const payload = JSON.parse(firstText(result)) as {
+      server: { read_only: boolean };
+      github: { work_login: string; work_org: string; personal_login: string };
+      linear: { email: string };
+      thresholds: { stale_pr_days: number };
+      limits: { response_budget_chars: number };
+    };
+
+    expect(payload.server.read_only).toBe(true);
+    expect(payload.github.work_login).toBe('work-login');
+    expect(payload.github.work_org).toBe('acme');
+    expect(payload.github.personal_login).toBe('personal-login');
+    expect(payload.linear.email).toBe('me@example.com');
+    expect(payload.thresholds.stale_pr_days).toBe(3);
+    expect(payload.limits.response_budget_chars).toBe(8_000);
+
+    // The whole point: troubleshooting must work even when every upstream is down.
+    expect(work.calls).toEqual([]);
+    expect(personal.calls).toEqual([]);
+    expect(linear.calls).toEqual([]);
+
+    await client.close();
+  });
+
+  it('never contains a credential value', async () => {
+    const { ctx } = createFakeContext();
+    const client = await connect(ctx);
+
+    const result = await client.callTool({ name: 'get_devhub_config', arguments: {} });
+    const text = firstText(result);
+
+    expect(text).not.toMatch(/ghp_|github_pat_|lin_api_/);
 
     await client.close();
   });

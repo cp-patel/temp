@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "devhub": {
+      "command": "node",
+      "args": ["${CLAUDE_PROJECT_DIR:-.}/devhub-mcp/dist/index.js"],
+      "env": {
+        "GITHUB_WORK_TOKEN": "${GITHUB_WORK_TOKEN}",
+        "GITHUB_PERSONAL_TOKEN": "${GITHUB_PERSONAL_TOKEN}",
+        "GITHUB_WORK_ORG": "${GITHUB_WORK_ORG:-headout}",
+        "GITHUB_PERSONAL_USERNAME": "${GITHUB_PERSONAL_USERNAME:-cp-patel}",
+        "LINEAR_API_KEY": "${LINEAR_API_KEY}",
+        "LINEAR_USER_EMAIL": "${LINEAR_USER_EMAIL:-chandra.patel@headout.com}",
+        "DEVHUB_STALE_PR_DAYS": "${DEVHUB_STALE_PR_DAYS:-3}",
+        "DEVHUB_BLOCKING_REVIEW_DAYS": "${DEVHUB_BLOCKING_REVIEW_DAYS:-5}"
+      }
+    }
+  }
+}

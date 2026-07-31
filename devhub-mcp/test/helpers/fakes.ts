@@ -237,6 +237,7 @@ export function createFakeContext(options: FakeContextOptions = {}): FakeContext
       linearUserEmail: 'me@example.com',
       stalePrDays: options.stalePrDays ?? 3,
       blockingReviewDays: options.blockingReviewDays ?? 5,
+      upstreamTimeoutMs: 15_000,
     },
     github: (scope: GithubScope) => (scope === 'work' ? work : personal),
     linear,

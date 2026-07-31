@@ -61,6 +61,12 @@ import {
   standupDescription,
   standupInputSchema,
 } from './tools/standup.js';
+import {
+  TOOL_NAME as CONFIG_INFO_TOOL,
+  configInfoDescription,
+  configInfoInputSchema,
+  getDevhubConfig,
+} from './tools/config-info.js';
 
 const SERVER_NAME = 'devhub-mcp';
 const SERVER_VERSION = '0.1.0';
@@ -201,6 +207,18 @@ export function buildServer(ctx: ToolContext): McpServer {
       annotations: readOnly,
     },
     async (args) => safeTool(STANDUP_TOOL, () => getStandupNotes(ctx, args)),
+  );
+
+  server.registerTool(
+    CONFIG_INFO_TOOL,
+    {
+      title: 'Server configuration',
+      description: configInfoDescription,
+      inputSchema: configInfoInputSchema,
+      // No upstream calls at all, so not open-world.
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async () => safeTool(CONFIG_INFO_TOOL, async () => getDevhubConfig(ctx, SERVER_NAME, SERVER_VERSION)),
   );
 
   return server;

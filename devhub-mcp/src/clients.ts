@@ -181,6 +181,8 @@ export interface DevhubConfig {
    */
   readonly stalePrDays: number;
   readonly blockingReviewDays: number;
+  /** The per-request upstream deadline in force, surfaced by `get_devhub_config`. */
+  readonly upstreamTimeoutMs: number;
 }
 
 /** Non-empty after trimming — an env var set to "" is as broken as one that is missing. */
@@ -286,6 +288,7 @@ export function createClients(env: NodeJS.ProcessEnv = process.env, options: Cli
       linearUserEmail: config.LINEAR_USER_EMAIL,
       stalePrDays: config.DEVHUB_STALE_PR_DAYS ?? 3,
       blockingReviewDays: config.DEVHUB_BLOCKING_REVIEW_DAYS ?? 5,
+      upstreamTimeoutMs: timeoutMs,
     },
     github(scope: GithubScope): GithubApi {
       return githubByScope[scope];

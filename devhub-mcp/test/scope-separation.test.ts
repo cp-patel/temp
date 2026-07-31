@@ -57,6 +57,7 @@ describe('scope separation', () => {
       linearUserEmail: 'me@example.com',
       stalePrDays: 3,
       blockingReviewDays: 5,
+      upstreamTimeoutMs: 15_000,
     };
     expect(scopeQualifier(config, 'work')).toBe('org:acme');
     expect(scopeQualifier(config, 'personal')).toBe('user:octo-personal');

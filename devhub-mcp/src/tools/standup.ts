@@ -62,6 +62,8 @@ Plus a one-line "summary" like "Merged 2 PRs, opened 1, completed 1 ticket; 3 in
 
 Use this when the user asks what they did yesterday/last week, wants standup notes, a status update, or a work summary — "what did I ship this week?", "write my standup". This is the RETROSPECTIVE tool: for the current queue use get_my_review_queue (reviews owed) or get_my_open_prs (PRs awaiting others); for what is stuck use whats_blocked.
 
+Honest boundary: this does NOT include reviews the user gave to other people's PRs — only PRs they authored and issues assigned to them.
+
 Example: { "days_back": 1 } -> yesterday's merged/opened PRs, completed tickets, and current in-progress work.`;
 
 export interface StandupArgs {

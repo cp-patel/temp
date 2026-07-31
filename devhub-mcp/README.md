@@ -118,9 +118,13 @@ cheap authenticated call per client. If anything is wrong it prints the offendin
 
 ### Claude Code — project scope (`.mcp.json`)
 
-Put this in `.mcp.json` at your project root. Claude Code expands `${VAR}` (and
-`${VAR:-default}`) inside `command`, `args` and `env`, so the actual secrets stay in your
-shell environment and this file is safe to commit.
+A ready-to-use `.mcp.json` is committed at this repository's root — after `npm install &&
+npm run build`, opening the repo in Claude Code offers the server automatically (it resolves
+the binary via `${CLAUDE_PROJECT_DIR:-.}`, the default-form the Claude Code docs prescribe
+for project-scoped files). For any other project, copy the snippet below.
+
+Claude Code expands `${VAR}` (and `${VAR:-default}`) inside `command`, `args` and `env`, so
+the actual secrets stay in your shell environment and this file is safe to commit.
 
 ```json
 {
@@ -204,9 +208,20 @@ first or add them in the Inspector's own Environment panel.
 If credentials are wrong the server exits immediately and the Inspector shows the
 connection failing — the reason is on stderr, naming the variable to fix.
 
+## Example conversations
+
+The tools are designed so each of these resolves in one or two calls:
+
+- "What should I review today?" → `get_my_review_queue`
+- "What am I blocked on, and what am I blocking?" → `whats_blocked`
+- "Who hasn't reviewed my payments PR yet?" → `get_my_open_prs`, then `get_pr_context`
+- "Write my standup." → `get_standup_notes`
+- "Find my PR about the rate limiter." → `search_my_work` with `only_mine: true`
+- "Why is my review queue empty?" → `get_devhub_config` to check the resolved org/logins
+
 ## Tools
 
-All seven return compact, pre-digested JSON. List tools share the envelope
+All eight return compact, pre-digested JSON. List tools share the envelope
 `{ items, total_found, has_more }`, plus `warnings` (upstream failures) and `notes`
 (server-side truncation) when relevant.
 
@@ -309,6 +324,33 @@ hatch when the specific tools do not fit.
 
 By default this is **not** restricted to your own items — only to what your tokens can see.
 Results are interleaved across sources so one prolific upstream cannot crowd out the others.
+
+### `get_devhub_config`
+
+The troubleshooting tool. No parameters, no API calls — returns what the server resolved at
+startup: the login behind each GitHub token, the org/username each scope queries, the Linear
+account, the staleness thresholds, and operational limits. When a queue looks wrongly empty,
+this answers "is it broken or really empty?".
+
+## Known limitations
+
+Stated here so they are design decisions you can read, not surprises you discover:
+
+- **Team-only review requests may not appear in your review queue.** The queue searches
+  `review-requested:<login>`. Orgs that use team review assignment usually fan requests out
+  to individuals (who then appear normally), but a PR whose *only* requested reviewer is a
+  team you belong to may not match. Requested teams *do* appear on your own PRs' `awaiting`
+  lists as `team:<slug>`.
+- **Reviews you gave are not in `get_standup_notes`.** It covers PRs you authored and issues
+  assigned to you.
+- **GitHub's search budget is ~30 requests/minute**, separate from the 5,000/hour REST
+  budget. Each tool call makes at most a few searches and the 60s cache absorbs repeats, but
+  a rapid-fire session can still hit it; the error names the reset time.
+- **Fine-grained PATs only see repositories they were granted.** An empty result can mean
+  "no access", not "nothing exists" — `get_devhub_config` plus the token's repository list
+  is the checklist.
+- **Caps are everywhere and always disclosed.** Lists cap at 10–50 items, scans at 30–100,
+  responses at ~8,000 characters. Every cap that bites is named in `notes`.
 
 ## How "blocked" is decided
 
