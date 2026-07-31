@@ -789,8 +789,13 @@
      inside it, so Tab could not even reach the text behind. That reader came to
      read one page; the roadmap will still be there when they want it, and the
      offer arrives the moment they go looking. */
+  /* Not the landing page. It is the one screen whose job is to tell a stranger
+     what this is, and the scrim is dark enough that opening a survey over it
+     replaces the pitch rather than sitting on top of it — the same mistake as
+     covering a shared chapter link, just less obvious because there is seemingly
+     nothing to lose. Its own "Open the roadmap" button leads somewhere that does
+     offer, so the sequence works out: read the pitch, then get asked. */
   var PLANNING_ROUTES = {
-    landing: true,
     dashboard: true,
     plan: true,
     roadmap: true,

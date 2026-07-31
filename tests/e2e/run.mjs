@@ -338,14 +338,16 @@ async function main() {
 
   /* ---------------- personalisation ---------------- */
   section("personalisation");
-  await page.goto(BASE, { waitUntil: "networkidle" });
+  /* The roadmap, not the landing page: the offer arrives on surfaces where
+     planning is the point, and the pitch is left to make its case. */
+  await page.goto(BASE + "#/roadmap", { waitUntil: "networkidle" });
   await page.evaluate(() => {
     localStorage.clear();
   });
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(1100);
   check(
-    "onboarding auto-opens on first visit",
+    "onboarding auto-opens on a planning surface",
     (await page.locator(".ob__box").count()) === 1
   );
 
@@ -633,7 +635,8 @@ async function main() {
   /* A dialog that leaves focus on <body> does not exist to the keyboard: the
      first Tab went to the skip link *behind* the scrim, and Escape did nothing. */
   await page.evaluate(() => Store.reset());
-  await page.goto(BASE, { waitUntil: "networkidle" });
+  // A planning surface, since that is where the offer is made.
+  await page.goto(BASE + "#/roadmap", { waitUntil: "networkidle" });
   await page.waitForSelector(".ob", { timeout: 3000 });
   await page.waitForTimeout(400);
   const obFocus = await page.evaluate(
@@ -1972,19 +1975,53 @@ async function main() {
       return lp.locator(".ob").count();
     };
 
-    for (const entry of ["#/chapter/hybrid-rerank", "#/labs", "#/glossary"]) {
+    /* The landing page is in this list, not the one below: it is the pitch, and the
+       scrim is dark enough that a survey over it replaces the page rather than
+       covering it. Its own "Open the roadmap" button leads somewhere that does
+       offer, so nothing is lost by waiting. */
+    for (const entry of [
+      "",
+      "#/chapter/hybrid-rerank",
+      "#/labs",
+      "#/glossary",
+    ]) {
       check(
-        `arriving at ${entry} is left alone`,
+        `arriving at ${entry || "/"} is left alone`,
         (await firstVisit(entry)) === 0
       );
     }
 
-    for (const entry of ["", "#/roadmap"]) {
+    for (const entry of ["#/roadmap", "#/dashboard", "#/plan"]) {
       check(
-        `arriving at ${entry || "/"} still offers to personalise`,
+        `arriving at ${entry} still offers to personalise`,
         (await firstVisit(entry)) === 1
       );
     }
+
+    /* And the pitch is actually readable, which is the point of the change. */
+    await firstVisit("");
+    check(
+      "the landing page's headline and CTA are not covered",
+      await lp.evaluate(() => {
+        const h1 = document.querySelector("h1");
+        const cta = [...document.querySelectorAll("a.btn")].find((a) =>
+          /roadmap/i.test(a.innerText)
+        );
+        if (!h1 || !cta) return false;
+        const hit = (el) => {
+          const r = el.getBoundingClientRect();
+          const y = Math.max(
+            1,
+            Math.min(window.innerHeight - 1, r.top + r.height / 2)
+          );
+          return document.elementFromPoint(
+            Math.round(r.left + r.width / 2),
+            Math.round(y)
+          );
+        };
+        return h1.contains(hit(h1)) && cta.contains(hit(cta));
+      })
+    );
 
     /* Deferring is only acceptable because the offer still arrives. Land on a
        chapter, do some work, then go looking for the path. */
@@ -2222,6 +2259,14 @@ async function main() {
     "arrives with empty storage",
     (await wp.evaluate(() => localStorage.length)) === 0
   );
+  /* The landing page makes its case first; the offer comes when the visitor acts
+     on it. Following its own primary button is what a first visitor does. */
+  await wp.waitForTimeout(1200);
+  check(
+    "the pitch is not covered by a survey",
+    (await wp.locator(".ob").count()) === 0
+  );
+  await wp.locator("a.btn", { hasText: "Open the roadmap" }).first().click();
   await wp.waitForSelector(".ob", { timeout: 3000 }).catch(() => {});
   check("onboarding opens by itself", (await wp.locator(".ob").count()) === 1);
   check(
