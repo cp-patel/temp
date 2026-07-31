@@ -1,130 +1,139 @@
-# 🇮🇳 MITRON MAYHEM
+# 🗳️ CHUNAV CHANAKYA
 
-**A frantic meme-microgame gauntlet built on Indian internet meme culture.**
-14 bite-sized minigames + a boss round, all procedurally drawn on a canvas with a
-synthesized tabla-and-sitar soundtrack. No images, no audio files, no libraries,
-no build step. Open the HTML file and play.
+**A turn-based meme election strategy game.** Draft four star campaigners from a cast of
+ten Indian-politics archetypes, write a two-plank manifesto, and out-think two rival
+fronts across ten weeks and 543 seats. No reflexes, no timers — every decision waits
+for you.
 
-> Affectionate parody of meme culture, not a political statement. Every "quote"
-> in here is meme fiction written for this game. Nothing is attributed to any
-> real person, and nothing is meant to insult anyone.
+Plus **MITRON MAYHEM** (`arcade.html`), the 14-microgame reflex gauntlet, kept as a
+side mode.
+
+> **This is parody.** Every character is an invented archetype inspired by public
+> political personas and meme culture. Every "quote" and every ability was written for
+> this game. Nothing here is a real statement by a real person, and nothing targets a
+> religion, a community, or a private individual.
 
 ---
 
 ## ▶ Play
 
 ```bash
-# just open it
-xdg-open index.html      # macOS: open index.html
-
-# or serve it (any static server works)
-npx http-server . -p 8080   # → http://localhost:8080
+git clone -b claude/modi-meme-game-7g05m8 https://github.com/cp-patel/temp.git chunav
+cd chunav
+open index.html          # macOS   ·   xdg-open (Linux)   ·   start (Windows)
 ```
 
-Works in any modern browser, offline, on desktop and phone.
+Or double-click `index.html`. No build, no dependencies, works offline.
+A local server (`npx serve .`) is only needed if you want your best result to persist
+in Safari/Firefox, which block `localStorage` on `file://`.
 
-## 🎮 Controls
+**Mouse drives everything.** `ENTER` ends the week · `ESC` backs out · `1-3` answers a
+dilemma · `M` mutes.
 
-| Input | Does |
-| --- | --- |
-| **SPACE / ENTER / TAP** | the do-it button — cheer, hug, clap, jump, pour, snap |
-| **ARROWS / WASD / SWIPE** | move, aim, choose, strike the asana |
-| **MOUSE / TOUCH DRAG** | sweep the jhaadu, pick a diya, grab a pakoda |
-| **1 – 4** | answer the quiz, grab a numbered pakoda |
-| **P / ESC** | pause · **M** mute |
+## 🧠 The game in one paragraph
 
-On phones an on-screen d-pad and a big **MITRON** button appear automatically.
+**BUZZ** is momentum and it decays 45% a week. **VOTE SHARE** is permanent. Turning one
+into the other is the whole game — and **CADRE** plus **CREDIBILITY** set the exchange
+rate (0.72× at zero credibility, 1.27× at full). Seats are allocated on share², so
+*leading* a region pays a bonus: concentration beats spreading thin. You get 4 action
+points a week for ten weeks. That's 40 decisions to win 272 of 543 seats.
 
-## 🌀 How a run works
+## 🎭 The cast — every persona is a mechanic
 
-```
-TITLE → [ COMMAND SLAM ] → [ MICROGAME ] → [ SAHI / GALAT ] → …
-          every 4 rounds: SPEED UP!      every 8 rounds: 8 PM ADDRESS boss
-```
-
-* **3 cups of chai = 3 lives.** Lose a round, lose a cup. Beat the boss, get one back (max 5).
-* **Combo multiplier** climbs with every consecutive win, up to ×3.5 — the whole score
-  lives or dies on your streak.
-* **Speed** ramps every 4 rounds: shorter clocks, faster spawns, tighter timing windows,
-  and the background music literally speeds up with you.
-* **Meme Cards**: winning a microgame for the first time unlocks its collectible card.
-  18 cards total, including four earned by feats (6-combo, boss kill, 12k score, full set).
-
-## 🕹 The microgames
-
-| # | Round | Meme it riffs on | What you do |
+| Leader | Archetype | Passive | Signature move |
 | --- | --- | --- | --- |
-| 1 | **MITRON!** | the trademark speech opener | Cheer *only* when the word MITRON lands |
-| 2 | **NOTEBANDI!** | note-ban ATM queues | Catch new notes in your jhola, dodge the demonetised ones |
-| 3 | **JHAPPI!** | bear-hug diplomacy | Time the hug as the world leader enters the hug zone |
-| 4 | **CHAI!** | chai-stall origin story · chai pe charcha | Hold to pour, release inside the green band |
-| 5 | **YOGA DAY!** | International Yoga Day | Watch the asana sequence, then repeat it |
-| 6 | **SAFAI!** | Swachh Bharat jhaadu photo-ops | Sweep every last piece of kachra |
-| 7 | **CLOUD COVER!** | "clouds can hide a plane from radar" | Sit inside a cloud whenever the radar sweeps |
-| 8 | **TAALI BAJAO!** | 9 baje, 9 minute thali-banging | Hit every beat on the line |
-| 9 | **SELFIE!** | selfie diplomacy | Get two leaders inside the frame, then snap |
-| 10 | **PARIKSHA!** | "Entire Political Science" | Rapid-fire meme quiz |
-| 11 | **PAKODA!** | the pakoda-economy jobs quip | Scoop each pakoda out exactly when it's golden |
-| 12 | **ACHHE DIN!** | good days are coming (still) | Run the pothole-and-GST obstacle road to the sign |
-| 13 | **9 BAJE!** | diya-lighting night | Light every diya at once while the wind fights you |
-| 14 | **MANN KI BAAT!** | the monthly radio address | Tune the dial and hold the signal steady |
-| ★ | **THE 8 PM ADDRESS** | the dreaded 8 PM television appearance | Boss: obey every barked order — and when he says **CHUP**, do *nothing* |
+| **MITRON JI** | The 56-Inch Orator | +10% buzz on all rallies | **MEGA ROADSHOW** — huge buzz + spillover |
+| **CHANAKYA JI** | The Booth Machine | +24% conversion efficiency | **BOOTH MANAGEMENT** — bank buzz as votes instantly |
+| **YUVRAJ BHAIYA** | The Yatra Yodha | +14 cadre a week | **JODO YATRA** — buzz across a region *and* its neighbours, pays again next week |
+| **MUFFLER MAN** | The Freebie Fakir | schemes −25%, cities convert +50% | **FREE BIJLI-PAANI** — instant urban share, empties the treasury |
+| **MAHARAJ JI** | The 4 AM Monk | regions you lead become fortresses | **ANUSHASAN DRIVE** — locks a fortress for 3 weeks |
+| **SUITED SIR** | The Prime-Time Prodigy | +4 credibility a week, smears land softer | **PRIME TIME DEBATE** — steal the rival's momentum for ₹6 |
+| **DIDI** | The Street Fighter | best region never drops below 38% | **KHELA HOBE** — every rival move there next week simply fails |
+| **SHABDKOSH SIR** | The Walking Thesaurus | extra intel + credibility | **VOCABULARY BOMB** — collapse rival buzz across a cluster |
+| **PALTI JI** | The Alliance Acrobat | +18 funds/week · **12% chance he defects** | **ALLIANCE FLIP** — steal 6% share, and the only way to fracture the mahagathbandhan |
+| **BAHI-KHATA MADAM** | The Ledger Lady | +26 funds a week | **BUDGET BONANZA** — a *free* action (0 AP) every 3 weeks |
 
-## 🏗 Architecture
+**Everyone you don't draft joins the opposition, with their abilities pointed at you.**
+
+## 🔀 The five decisions that decide the election
+
+1. **DRAFT** — four of ten. Passing on Chanakya Ji means the *rivals* get booth conversion.
+2. **CHEMISTRY** — pairs multiply or bicker. *Measured*: swapping in a leader with a
+   **higher** solo value who clashes with a team-mate costs **20 seats**.
+3. **MANIFESTO** — two planks. On-message regions convert ×1.6, off-message ×0.55, and
+   each plank charges you every week (freebies drain funds, tradition raises heat,
+   business pays you but costs credibility). Wide coverage costs more to run.
+4. **WHERE** — every AP spent in a safe region is an AP not spent in a close one. The
+   panel shows a **projected seat change** for each move before you commit.
+5. **WHEN TO CASH OUT** — buzz evaporates. Bank it with GROUND PUSH or BOOTH MANAGEMENT.
+
+## 🎬 Things that happen to you
+
+* **INTEL** leaks the rivals' moves **one week early** — so blocking and counter-punching
+  are real options, not guesswork.
+* **DILEMMAS** — a Monday-morning problem most weeks. *"A 9 PM anchor demands you appear
+  or the nation will assume the worst."* Send your debater, send an empty chair, or
+  boycott and bank an action point.
+* **HEAT** rises with meme blitzes and defections. At 8, the Election Commission takes
+  an action point off you.
+* **MAHAGATHBANDHAN** — run away with the campaign and both rival fronts *merge*,
+  counted as one bloc for seat allocation. It is the single biggest swing in the game,
+  and only Palti Ji can crack it open. That's why you might draft a man who may defect.
+* **COUNTING DAY** — region-by-region reveal, then government formation: a hung house
+  puts four coalition offers in front of you, including refusing to deal at all.
+
+## ✔ Verified, with numbers
+
+The rules engine is pure and runs headlessly, so balance is **measured, not asserted**.
+`node tools/balance.js 250` plays hundreds of full campaigns with scripted players:
 
 ```
-index.html          shell, styles, mobile pad, boot splash, script order
-src/util.js         namespace, palette, math, canvas primitives (text/rrect/sunburst/bunting)
-src/audio.js        WebAudio synth: tabla, tanpura drone, sitar plucks, SFX, adaptive music loop
-src/input.js        one input model over keyboard + mouse + touch + swipe + on-screen pad
-src/fx.js           particles, screen shake, hit-freeze, flashes, text pops, petals, CRT overlay
-src/art.js          every sprite as vector paths — the caricature, world leaders, all props
-src/scenes.js       8 reusable backdrops (rally, street, golden hour, night, sky, hall, road, bank)
-src/cards.js        the 18 Meme Cards + card renderer
-src/games-a.js      microgames 1–7
-src/games-b.js      microgames 8–14
-src/boss.js         the 8 PM Address boss round
-src/main.js         engine: state machine, HUD, scoring, combos, menus, localStorage
+skill gap (thinking player − flailing player)     99 seats
+plank-pair spread across 5 manifestos             21 seats   (no dominant manifesto)
+viable drafts                                     184–251 median seats
+anti-synergy cost (stronger but clashing leader)   −20 seats
+outright majority rate, strong draft + good play   ~13%      (rare and prestigious)
+path to power (majority or coalition shot)         ~96%
+ruthless difficulty                                meaningfully harder
+invalid states / NaN / seat-count drift            0
 ```
 
-Every microgame is one object registered with `MM.reg({...})`:
+Tuning this surfaced four real design bugs, all fixed:
 
-```js
-MM.reg({
-  id: 'chai', cmd: 'CHAI!', sub: 'Hold to pour…',
-  time: 8,            // base clock in seconds; the engine shortens it as speed rises
-  scene: 'golden',    // which backdrop
-  card: 'chai',       // Meme Card unlocked on first win
-  init(a) { a.st = {...} },        // a.st = your scratch state
-  update(dt, a) { … a.win('msg') / a.lose('msg') },
-  draw(g, a) { … },
-});
+* **spillover exploit** — per-neighbour buzz meant aiming a roadshow at the
+  most-connected region gave 114 buzz for one AP. Spillover is now a fixed budget.
+* **funds were worthless** — AP is the binding constraint, so cash-income leaders
+  measured at *zero* value. Bahi-Khata Madam's move became a 0-AP free action.
+* **one mandatory leader** — the base cadre economy was so tight you couldn't afford a
+  ground push without a cadre leader.
+* **a single dominant passive** — Mitron Ji's buzz multiplier was worth 2.5× any other
+  leader, so his power moved into his *action*, where it costs AP.
+
+The UI is verified separately by a Playwright run that plays through **real canvas
+clicks** — menu → draft → manifesto → select region → queue moves (AP 4→2) → end week
+→ resolve → next week, with zero console errors.
+
+## 🏗 Layout
+
+```
+index.html            the strategy game
+arcade.html           MITRON MAYHEM, the 14-microgame reflex mode
+tools/balance.js      headless balance harness (node tools/balance.js 250)
+
+src/util.js           canvas primitives, palette, maths     ┐ shared engine,
+src/audio.js          WebAudio synth: tabla, drone, plucks  │ borrowed by both
+src/input.js          keyboard + mouse + touch              │ games
+src/fx.js             particles, shake, petals, overlay     ┘
+
+src/strat/data.js     board, cast, actions, planks, dilemmas, headlines
+src/strat/model.js    PURE rules engine — seeded, node-testable, no rendering
+src/strat/ai.js       rival planning, intel leaks, scripted test bots
+src/strat/faces.js    the ten caricatures (one parametric portrait function)
+src/strat/ui.js       immediate-mode UI kit + board renderer
+src/strat/game.js     screens, input, main loop
+
+src/games-a.js …      the arcade microgames (unchanged)
 ```
 
-The round context `a` hands you `a.t`, `a.timeLeft`, `a.speed`, `a.level`, `a.in`
-(input), and juice helpers `a.sfx / a.pop / a.shake / a.flash / a.bonus`. Adding
-a 15th microgame means appending one such object — the engine handles the command
-slam, the clock, scoring, combos, cards and transitions.
-
-## ✔ Verified
-
-Driven headlessly through Playwright:
-
-* every one of the 14 microgames **and** the boss round is winnable by a bot playing
-  through the real input layer;
-* a full run walks `command → play → result → speed up → boss intro` with no exceptions;
-* audio graph builds, the music scheduler runs, all 17 SFX fire without throwing;
-* pause and mute toggle and persist to `localStorage`;
-* a touch device gets the pad and plays from a tap;
-* canvas stays letterboxed at 16:10 from 640×480 up to 1920×1080.
-
-## 🎨 Notes on the craft
-
-* **Zero assets.** The caricature is ~200 lines of bezier work; the receding silver
-  hairline is a full hair cap with a skin-coloured forehead cut back over it, and the
-  mouth sits on a skin "muzzle" patch so it never disappears into the beard.
-* **Audio is generated, not sampled.** Tabla hits are a pitched sine dropping fast plus a
-  band-passed noise transient; the melody is a 16-step loop over a Bhairavi-flavoured
-  scale whose tempo and density rise with your level.
-* **Feel over content.** Screen shake, hit-freeze, particle bursts, floating hype text,
-  a slamming command stamp, marigold petals and a subtle CRT vignette do most of the work.
+`model.js` never touches a canvas and `game.js` never computes a rule. That separation
+is why the balance numbers above exist at all.
