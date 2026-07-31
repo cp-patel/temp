@@ -1381,6 +1381,100 @@ async function main() {
     await cctx.close();
   }
 
+  /* ---------------- a shared link is not an invitation to onboard ---------------- */
+  /* Someone links a colleague to Hybrid Search & Reranking. The chapter used to
+     render and then get covered, 650ms later, by a four-question survey — with
+     focus trapped in it, so Tab could not reach the text behind. That reader came
+     to read one page. The offer now waits for a surface where planning is the
+     point, and arrives the moment they go looking for one. */
+  section("deep-link entry");
+  {
+    const lctx = await browser.newContext({
+      viewport: { width: 1440, height: 950 },
+      colorScheme: "dark",
+    });
+    const lp = await lctx.newPage();
+    const lErrors = [];
+    lp.on("pageerror", (e) => lErrors.push(e.message));
+    lp.on("console", (m) => {
+      if (m.type() === "error") lErrors.push(m.text());
+    });
+
+    /* reload(), not goto(): a goto whose URL differs only in the fragment is a
+       same-document navigation, so the app's scripts never re-run and the visit
+       is not a first visit at all. */
+    const firstVisit = async (entry) => {
+      await lp.goto(BASE + entry, { waitUntil: "networkidle" });
+      await lp.evaluate(() => localStorage.clear());
+      await lp.reload({ waitUntil: "networkidle" });
+      await lp.waitForTimeout(1300);
+      return lp.locator(".ob").count();
+    };
+
+    for (const entry of ["#/chapter/hybrid-rerank", "#/labs", "#/glossary"]) {
+      check(
+        `arriving at ${entry} is left alone`,
+        (await firstVisit(entry)) === 0
+      );
+    }
+
+    for (const entry of ["", "#/roadmap"]) {
+      check(
+        `arriving at ${entry || "/"} still offers to personalise`,
+        (await firstVisit(entry)) === 1
+      );
+    }
+
+    /* Deferring is only acceptable because the offer still arrives. Land on a
+       chapter, do some work, then go looking for the path. */
+    await firstVisit("#/chapter/hybrid-rerank");
+    // Smooth scrolling plus the reveal transition means the auto-scroll before a
+    // click never settles; the shared go() helper disables it for this reason.
+    await lp.addStyleTag({ content: "html{scroll-behavior:auto !important}" });
+    await lp.waitForTimeout(900);
+    const firstOpt = lp.locator(".check").first().locator(".opt").first();
+    await firstOpt.scrollIntoViewIfNeeded();
+    await lp.waitForTimeout(800);
+    await firstOpt.click();
+    await lp.waitForTimeout(250);
+    await lp.locator('.navlink[data-nav="#/roadmap"]').click();
+    await lp.waitForTimeout(1200);
+    check(
+      "going looking for the roadmap brings the offer with it",
+      (await lp.locator(".ob").count()) === 1
+    );
+    check(
+      "and work done before the offer survives it",
+      (await lp.evaluate(() => {
+        const rec = Store.state().progress["hybrid-rerank"];
+        return !!(rec && rec.checks && Object.keys(rec.checks).length);
+      })) && lErrors.length === 0,
+      lErrors.slice(0, 1).join("")
+    );
+
+    /* The dialog lives on document.body, not in the view the router swaps, so
+       navigating away used to leave it floating over a different page — reachable
+       because the command palette opens on "/" from behind the scrim. */
+    await lp.keyboard.press("Escape");
+    await lp.waitForTimeout(200);
+    await lp.evaluate(() => localStorage.clear());
+    await lp.reload({ waitUntil: "networkidle" });
+    await lp.waitForTimeout(1300);
+    const orphan = await lp.evaluate(() => {
+      const before = document.querySelectorAll(".ob").length;
+      location.hash = "#/glossary";
+      return before;
+    });
+    await lp.waitForTimeout(500);
+    check(
+      "navigating away closes the dialog instead of orphaning it",
+      orphan === 1 && (await lp.locator(".ob").count()) === 0,
+      `open before nav: ${orphan}, after: ${await lp.locator(".ob").count()}`
+    );
+
+    await lctx.close();
+  }
+
   /* ---------------- a damaged stored state still works ---------------- */
   /* The unit tests cover the sanitiser; this covers the thing it protects — that
      the app boots and stays usable on top of state it did not write. Settings

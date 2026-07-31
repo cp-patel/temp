@@ -49,7 +49,9 @@ ticked.
 
 ### Personalised plan
 
-Four questions on first visit produce a plan that annotates every chapter. A note
+Four questions produce a plan that annotates every chapter. They're offered when
+you arrive somewhere planning is the point — the landing page, the roadmap, the
+dashboard — and never over a chapter someone linked you to. A note
 appears on a row only when it says something about that chapter — the mode chip
 and the legend carry the rest, so the thirteen chapters with real guidance are the
 thirteen you notice:
@@ -146,7 +148,7 @@ js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
 tests/unit/                 106 assertions — util, store, plan engine
-tests/e2e/                  131 checks in real Chromium, incl. a full first-visitor walkthrough
+tests/e2e/                  139 checks in real Chromium, incl. a full first-visitor walkthrough
                             and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```

@@ -750,6 +750,8 @@
        The clear-then-set is not superstition: setting identical text does not
        re-fire the announcement, and returning to a page you were already on
        otherwise says nothing at all. */
+    maybeOfferOnboarding(route.name);
+
     if (routeStatus) {
       var h1 = page.querySelector("h1");
       var label = h1 ? h1.textContent.trim() : "Forge";
@@ -758,6 +760,39 @@
         routeStatus.textContent = label;
       }, 120);
     }
+  }
+
+  /* Offer to personalise on the surfaces where planning is the point, and not on
+     a page someone was linked to.
+     
+     A shared link to Hybrid Search & Reranking used to render the chapter and
+     then cover it, 650ms later, with a four-question survey — with focus trapped
+     inside it, so Tab could not even reach the text behind. That reader came to
+     read one page; the roadmap will still be there when they want it, and the
+     offer arrives the moment they go looking. */
+  var PLANNING_ROUTES = {
+    landing: true,
+    dashboard: true,
+    plan: true,
+    roadmap: true,
+  };
+  var offered = false;
+
+  function maybeOfferOnboarding(routeName) {
+    if (offered || !PLANNING_ROUTES[routeName]) return;
+    if (Store.isOnboarded() || !global.Onboarding) return;
+    offered = true;
+    setTimeout(function () {
+      // Re-check at fire time: the profile may have been set in the interim
+      // (imported progress, another tab, a direct visit to /plan).
+      if (Store.isOnboarded()) return;
+      Onboarding.open({
+        onDone: function (saved) {
+          refreshSidebar();
+          if (saved) App.go("#/plan");
+        },
+      });
+    }, 650);
   }
 
   App.go = function (hash, force) {
@@ -944,22 +979,7 @@
       }, 900);
     }
 
-    // First visit: offer to personalise. Never blocks — the whole roadmap is
-    // usable without a profile, and the prompt is skippable and re-openable
-    // from Settings or the My Plan page.
-    if (!Store.isOnboarded() && global.Onboarding) {
-      setTimeout(function () {
-        // Re-check at fire time: the profile may have been set in the interim
-        // (imported progress, another tab, a direct visit to /plan).
-        if (Store.isOnboarded()) return;
-        Onboarding.open({
-          onDone: function (saved) {
-            refreshSidebar();
-            if (saved) App.go("#/plan");
-          },
-        });
-      }, 650);
-    }
+    maybeOfferOnboarding(parse().name);
   }
 
   global.App = App;
