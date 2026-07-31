@@ -723,6 +723,100 @@ if (C.competencies) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Session planner
+ * ------------------------------------------------------------------ *
+ * The one promise this feature makes is that the plan fits the minutes asked
+ * for. It is also the only surface whose output depends on `chapter.minutes`
+ * being honest, so the checks here are cheap insurance on content edits: adding
+ * 40% more prose to a chapter without touching its `minutes` already warns
+ * above, and would silently make every session plan optimistic.
+ */
+if (C.sessionFor) {
+  const FRESH = { done: {}, quiz: {}, labs: {}, projectTasks: {} };
+  const readAll = { done: {}, quiz: {}, labs: {}, projectTasks: {} };
+  for (const ch of C.chapters) {
+    readAll.done[ch.id] = true;
+    if ((ch.quiz || []).length)
+      readAll.quiz[ch.id] = { right: ch.quiz.length, total: ch.quiz.length };
+    if (ch.lab) readAll.labs[ch.lab] = true;
+  }
+
+  if (!Array.isArray(C.sessionLengths) || C.sessionLengths.length < 3) {
+    err("sessionLengths", "needs at least three options");
+  } else {
+    for (let i = 1; i < C.sessionLengths.length; i++) {
+      if (C.sessionLengths[i] <= C.sessionLengths[i - 1])
+        err("sessionLengths", "must ascend");
+    }
+  }
+
+  for (const state of [FRESH, readAll]) {
+    for (const m of [...(C.sessionLengths || []), 5, 12, 40, 120]) {
+      const p = C.sessionFor(m, state);
+      const sum = p.items.reduce((n, it) => n + it.minutes, 0);
+      if (p.used > m) {
+        err("sessionFor", `a ${m} min session plans ${p.used} min of work`);
+      }
+      if (sum !== p.used) {
+        err(
+          "sessionFor",
+          `${m} min: items sum to ${sum} but used is ${p.used}`
+        );
+      }
+      if (!p.note) err("sessionFor", `${m} min: no note`);
+      for (const it of p.items) {
+        if (!it.label || !it.why || !it.href)
+          err("sessionFor", `${m} min: ${it.kind} item is missing a field`);
+        if (it.href.indexOf("#/chapter/") === 0) {
+          const id = it.href.replace("#/chapter/", "");
+          if (!chapterIds.has(id))
+            err("sessionFor", `${m} min: ${it.kind} points at "${id}"`);
+        }
+      }
+    }
+  }
+
+  /* Every offered length must give a new learner something to do. The shortest
+     option is the one at risk: if every chapter grew past it, the planner would
+     start answering "come back later" to the session it exists to serve. */
+  for (const m of C.sessionLengths || []) {
+    const p = C.sessionFor(m, FRESH);
+    if (!p.items.length) {
+      err(
+        "sessionFor",
+        `a new learner with ${m} min is offered nothing — the shortest chapter is now ${Math.min(
+          ...C.chapters.map((c) => c.minutes)
+        )} min`
+      );
+    }
+  }
+
+  /* A lab is only a session of its own once its chapter is read: opening one cold
+     lands the learner mid-chapter on a widget with no context, and a lab whose
+     chapter is in the same plan is double-counted, because `minutes` covers it. */
+  const labOwner = new Map();
+  for (const ch of C.chapters) if (ch.lab) labOwner.set(ch.lab, ch.id);
+  for (const m of [25, 45, 90]) {
+    const p = C.sessionFor(m, FRESH);
+    for (const it of p.items) {
+      if (it.kind !== "lab") continue;
+      err(
+        "sessionFor",
+        `${m} min offers lab "${it.id}" to a learner who has read nothing`
+      );
+    }
+    const planned = new Set(
+      p.items.filter((i) => i.kind === "chapter").map((i) => i.id)
+    );
+    for (const it of p.items) {
+      if (it.kind === "lab" && planned.has(labOwner.get(it.id))) {
+        err("sessionFor", `${m} min counts lab "${it.id}" twice`);
+      }
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Report
  * ------------------------------------------------------------------ */
 const totalMin = C.chapters.reduce((a, c) => a + c.minutes, 0);

@@ -374,6 +374,41 @@
   /* The actions that would move the score most per unit of effort, among the
      things you are actually ready to do. Only ever items not yet done, so this
      can never suggest busywork. */
+  /* Curriculum position, for tie-breaking. Ties are the common case — every
+     chapter in a phase has identical lift — and the first version broke them on
+     id, which is alphabetical and therefore arbitrary. On a fresh account that
+     listed foundations as "What Transfers", "How LLMs Work", "Choosing a Model",
+     "What an AI Engineer Does": four chapters in an order the roadmap does not
+     use and the prose does not assume. */
+  var positionCache = null;
+
+  function position(chapterId) {
+    if (!positionCache) {
+      positionCache = {};
+      var order = (C.phases || [])
+        .slice()
+        .sort(function (a, b) {
+          return a.n - b.n;
+        })
+        .map(function (p) {
+          return p.id;
+        });
+      C.chapters
+        .slice()
+        .sort(function (a, b) {
+          var d = order.indexOf(a.phase) - order.indexOf(b.phase);
+          if (d) return d;
+          return C.chapters.indexOf(a) - C.chapters.indexOf(b);
+        })
+        .forEach(function (c, i) {
+          positionCache[c.id] = i;
+        });
+    }
+    return positionCache[chapterId] === undefined
+      ? 9999
+      : positionCache[chapterId];
+  }
+
   C.readinessActions = function (signals, limit) {
     signals = signals || {};
     var done = signals.done || {};
@@ -421,6 +456,7 @@
           href: "#/chapter/" + ch.id,
           minutes: ch.minutes,
           ready: isReady(ch.phase),
+          at: position(ch.id),
           value:
             ((lift * 0.3) / Math.max(1, c.counts.chapters)) *
             nearness(ch.phase),
@@ -444,6 +480,7 @@
               phase: p.phase,
               href: "#/projects",
               ready: isReady(p.phase),
+              at: position(task && task.ch ? task.ch : ""),
               value:
                 ((lift * 0.3) / Math.max(1, c.counts.milestones)) *
                 nearness(p.phase),
@@ -462,6 +499,7 @@
           phase: ch.phase,
           href: "#/chapter/" + ch.id,
           ready: isReady(ch.phase),
+          at: position(ch.id),
           value:
             ((lift * 0.15) / Math.max(1, c.counts.labs)) * nearness(ch.phase),
         });
@@ -470,11 +508,11 @@
 
     return actions
       .sort(function (a, b) {
-        /* The gate first, then lift. Ties are common — two labs in one phase
-           score identically — so break them on id rather than leaving the most
-           visible thing on the page to sort stability. */
+        /* The gate first, then lift, then curriculum order. Ties are the common
+           case, so the third key is doing real work: it is what makes the list
+           read in the order the roadmap teaches rather than alphabetically. */
         if (a.ready !== b.ready) return a.ready ? -1 : 1;
-        return b.value - a.value || a.id.localeCompare(b.id);
+        return b.value - a.value || a.at - b.at || a.id.localeCompare(b.id);
       })
       .slice(0, limit || 6);
   };

@@ -16,6 +16,7 @@ Written so the next change doesn't have to rediscover the reasoning.
 | Practice        | 6 projects with 43 verifiable milestones, 167 spaced-repetition cards |
 | Personalisation | 5 tracks, 14 claimable skills, 17 per-chapter delta notes             |
 | Diagnostic      | 7 weighted competencies, 4-part scoring, ranked next actions          |
+| Planning        | Week-by-week schedule, plus a per-session planner from 10 to 90 min   |
 | Reference       | 52-term glossary, 91 external resources                               |
 | Tooling         | Validator, unit + e2e suites, docs check, scaffolder, CI              |
 | Deployment      | Static; GitHub Pages workflow included; runs from `file://`           |
@@ -134,10 +135,10 @@ the backend is present; it doesn't stop working when it isn't.
   what it cannot produce yet is the artefact — a Markdown write-up of the projects
   with their numbers, ready to paste into a README or a post. That is the second
   half of "prove the result works", and the milestone data for it already exists.
-- **A session planner.** "I have 25 minutes" should produce an exact plan rather
-  than a chapter list to pick from. `Curriculum.readinessActions` already ranks
-  the candidates and every chapter carries `minutes`; what is missing is the
-  packing and the UI.
+- **Session planner deep links.** The planner names the items; it cannot yet hand
+  you a single URL that walks them in order. Related to the lab deep-links above,
+  and the natural way to make a plan resumable across devices once there is a sync
+  backend.
 
 ## Explicitly out of scope
 

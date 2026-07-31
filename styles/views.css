@@ -2371,3 +2371,239 @@
   background: var(--surface-3);
   border: 1px solid var(--line);
 }
+
+/* ============================================================
+   Session planner
+
+   A committed plan and, separately, one optional stretch item. The visual split
+   matters: packing an awkward remainder with a third of a chapter reads as a
+   plan you failed to finish, whereas an offer you declined reads as nothing at
+   all. Same minutes, different feeling.
+   ============================================================ */
+
+.sesh__lede {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.6;
+  max-width: 42em;
+  margin: var(--s-2) 0 var(--s-4);
+}
+
+.sesh__pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);
+}
+
+.sesh__chip {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-1);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  /* WCAG 2.5.8: 24x24 minimum. The padding above clears it, but a font-size
+     override in a user stylesheet must not be able to shrink it below. */
+  min-height: 32px;
+  transition:
+    border-color var(--dur) var(--ease-out),
+    background var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out);
+}
+
+.sesh__chip:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.sesh__chip.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-inv);
+}
+
+.sesh__list {
+  list-style: none;
+  display: grid;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-4);
+  padding: 0;
+  /* Numbered by a counter rather than list markers, so the number sits inside the
+     row's own padding and lines up with the icon column. */
+  counter-reset: sesh;
+}
+
+.seshrow {
+  counter-increment: sesh;
+}
+
+.seshrow__go {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.seshrow__go:hover {
+  border-color: var(--accent-line);
+  transform: translateX(2px);
+}
+
+.seshrow__ic {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--accent);
+}
+
+/* The step number, tucked on the icon. The order is the product here — this is a
+   list you work down, not a set you choose from — so it needs to be visible
+   without a whole extra column. */
+.seshrow__ic::after {
+  content: counter(sesh);
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--ink-inv);
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+}
+
+.seshrow__t {
+  display: block;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.seshrow__w {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin-top: 3px;
+}
+
+.seshrow__m {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
+  font-weight: 640;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  padding-top: 3px;
+}
+
+.seshrow__m small {
+  font-size: 0.7em;
+  color: var(--ink-3);
+  margin-left: 1px;
+}
+
+.sesh__note {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.sesh__note svg {
+  flex: none;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+/* Dashed, because it is an offer and not a commitment — the same visual grammar
+   the empty progress bars use for "nothing here yet". */
+.sesh__stretch {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px dashed var(--line-strong);
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color var(--dur) var(--ease-out);
+}
+
+.sesh__stretch:hover {
+  border-color: var(--accent);
+}
+
+.sesh__stretch-l {
+  flex: none;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: 3px;
+}
+
+/* Same typography as a scheduled row's minutes, different class — see the note in
+   views.js. The visual match is intentional; the DOM distinction is too. */
+.sesh__stretch-m {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
+  font-weight: 640;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  padding-top: 3px;
+}
+
+.sesh__stretch-m small {
+  font-size: 0.7em;
+  color: var(--ink-3);
+  margin-left: 1px;
+}
+
+.sesh__stretch b {
+  display: block;
+  font-size: var(--t-sm);
+  color: var(--ink);
+}
+
+.sesh__stretch span span {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin-top: 3px;
+}
+
+@media (max-width: 560px) {
+  .sesh__stretch {
+    flex-wrap: wrap;
+  }
+}

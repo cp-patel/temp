@@ -1397,6 +1397,104 @@
       lcol.appendChild(doneCard);
     }
 
+    /* session planner — the dashboard's answer to "I have twenty minutes".
+
+       Placed directly under "Up next" because that card names one chapter and
+       stops; the question a learner actually arrives with is what fits in the time
+       they have, and answering it with a menu of eight things is how a session
+       ends before it starts. */
+    if (Store.session) {
+      var planCard = el("div", "card card--pad sesh");
+      planCard.style.marginTop = "var(--s-5)";
+      var chosen = C.sessionLengths[1];
+
+      var pickRow = el("div", "sesh__pick");
+      var body = el("div", "sesh__body");
+
+      function paintSession() {
+        var plan = Store.session(chosen, cards.due);
+        body.innerHTML = "";
+        if (!plan) return;
+
+        if (plan.items.length) {
+          var list = el("ol", "sesh__list");
+          plan.items.forEach(function (it) {
+            var li = el("li", "seshrow");
+            var a = el("a", "seshrow__go");
+            a.href = it.href;
+            a.innerHTML =
+              '<span class="seshrow__ic">' +
+              Icons.get(SESSION_ICON[it.kind] || "book", 15) +
+              "</span>" +
+              '<span class="u-grow"><span class="seshrow__t">' +
+              esc(it.label) +
+              "</span>" +
+              '<span class="seshrow__w">' +
+              esc(it.why) +
+              "</span></span>" +
+              '<span class="seshrow__m">' +
+              it.minutes +
+              "<small>m</small></span>";
+            li.appendChild(a);
+            list.appendChild(li);
+          });
+          body.appendChild(list);
+        }
+
+        var note = el("div", "sesh__note");
+        note.innerHTML = Icons.get("info", 14) + " " + esc(plan.note);
+        body.appendChild(note);
+
+        if (plan.stretch) {
+          var st = el("a", "sesh__stretch");
+          st.href = plan.stretch.href;
+          st.innerHTML =
+            '<span class="sesh__stretch-l">Still got time?</span>' +
+            '<span class="u-grow"><b>' +
+            esc(plan.stretch.label) +
+            "</b><span>" +
+            esc(plan.stretch.why) +
+            "</span></span>" +
+            /* Its own class, not .seshrow__m. That class means "minutes this plan
+               has committed", and the stretch is deliberately outside the budget —
+               sharing it made the two indistinguishable in the DOM, so anything
+               summing the plan's minutes picked up an offer as scheduled time. */
+            '<span class="sesh__stretch-m">' +
+            plan.stretch.minutes +
+            "<small>m</small></span>";
+          body.appendChild(st);
+        }
+      }
+
+      C.sessionLengths.forEach(function (m) {
+        var b = el("button", "sesh__chip" + (m === chosen ? " is-on" : ""));
+        b.type = "button";
+        b.textContent = m + " min";
+        b.setAttribute("aria-pressed", m === chosen ? "true" : "false");
+        b.onclick = function () {
+          chosen = m;
+          U.qa(".sesh__chip", pickRow).forEach(function (x) {
+            x.classList.remove("is-on");
+            x.setAttribute("aria-pressed", "false");
+          });
+          b.classList.add("is-on");
+          b.setAttribute("aria-pressed", "true");
+          paintSession();
+        };
+        pickRow.appendChild(b);
+      });
+
+      planCard.innerHTML =
+        '<div class="u-eyebrow">How long have you got?</div>' +
+        '<p class="sesh__lede">Pick a length and this becomes an exact plan — ' +
+        "ordered, and sized to fit. Due cards first because they decay, then " +
+        "whatever the readiness gap says is worth most.</p>";
+      planCard.appendChild(pickRow);
+      planCard.appendChild(body);
+      paintSession();
+      lcol.appendChild(planCard);
+    }
+
     /* activity heat */
     var heatCard = el("div", "card card--pad");
     heatCard.style.marginTop = "var(--s-5)";
@@ -1579,6 +1677,15 @@
   };
 
   var ACTION_ICON = { chapter: "book", milestone: "hammer", lab: "beaker" };
+
+  var SESSION_ICON = {
+    cards: "cards",
+    resume: "play",
+    chapter: "book",
+    lab: "beaker",
+    quiz: "target",
+    project: "hammer",
+  };
   var ACTION_KIND = { chapter: "Read", milestone: "Build", lab: "Try" };
 
   V.readiness = function (root) {

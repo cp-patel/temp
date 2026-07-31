@@ -1788,6 +1788,179 @@ async function main() {
     await rctx.close();
   }
 
+  /* ---------------- session planner ---------------- */
+  /* The promise is "this fits the time you said". A plan that overruns is worse
+     than the menu it replaced, because the learner trusted the number. */
+  section("session planner");
+  {
+    const sctx = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      colorScheme: "dark",
+    });
+    const sp = await sctx.newPage();
+    sp.on("pageerror", (e) => errors.push(`session pageerror: ${e.message}`));
+    sp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`session console: ${m.text()}`);
+    });
+    await sp.goto(BASE + "#/dashboard", { waitUntil: "networkidle" });
+    await sp.evaluate(() => Store.skipOnboarding());
+    await sp.waitForTimeout(500);
+
+    const shape = await sp.evaluate(() => ({
+      card: !!document.querySelector(".sesh"),
+      chips: [...document.querySelectorAll(".sesh__chip")].map(
+        (b) => b.innerText
+      ),
+      lengths: window.Curriculum.sessionLengths.map((m) => m + " min"),
+      on: [...document.querySelectorAll(".sesh__chip.is-on")].length,
+      pressed: [
+        ...document.querySelectorAll('.sesh__chip[aria-pressed="true"]'),
+      ].length,
+      rows: document.querySelectorAll(".seshrow").length,
+      note: (document.querySelector(".sesh__note") || {}).innerText || "",
+    }));
+    check(
+      "the planner offers one chip per session length, exactly one selected",
+      shape.card &&
+        shape.chips.join("|") === shape.lengths.join("|") &&
+        shape.on === 1 &&
+        shape.pressed === 1,
+      JSON.stringify(shape)
+    );
+    check(
+      "and a fresh learner gets a plan with a note, not an empty box",
+      shape.rows > 0 && shape.note.length > 20,
+      JSON.stringify({ rows: shape.rows, note: shape.note })
+    );
+
+    /* Every chip, against the engine's own arithmetic and against the rendered
+       minutes — a plan that is right in JS and wrong on screen is still wrong. */
+    const perChip = [];
+    for (const label of shape.lengths) {
+      await sp.locator(`.sesh__chip:has-text("${label}")`).click();
+      await sp.waitForTimeout(200);
+      perChip.push(
+        await sp.evaluate((lbl) => {
+          const m = Number(lbl.replace(/\D/g, ""));
+          /* Scoped to the list: the stretch item carries its own minutes class
+             precisely so a sum of committed time cannot pick it up. */
+          const shown = [
+            ...document.querySelectorAll(".sesh__list .seshrow__m"),
+          ].map((n) => Number(n.innerText.replace(/\D/g, "")));
+          const plan = Store.session(m, 0);
+          return {
+            m,
+            sum: shown.reduce((a, b) => a + b, 0),
+            planUsed: plan.used,
+            rows: shown.length,
+            planRows: plan.items.length,
+            selected: (document.querySelector(".sesh__chip.is-on") || {})
+              .innerText,
+          };
+        }, label)
+      );
+    }
+    check(
+      "every chip renders a plan whose printed minutes fit the budget",
+      perChip.every((c) => c.sum <= c.m && c.sum === c.planUsed),
+      JSON.stringify(perChip)
+    );
+    check(
+      "the rendered rows match the plan the engine produced",
+      perChip.every((c) => c.rows === c.planRows),
+      JSON.stringify(perChip.map((c) => [c.m, c.rows, c.planRows]))
+    );
+    check(
+      "clicking a chip selects it",
+      perChip.every((c) => c.selected === c.m + " min"),
+      JSON.stringify(perChip.map((c) => c.selected))
+    );
+
+    /* The stretch item is an offer, not scheduled time — so it must never be
+       counted in the printed total. */
+    const stretch = await sp.evaluate(() => {
+      const lens = window.Curriculum.sessionLengths;
+      for (const m of lens) {
+        const plan = Store.session(m, 0);
+        if (plan.stretch)
+          return { m, stretch: plan.stretch.label, used: plan.used };
+      }
+      return null;
+    });
+    if (stretch) {
+      await sp.locator(`.sesh__chip:has-text("${stretch.m} min")`).click();
+      await sp.waitForTimeout(250);
+      const shownStretch = await sp.evaluate(() => {
+        const s = document.querySelector(".sesh__stretch");
+        const rows = [
+          ...document.querySelectorAll(".sesh__list .seshrow__m"),
+        ].map((n) => Number(n.innerText.replace(/\D/g, "")));
+        return {
+          present: !!s,
+          inRows: document.querySelectorAll(".seshrow").length,
+          sum: rows.reduce((a, b) => a + b, 0),
+          href: s ? s.getAttribute("href") : null,
+        };
+      });
+      check(
+        "a stretch item is offered separately and not counted in the plan",
+        shownStretch.present &&
+          shownStretch.sum === stretch.used &&
+          (shownStretch.href || "").startsWith("#/chapter/"),
+        JSON.stringify({ ...shownStretch, expected: stretch })
+      );
+    }
+
+    /* Work done changes the plan, and the first row of a mid-course session is the
+       chapter you left open rather than a new one. */
+    const moved = await sp.evaluate(() => {
+      const C = window.Curriculum;
+      const first = C.phases.slice().sort((a, b) => a.n - b.n)[0].id;
+      const chs = C.chapters.filter((c) => c.phase === first);
+      chs.slice(0, chs.length - 1).forEach((c) => Store.complete(c.id));
+      Store.visit(chs[chs.length - 1].id);
+      return { resumeId: chs[chs.length - 1].id };
+    });
+    await visit(sp, BASE + "#/dashboard");
+    await sp.waitForTimeout(500);
+    const after = await sp.evaluate(() => {
+      const rows = [...document.querySelectorAll(".sesh__list .seshrow__go")];
+      /* Due cards legitimately come first — they decay. The rule is that the
+         chapter you left open beats any *new* chapter, so find the first row that
+         goes to a chapter at all. */
+      const chapterRows = rows.filter((a) =>
+        (a.getAttribute("href") || "").startsWith("#/chapter/")
+      );
+      return {
+        hrefs: rows.map((a) => a.getAttribute("href")),
+        firstChapter: chapterRows.length
+          ? chapterRows[0].getAttribute("href")
+          : null,
+        firstChapterText: chapterRows.length ? chapterRows[0].innerText : "",
+      };
+    });
+    check(
+      "the chapter you left open is the first chapter the plan sends you to",
+      after.firstChapter === "#/chapter/" + moved.resumeId &&
+        /partway|did not finish/i.test(after.firstChapterText),
+      JSON.stringify({ ...after, want: moved.resumeId })
+    );
+
+    await sp
+      .locator(`.sesh__list .seshrow__go[href="#/chapter/${moved.resumeId}"]`)
+      .first()
+      .click();
+    await sp.waitForTimeout(500);
+    check(
+      "and its row actually navigates",
+      (await sp.evaluate(() => location.hash)) ===
+        "#/chapter/" + moved.resumeId,
+      await sp.evaluate(() => location.hash)
+    );
+
+    await sctx.close();
+  }
+
   /* ---------------- every link and control, activated ---------------- */
   /* The contents-link bug survived twenty iterations because the suite asserted a
      table of contents *exists* without ever activating a link in it. These two

@@ -155,6 +155,43 @@ attempts at damping it with a multiplier both failed; the rule that holds is
 structural — anything whose earlier phases are done outranks anything whose aren't,
 whatever the arithmetic says. Look-ahead items still appear, labelled `ahead`.
 
+### Session planner
+
+The thing that actually stops people is not motivation or the content — it is
+sitting down with an awkward amount of time and a 44-chapter roadmap and having to
+work out what fits. Name your minutes on the dashboard and it becomes an ordered
+plan, not a menu:
+
+> **10 min** · Review 7 due cards (3m) → Resume _Sampling: Temperature, Top-p &
+> Determinism_ (7m)
+> **90 min** · Review all 39 due cards (16m) → resume the open chapter (19m) → two
+> untouched labs (6m each) → _The LLM API Surface_ (18m) → _Streaming & Perceived
+> Latency_ (23m)
+
+Ordering rules, all of them derived from something the app already knows:
+
+- **Due cards first**, capped at a third of the session. Cards decay, so a card
+  reviewed on its due day is the whole mechanism — but a fresh deck of 40 would
+  otherwise eat a 25-minute session and you would finish having read nothing.
+- **Then whatever you left open.** You already paid for the context, and the app
+  remembers your scroll position.
+- **Then the readiness ranking**, so this never disagrees with the diagnostic or
+  the roadmap.
+- **Then retrieval practice** — an untaken quiz on a chapter you have read is the
+  best short item in the app.
+- **Project milestones only in sessions of 45 minutes or more.** They are hours of
+  work; offering one for a coffee break invites ticking it without doing it, which
+  corrupts the one signal readiness weights highest.
+
+Two decisions took a second attempt. A **lab is only a session of its own once its
+chapter is read** — the first version opened a Phase 3 lab for a learner at zero,
+landing them mid-chapter on a widget with no context, and listed a lab whose
+chapter was already in the same plan, double-counting it. And chapters run 13–23
+minutes, so a 25-minute budget fits exactly one and leaves an awkward remainder;
+packing that with a third of the next chapter loses the thread, and reporting
+eleven idle minutes wastes them. So there is a **stretch item** — one named
+chapter, offered rather than scheduled, and never counted in the total.
+
 ### Progress tracking
 
 - Chapter completion, quiz scores with explanations, inline knowledge checks

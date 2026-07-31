@@ -450,6 +450,18 @@
     return global.Curriculum.readinessFor(S.signals());
   };
 
+  /* The session planner needs two things the readiness scorer does not: how many
+     cards are due, and which chapters were opened recently. `dueCards` is passed
+     in rather than computed here because "due" depends on which cards are
+     unlocked, and that rule lives in the UI layer next to the deck it governs. */
+  S.session = function (minutes, dueCards) {
+    if (!global.Curriculum || !global.Curriculum.sessionFor) return null;
+    var sig = S.signals();
+    sig.dueCards = dueCards || 0;
+    sig.recent = (state.recent || []).slice();
+    return global.Curriculum.sessionFor(minutes, sig);
+  };
+
   /* The generated plan is derived, never stored — so editing the profile or
      adding chapters recomputes it rather than leaving a stale copy behind. */
   S.plan = function () {

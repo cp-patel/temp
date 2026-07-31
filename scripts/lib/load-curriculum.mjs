@@ -20,7 +20,7 @@ const CONTENT_DIR = join(ROOT, "js", "content");
    time, not only inside functions. Kept in the same order index.html uses — a
    loader that disagrees with the page is a class of bug no test would catch,
    because both would be internally consistent. */
-const LAST = ["tracks.js", "competencies.js"];
+const LAST = ["tracks.js", "competencies.js", "session.js"];
 
 /** Content files in the order index.html loads them. */
 export function contentFiles() {

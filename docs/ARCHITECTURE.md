@@ -148,6 +148,40 @@ wrong first:
    validator assert that invariant, because it is the difference between advice
    that agrees with the roadmap and advice that contradicts it.
 
+## The session planner
+
+`js/content/session.js` answers "I have 25 minutes" with an ordered list. Same
+shape as the readiness scorer — a pure function of plain data, `sessionFor(minutes,
+state)` — and it composes with it rather than forming a second opinion: the
+candidate ranking comes from `readinessActions`, so the planner, the diagnostic and
+the roadmap cannot disagree about what matters next.
+
+The invariant is that `used <= minutes` and `items` sums to `used`. That is the
+whole promise a learner reads into the feature, and both the unit tests and the
+validator assert it across every offered length and several states.
+
+Three rules exist because the first version broke them:
+
+1. **A lab is a session of its own only once its chapter is read.**
+   `readinessActions` scores chapters and labs separately, which is right for
+   scoring and wrong here: it opened a Phase 3 lab for a learner at zero, and it
+   listed a lab whose chapter was in the same plan — double-counting, because
+   `chapter.minutes` already covers the embedded lab and its quiz.
+2. **A chapter is either scheduled whole or is the only thing in the plan.**
+   Filling an awkward tail with a third of a chapter looked like efficient packing
+   and is not — you lose the thread, and it made the "you will not finish this"
+   note fire on nearly every plan, which turned a useful warning into furniture.
+   The remainder becomes a `stretch` item instead: one chapter, offered rather than
+   scheduled, deliberately outside `used`.
+3. **Curriculum order breaks ties.** Every chapter in a phase has identical lift,
+   so the tie-break is doing most of the ordering work. It was `id.localeCompare`,
+   which is alphabetical, and produced a foundations plan in an order the roadmap
+   does not use and the prose does not assume.
+
+`chapter.minutes` is the planner's only real input and it is hand-authored, which
+is why the drift warning on it matters more than it looks: a chapter that grows 40%
+without its estimate changing makes every session plan quietly optimistic.
+
 ## The plan engine
 
 `js/content/tracks.js` is the personalisation layer, and it's worth

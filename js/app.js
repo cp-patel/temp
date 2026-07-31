@@ -485,6 +485,13 @@
         App.go(n ? "#/chapter/" + n.id : "#/projects");
       },
     },
+    /* Twenty-five minutes is the modal session and the dashboard already answers
+       it; this is the shortcut for someone who came to the palette first. */
+    {
+      t: "Plan a session — what fits in 25 minutes",
+      icon: "clock",
+      go: "#/dashboard",
+    },
     /* "Continue" follows the curriculum order; this follows the diagnostic, which
        is a different question and sometimes a different answer — it will send you
        to a project milestone over the next unread chapter once the reading is
