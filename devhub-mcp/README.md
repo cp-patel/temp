@@ -99,6 +99,15 @@ from a file and never logs their values.
 | `LINEAR_API_KEY` | Linear personal API key |
 | `LINEAR_USER_EMAIL` | Resolves "my" issues in Linear |
 
+Two optional variables tune `whats_blocked` to your team's cadence (whole days, 1–90):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DEVHUB_STALE_PR_DAYS` | `3` | Your PR counts as "waiting on reviewers" past this age with no approval |
+| `DEVHUB_BLOCKING_REVIEW_DAYS` | `5` | A review request you hold counts as "you are blocking" past this age |
+
+A garbage value (e.g. `DEVHUB_STALE_PR_DAYS=soon`) is a startup error, not a silent default.
+
 See `.env.example` for the same list with no values.
 
 The server **fails fast**: on startup it validates that all six are present and makes one
@@ -233,7 +242,8 @@ Each item: `repo`, `number`, `title`, `author`, `age_days`, `additions`, `deleti
 
 The mirror image: open PRs *you* authored, oldest first, with the review state rolled up.
 Same inputs as above. Adds `approvals`, `changes_requested`, `pushed_since_review`,
-`awaiting` (requested reviewers who have not responded) and `days_since_activity`.
+`awaiting` (requested reviewers who have not responded — requested *teams* appear as
+`team:<slug>`) and `days_since_activity`.
 
 `pushed_since_review` answers "have I addressed the feedback yet?" — it compares the PR's head
 commit against the most recent changes-requested review.
@@ -309,6 +319,10 @@ the response says which issues were not examined — it never implies the list i
 
 ## Behaviour notes
 
+- **Timeouts.** Every upstream request carries a 15-second deadline (GitHub via an aborting
+  fetch, Linear via a race at the request wrapper). A stalled upstream therefore fails into
+  the normal structured-error path — "did not respond before the request deadline" — instead
+  of hanging the MCP session.
 - **Caching.** Identical calls within 60 seconds are served from an in-memory cache. Failed
   calls are never cached, so a transient outage is retryable immediately.
 - **Rate limits.** On a GitHub 403/429 with rate-limit headers, the server reports minutes

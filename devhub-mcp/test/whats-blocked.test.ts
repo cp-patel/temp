@@ -7,6 +7,7 @@ import {
   authoredBlockedReason,
   blockingOthersReason,
   buildSummary,
+  buildWhatsBlockedDescription,
   fitSections,
   whatsBlocked,
   whatsBlockedDescription,
@@ -289,6 +290,30 @@ describe('whats_blocked', () => {
 
     const result = await whatsBlocked(ctx);
     expect(result.notes?.join(' ')).toMatch(/older ones were not checked for blockers/);
+  });
+
+  it('honours configured staleness thresholds', async () => {
+    // A 10-day-old unapproved PR: blocked under the default 3-day threshold, but a team with
+    // a 30-day cadence should not see it flagged.
+    const { ctx } = createFakeContext({
+      work: { searchItems: [searchItem({ number: 5, created_at: '2026-07-21T00:00:00.000Z' })] },
+      personal: { searchItems: [] },
+      linearHandler: linearHandlerFor({ issues: [] }),
+      stalePrDays: 30,
+      blockingReviewDays: 30,
+    });
+
+    const result = await whatsBlocked(ctx);
+
+    expect(result.waiting_on_reviewers).toEqual([]);
+    expect(result.you_are_blocking).toEqual([]);
+    expect(result.summary).toMatch(/Nothing blocked/);
+  });
+
+  it('states the configured thresholds in its description', () => {
+    const description = buildWhatsBlockedDescription(1, 2);
+    expect(description).toContain('more than 1 day with no approval');
+    expect(description).toContain('more than 2 days');
   });
 
   it('takes no parameters', () => {

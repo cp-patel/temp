@@ -226,7 +226,8 @@ export async function getPrContext(
     const summary = summarizeReviews(reviewsResult.value.data, detail.data.requested_reviewers ?? []);
     approvals = summary.approvals;
     changesRequested = summary.changesRequested;
-    awaiting = summary.awaiting;
+    // Requested teams are always still awaiting — a team cannot review as itself.
+    awaiting = [...summary.awaiting, ...(detail.data.requested_teams ?? []).map((team) => `team:${team.slug}`)];
   } else {
     warnings.push(describeFailure(upstream, reviewsResult.reason, now));
     notes.push('Review summary unavailable.');

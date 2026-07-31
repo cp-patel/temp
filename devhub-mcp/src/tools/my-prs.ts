@@ -244,6 +244,9 @@ async function enrich(
     ]);
 
     const summary = summarizeReviews(reviews.data, detail.data.requested_reviewers ?? []);
+    // Teams never "respond" as themselves — a member reviews on their behalf — so a still-
+    // requested team is always awaiting. Prefixed to distinguish from user logins.
+    const teamEntries = (detail.data.requested_teams ?? []).map((team) => `team:${team.slug}`);
     const commitMs = headCommitMs(headCommit.data.commit);
     const activityCandidates = [summary.lastActivityMs, commitMs, Date.parse(detail.data.updated_at)].filter(
       (value): value is number => value !== undefined && Number.isFinite(value),
@@ -257,10 +260,11 @@ async function enrich(
         ? commitMs > summary.changesRequestedAtMs
         : undefined;
 
+    const allAwaiting = [...summary.awaiting, ...teamEntries];
     const awaiting =
-      summary.awaiting.length > MAX_AWAITING_SHOWN
-        ? [...summary.awaiting.slice(0, MAX_AWAITING_SHOWN), `+${summary.awaiting.length - MAX_AWAITING_SHOWN} more`]
-        : summary.awaiting;
+      allAwaiting.length > MAX_AWAITING_SHOWN
+        ? [...allAwaiting.slice(0, MAX_AWAITING_SHOWN), `+${allAwaiting.length - MAX_AWAITING_SHOWN} more`]
+        : allAwaiting;
 
     return {
       ...base,

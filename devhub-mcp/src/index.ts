@@ -45,8 +45,8 @@ import {
 } from './tools/linear-issues.js';
 import {
   TOOL_NAME as WHATS_BLOCKED_TOOL,
+  buildWhatsBlockedDescription,
   whatsBlocked,
-  whatsBlockedDescription,
   whatsBlockedInputSchema,
 } from './tools/whats-blocked.js';
 import {
@@ -164,7 +164,11 @@ export function buildServer(ctx: ToolContext): McpServer {
     WHATS_BLOCKED_TOOL,
     {
       title: "What's blocked",
-      description: whatsBlockedDescription,
+      // Built from live config so the description states the thresholds actually in force.
+      description: buildWhatsBlockedDescription(
+        ctx.clients.config.stalePrDays,
+        ctx.clients.config.blockingReviewDays,
+      ),
       inputSchema: whatsBlockedInputSchema,
       annotations: readOnly,
     },

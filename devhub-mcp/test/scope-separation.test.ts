@@ -55,6 +55,8 @@ describe('scope separation', () => {
       workOrg: 'acme',
       personalUsername: 'octo-personal',
       linearUserEmail: 'me@example.com',
+      stalePrDays: 3,
+      blockingReviewDays: 5,
     };
     expect(scopeQualifier(config, 'work')).toBe('org:acme');
     expect(scopeQualifier(config, 'personal')).toBe('user:octo-personal');
@@ -150,5 +152,32 @@ describe('environment validation', () => {
 
   it('rejects a malformed LINEAR_USER_EMAIL', () => {
     expect(() => readEnv({ ...VALID, LINEAR_USER_EMAIL: 'not-an-email' })).toThrow(StartupError);
+  });
+
+  it('accepts optional day thresholds and applies defaults when absent', () => {
+    const parsed = readEnv({ ...VALID, DEVHUB_STALE_PR_DAYS: '7' });
+    expect(parsed.DEVHUB_STALE_PR_DAYS).toBe(7);
+    expect(readEnv(VALID).DEVHUB_BLOCKING_REVIEW_DAYS).toBeUndefined();
+  });
+
+  it('rejects a garbage threshold instead of silently defaulting', () => {
+    // "soon" is a config mistake the operator needs to hear about, not a value to paper over.
+    expect(() => readEnv({ ...VALID, DEVHUB_STALE_PR_DAYS: 'soon' })).toThrow(StartupError);
+    expect(() => readEnv({ ...VALID, DEVHUB_BLOCKING_REVIEW_DAYS: '0' })).toThrow(StartupError);
+  });
+
+  it('threads configured thresholds into the client config', () => {
+    const clients = createClients({
+      GITHUB_WORK_TOKEN: 'ghp_workworkworkworkworkwork',
+      GITHUB_PERSONAL_TOKEN: 'ghp_personalpersonalpersonal',
+      GITHUB_WORK_ORG: 'acme',
+      GITHUB_PERSONAL_USERNAME: 'octo-personal',
+      LINEAR_API_KEY: 'lin_api_abcdefghijklmnop',
+      LINEAR_USER_EMAIL: 'me@example.com',
+      DEVHUB_STALE_PR_DAYS: '1',
+      DEVHUB_BLOCKING_REVIEW_DAYS: '2',
+    });
+    expect(clients.config.stalePrDays).toBe(1);
+    expect(clients.config.blockingReviewDays).toBe(2);
   });
 });

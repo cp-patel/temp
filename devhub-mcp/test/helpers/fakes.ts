@@ -36,6 +36,8 @@ export interface FakeGithubOptions {
   readonly login?: string;
   /** Date of the PR head commit, used for staleness and "pushed since review". */
   readonly headCommitDate?: string;
+  /** Team slugs whose review is requested on every PR served by this fake. */
+  readonly requestedTeams?: readonly string[];
 }
 
 /** Build a search hit with sensible defaults. */
@@ -84,6 +86,7 @@ export function createFakeGithub(scope: GithubScope, options: FakeGithubOptions 
             user: { login: 'someone' },
             head: { sha: 'deadbeef' },
             requested_reviewers: [],
+            requested_teams: (options.requestedTeams ?? []).map((slug) => ({ slug })),
           },
         };
       },
@@ -202,6 +205,9 @@ export interface FakeContextOptions {
   readonly personal?: FakeGithubOptions;
   readonly linearHandler?: (query: string, variables: Record<string, unknown> | undefined) => unknown;
   readonly now?: number;
+  /** Override the whats_blocked staleness thresholds. */
+  readonly stalePrDays?: number;
+  readonly blockingReviewDays?: number;
 }
 
 export interface FakeContext {
@@ -229,6 +235,8 @@ export function createFakeContext(options: FakeContextOptions = {}): FakeContext
       workOrg: 'acme',
       personalUsername: 'octo-personal',
       linearUserEmail: 'me@example.com',
+      stalePrDays: options.stalePrDays ?? 3,
+      blockingReviewDays: options.blockingReviewDays ?? 5,
     },
     github: (scope: GithubScope) => (scope === 'work' ? work : personal),
     linear,

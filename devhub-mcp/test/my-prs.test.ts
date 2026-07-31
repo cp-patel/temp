@@ -217,6 +217,17 @@ describe('get_my_open_prs', () => {
     expect(item?.changes_requested).toBeUndefined();
   });
 
+  it('lists a requested team as awaiting, prefixed to distinguish it from users', async () => {
+    const { ctx } = createFakeContext({
+      work: { searchItems: [searchItem({ number: 6 })], requestedTeams: ['platform-reviewers'] },
+    });
+
+    const result = await getMyOpenPrs(ctx, { scope: 'work' });
+
+    // Without this, a PR waiting solely on a team reads as "nobody owes a review".
+    expect(result.items[0]?.awaiting).toEqual(['team:platform-reviewers']);
+  });
+
   it('collapses a long awaiting list', async () => {
     const { ctx } = createFakeContext({ work: { searchItems: [searchItem({ number: 4 })] } });
     const api = ctx.clients.github('work');

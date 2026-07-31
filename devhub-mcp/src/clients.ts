@@ -13,6 +13,7 @@ import { Octokit } from '@octokit/rest';
 import { LinearClient } from '@linear/sdk';
 import { z } from 'zod';
 import { StartupError, describeFailure, scrub } from './lib/errors.js';
+import { DEFAULT_UPSTREAM_TIMEOUT_MS, timeoutFetch, withTimeout } from './lib/http.js';
 import type { TtlCache } from './lib/cache.js';
 
 export type GithubScope = 'work' | 'personal';
@@ -82,6 +83,11 @@ export interface GithubApi {
         user: { login: string } | null;
         head: { sha: string };
         requested_reviewers?: readonly { login: string }[] | null | undefined;
+        /**
+         * Teams whose review is requested. Read alongside requested_reviewers: a PR waiting
+         * solely on a team would otherwise report "no reviewer has responded", which is wrong.
+         */
+        requested_teams?: readonly { slug: string }[] | null | undefined;
       };
     }>;
     listReviews(params: { owner: string; repo: string; pull_number: number; per_page?: number }): Promise<{
@@ -168,10 +174,20 @@ export interface DevhubConfig {
   readonly workOrg: string;
   readonly personalUsername: string;
   readonly linearUserEmail: string;
+  /**
+   * Staleness thresholds for `whats_blocked`, in whole days. Optional overrides via
+   * DEVHUB_STALE_PR_DAYS / DEVHUB_BLOCKING_REVIEW_DAYS — a team with a 24-hour review SLA
+   * has a very different notion of "stalled" than the 3/5-day defaults.
+   */
+  readonly stalePrDays: number;
+  readonly blockingReviewDays: number;
 }
 
 /** Non-empty after trimming — an env var set to "" is as broken as one that is missing. */
 const requiredString = z.string().trim().min(1);
+
+/** Optional whole-day threshold: unset is fine, garbage is a startup error, not a default. */
+const optionalDays = z.coerce.number().int().min(1).max(90).optional();
 
 const envSchema = z.object({
   GITHUB_WORK_TOKEN: requiredString,
@@ -180,6 +196,8 @@ const envSchema = z.object({
   GITHUB_PERSONAL_USERNAME: requiredString,
   LINEAR_API_KEY: requiredString,
   LINEAR_USER_EMAIL: requiredString.pipe(z.string().email()),
+  DEVHUB_STALE_PR_DAYS: optionalDays,
+  DEVHUB_BLOCKING_REVIEW_DAYS: optionalDays,
 });
 
 export type DevhubEnv = z.infer<typeof envSchema>;
@@ -237,14 +255,26 @@ const octokitLog = {
   },
 };
 
-/** Build both GitHub clients and the Linear client. Performs no network I/O. */
-export function createClients(env: NodeJS.ProcessEnv = process.env): DevhubClients {
-  const config = readEnv(env);
+export interface ClientOptions {
+  /** Per-request upstream deadline. Overridable so tests can exercise the path in ms. */
+  readonly timeoutMs?: number;
+}
 
-  // Two instances, two tokens. Never merged, never reused across scopes.
+/** Build both GitHub clients and the Linear client. Performs no network I/O. */
+export function createClients(env: NodeJS.ProcessEnv = process.env, options: ClientOptions = {}): DevhubClients {
+  const config = readEnv(env);
+  const timeoutMs = options.timeoutMs ?? DEFAULT_UPSTREAM_TIMEOUT_MS;
+
+  // Two instances, two tokens. Never merged, never reused across scopes. Both use the
+  // deadline-enforcing fetch so a stalled upstream cannot hang a tool call.
+  const octokitOptions = {
+    userAgent: USER_AGENT,
+    log: octokitLog,
+    request: { fetch: timeoutFetch(timeoutMs) },
+  };
   const githubByScope: Readonly<Record<GithubScope, GithubApi>> = Object.freeze({
-    work: new Octokit({ auth: config.GITHUB_WORK_TOKEN, userAgent: USER_AGENT, log: octokitLog }).rest,
-    personal: new Octokit({ auth: config.GITHUB_PERSONAL_TOKEN, userAgent: USER_AGENT, log: octokitLog }).rest,
+    work: new Octokit({ ...octokitOptions, auth: config.GITHUB_WORK_TOKEN }).rest,
+    personal: new Octokit({ ...octokitOptions, auth: config.GITHUB_PERSONAL_TOKEN }).rest,
   });
 
   const linearClient = new LinearClient({ apiKey: config.LINEAR_API_KEY });
@@ -254,15 +284,21 @@ export function createClients(env: NodeJS.ProcessEnv = process.env): DevhubClien
       workOrg: config.GITHUB_WORK_ORG,
       personalUsername: config.GITHUB_PERSONAL_USERNAME,
       linearUserEmail: config.LINEAR_USER_EMAIL,
+      stalePrDays: config.DEVHUB_STALE_PR_DAYS ?? 3,
+      blockingReviewDays: config.DEVHUB_BLOCKING_REVIEW_DAYS ?? 5,
     },
     github(scope: GithubScope): GithubApi {
       return githubByScope[scope];
     },
     linear: {
       rawRequest: async <TData>(query: string, variables?: Record<string, unknown>) => {
-        const response = await linearClient.client.rawRequest<TData, Record<string, unknown>>(
-          query,
-          variables ?? {},
+        // The Linear client has no per-request fetch hook (its options extend RequestInit,
+        // where a signal would be one-shot for the client's lifetime), so the deadline is a
+        // race at this wrapper instead.
+        const response = await withTimeout(
+          linearClient.client.rawRequest<TData, Record<string, unknown>>(query, variables ?? {}),
+          timeoutMs,
+          'Linear',
         );
         return { data: response.data ?? undefined };
       },

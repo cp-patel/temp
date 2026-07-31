@@ -18,10 +18,10 @@ import type { ToolContext } from '../clients.js';
 
 export const TOOL_NAME = 'whats_blocked';
 
-/** An authored PR is "waiting on reviewers" once it is this old with no approval. */
-const STALE_AUTHORED_DAYS = 3;
-/** A review request I hold is "blocking others" once it is this old. */
-const BLOCKING_OTHERS_DAYS = 5;
+/** Default: an authored PR is "waiting on reviewers" once it is this old with no approval. */
+export const DEFAULT_STALE_AUTHORED_DAYS = 3;
+/** Default: a review request I hold is "blocking others" once it is this old. */
+export const DEFAULT_BLOCKING_OTHERS_DAYS = 5;
 /** Upper bound per section, so the combined response stays inside the char budget. */
 const MAX_PER_SECTION = 10;
 /** How many PRs to scan per side before filtering. */
@@ -31,12 +31,18 @@ const LINEAR_SCAN_LIMIT = 100;
 
 export const whatsBlockedInputSchema = {};
 
-export const whatsBlockedDescription = `Answers "what am I blocked on, and what am I blocking?" in a single call. Takes no parameters.
+/**
+ * Built per-server rather than exported as a constant: the day thresholds are configurable,
+ * and the description must state the numbers actually in force — an LLM reading "3 days"
+ * while the server enforces 1 would explain results wrongly.
+ */
+export function buildWhatsBlockedDescription(staleDays: number, blockingDays: number): string {
+  return `Answers "what am I blocked on, and what am I blocking?" in a single call. Takes no parameters.
 
 Cross-references three things at once and returns them as three labelled sections:
-- waiting_on_reviewers: PRs you authored that are open more than ${STALE_AUTHORED_DAYS} days with no approval, or where changes were requested and you have not pushed since. You are blocked on other people.
+- waiting_on_reviewers: PRs you authored that are open more than ${staleDays} day${staleDays === 1 ? '' : 's'} with no approval, or where changes were requested and you have not pushed since. You are blocked on other people.
 - blocked_issues: your Linear issues that are genuinely stuck — workflow state named like "Blocked", or another still-open issue blocks them.
-- you_are_blocking: PRs awaiting YOUR review for more than ${BLOCKING_OTHERS_DAYS} days. Other people are blocked on you.
+- you_are_blocking: PRs awaiting YOUR review for more than ${blockingDays} day${blockingDays === 1 ? '' : 's'}. Other people are blocked on you.
 
 Also returns a one-line "summary" string, e.g. "2 PRs waiting on reviewers, 1 ticket blocked, you are blocking 3 reviews". Every item carries a "reason" field explaining why it qualified. The summary counts every match even when a section is truncated, and any truncation is stated in "notes".
 
@@ -47,6 +53,13 @@ PREFER THIS TOOL whenever the user asks what is stuck, blocked, stalled, waiting
 Covers both GitHub accounts (work and personal) plus Linear. If one upstream is down the others still return, with a warnings array.
 
 Example: {}`;
+}
+
+/** Description built with the defaults, for tests and for callers without a config. */
+export const whatsBlockedDescription = buildWhatsBlockedDescription(
+  DEFAULT_STALE_AUTHORED_DAYS,
+  DEFAULT_BLOCKING_OTHERS_DAYS,
+);
 
 export interface BlockedSections {
   readonly summary: string;
@@ -67,7 +80,10 @@ export interface BlockedSections {
  *
  * Drafts are excluded: a draft is not waiting on anyone but its author.
  */
-export function authoredBlockedReason(item: PrItem): string | undefined {
+export function authoredBlockedReason(
+  item: PrItem,
+  staleDays: number = DEFAULT_STALE_AUTHORED_DAYS,
+): string | undefined {
   if (item.draft === true) return undefined;
 
   // `approvals` is absent only when enrichment failed for this row. Treating that as "zero
@@ -86,7 +102,7 @@ export function authoredBlockedReason(item: PrItem): string | undefined {
       : `changes requested, not addressed for ${since}d`;
   }
 
-  if (item.age_days > STALE_AUTHORED_DAYS && item.approvals === 0) {
+  if (item.age_days > staleDays && item.approvals === 0) {
     const awaiting = item.awaiting ?? [];
     const who = awaiting.length > 0 ? ` — awaiting ${awaiting.join(', ')}` : ' — no reviewer has responded';
     return `open ${item.age_days}d with no approval${who}`;
@@ -96,9 +112,12 @@ export function authoredBlockedReason(item: PrItem): string | undefined {
 }
 
 /** Why a review request I hold is blocking someone else. */
-export function blockingOthersReason(item: PrItem): string | undefined {
+export function blockingOthersReason(
+  item: PrItem,
+  blockingDays: number = DEFAULT_BLOCKING_OTHERS_DAYS,
+): string | undefined {
   if (item.draft === true) return undefined;
-  if (item.age_days <= BLOCKING_OTHERS_DAYS) return undefined;
+  if (item.age_days <= blockingDays) return undefined;
   return `awaiting your review for ${item.age_days}d`;
 }
 
@@ -163,11 +182,13 @@ export async function whatsBlocked(ctx: ToolContext): Promise<BlockedSections> {
       warnings.push(warning);
     }
 
+    const { stalePrDays, blockingReviewDays } = ctx.clients.config;
+
     // flatMap rather than map+filter: it keeps the element type non-nullable, which a type
     // predicate cannot express cleanly under exactOptionalPropertyTypes.
     const waitingOnReviewers: PrItem[] = authored.items
       .flatMap((item) => {
-        const reason = authoredBlockedReason(item);
+        const reason = authoredBlockedReason(item, stalePrDays);
         return reason === undefined ? [] : [{ ...item, reason }];
       })
       .sort((a, b) => b.age_days - a.age_days);
@@ -175,7 +196,7 @@ export async function whatsBlocked(ctx: ToolContext): Promise<BlockedSections> {
     const youAreBlocking: PrItem[] = reviewQueue.candidates
       .map((candidate) => toUnenrichedItem(candidate, now))
       .flatMap((item) => {
-        const reason = blockingOthersReason(item);
+        const reason = blockingOthersReason(item, blockingReviewDays);
         return reason === undefined ? [] : [{ ...item, reason }];
       })
       .sort((a, b) => b.age_days - a.age_days);

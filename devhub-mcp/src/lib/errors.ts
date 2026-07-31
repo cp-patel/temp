@@ -95,6 +95,21 @@ function minutesUntilReset(headers: Record<string, string>, now: number): number
   return 1;
 }
 
+/**
+ * Recognise a request that hit the upstream deadline.
+ *
+ * Covers the two shapes deadlines produce here: the `TimeoutError`/`AbortError` DOMException
+ * from `AbortSignal.timeout` (possibly re-wrapped by Octokit with its message preserved), and
+ * the explicit "did not respond within Ns" error from `withTimeout`.
+ */
+function isTimeout(error: unknown, message: string): boolean {
+  if (typeof error === 'object' && error !== null) {
+    const name = (error as { name?: unknown }).name;
+    if (name === 'TimeoutError' || name === 'AbortError') return true;
+  }
+  return /did not respond within|operation was aborted|timed?\s?out/i.test(message);
+}
+
 function isRateLimited(status: number | undefined, headers: Record<string, string>): boolean {
   if (status === 429) return true;
   if (status !== 403) return false;
@@ -163,6 +178,12 @@ export function describeFailure(
       status,
       `rate limit exceeded; resets in about ${minutes} minute${minutes === 1 ? '' : 's'} (not retrying automatically)`,
     );
+  }
+
+  // Checked before status-based hints: a timeout usually carries no HTTP status at all, and
+  // when a wrapper does attach one it describes the symptom, not the cause.
+  if (isTimeout(error, message)) {
+    return failure(upstream, status, 'did not respond before the request deadline; it may be slow or down (not retrying automatically)');
   }
 
   const hint = upstream === 'linear' ? linearHint(status, message) : githubHint(upstream, status, message);
