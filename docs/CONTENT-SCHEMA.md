@@ -271,13 +271,23 @@ Pick a `hue` well separated from neighbouring phases. Existing: 262, 224, 194,
   brief: "Two or three sentences.",
   stack: "Postgres + pgvector · BM25 · a reranker",
   proves: "Chunking, hybrid search, reranking, citation, evaluation",
-  tasks: ["...", "..."],      // 3+; each a checkable milestone
+  tasks: [                    // 3+; each a checkable milestone
+    { t: "Compare three chunking strategies on one eval set", ch: "chunking" },
+  ],
 }
 ```
 
 The `hours` string is parsed by the plan engine, so keep the digits
 recognisable. Tasks should be verifiable — "measure recall@5 and publish the
 number", not "understand chunking".
+
+Each task's `ch` names the chapter that teaches it. The validator errors on an id
+that doesn't resolve, and the chapter renders the reverse — a "Where you'll use
+this" block listing the milestones that apply it — so the two directions are one
+piece of data and cannot disagree. Point at the chapter that teaches the
+_technique_, not one that merely mentions it, and prefer a chapter in the
+project's own phase or earlier; the unit tests hold an explicit list of the seven
+milestones that deliberately reach into later material.
 
 ## Glossary
 

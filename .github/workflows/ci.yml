@@ -24,6 +24,9 @@ jobs:
       - name: Content schema
         run: npm run validate
 
+      - name: Docs match the curriculum
+        run: npm run check:docs
+
       - name: Unit tests
         run: npm test
 

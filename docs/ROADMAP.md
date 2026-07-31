@@ -5,14 +5,18 @@ Written so the next change doesn't have to rediscover the reasoning.
 
 ## Where it stands
 
+<!-- The numbers below are verified by `npm run check:docs`; run `npm run stats`
+     to recompute them. Test counts are deliberately absent — they moved on
+     almost every commit and nobody reads a stale one. -->
+
 | Area            | State                                                                 |
 | --------------- | --------------------------------------------------------------------- |
-| Curriculum      | 44 chapters, 8 phases, ~56k words of prose, 73 code blocks            |
-| Interactive     | 13 labs, 44 inline knowledge checks, 165 quiz questions               |
+| Curriculum      | 44 chapters, 8 phases, 72,528 words of prose, 73 code blocks          |
+| Interactive     | 17 labs, 79 inline knowledge checks, 165 quiz questions               |
 | Practice        | 6 projects with 43 verifiable milestones, 167 spaced-repetition cards |
 | Personalisation | 5 tracks, 14 claimable skills, 17 per-chapter delta notes             |
 | Reference       | 52-term glossary, 91 external resources                               |
-| Tooling         | Content validator, 75 unit assertions, 57 e2e checks, scaffolder, CI  |
+| Tooling         | Validator, unit + e2e suites, docs check, scaffolder, CI              |
 | Deployment      | Static; GitHub Pages workflow included; runs from `file://`           |
 
 ## Design commitments

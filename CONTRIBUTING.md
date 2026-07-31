@@ -46,6 +46,11 @@ appends at the end.
 
 ## Writing standards
 
+If you add or remove content, run `npm run check:docs`. It compares the counts in
+the README and in `docs/` against the curriculum and fails on a stale one — every
+number in there was wrong at some point, and a wrong count is the kind of error no
+reader can catch but every reader notices.
+
 These are the conventions the existing 44 chapters follow. They exist because
 the alternative produced worse material.
 

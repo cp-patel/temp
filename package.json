@@ -13,13 +13,14 @@
     "validate": "node scripts/validate-content.mjs",
     "test": "node --test \"tests/unit/*.test.mjs\"",
     "test:e2e": "node tests/e2e/run.mjs",
-    "test:all": "npm run validate && npm run test && npm run test:e2e",
+    "test:all": "npm run validate && npm run check:docs && npm run test && npm run test:e2e",
     "lint": "eslint js scripts tests --no-eslintrc -c .eslintrc.json",
     "format": "prettier --write \"**/*.{js,mjs,css,html,md,json,yml}\"",
     "format:check": "prettier --check \"**/*.{js,mjs,css,html,md,json,yml}\"",
     "new:chapter": "node scripts/new-chapter.mjs",
     "stats": "node scripts/stats.mjs",
-    "check": "npm run format:check && npm run validate && npm run test"
+    "check:docs": "node scripts/check-docs.mjs",
+    "check": "npm run format:check && npm run validate && npm run check:docs && npm run test"
   },
   "devDependencies": {
     "playwright": "^1.56.0",

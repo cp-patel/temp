@@ -156,7 +156,8 @@ npm run validate       # content schema, cross-references, answer indices, table
 npm test               # unit tests (util, store, plan engine)
 npm run test:e2e       # every route, chapter, and lab control in Chromium
 npm run test:all       # all three
-npm run check          # format check + validate + unit tests
+npm run check          # format check + validate + docs check + unit tests
+npm run check:docs     # the counts in README and docs/ against the curriculum
 npm run new:chapter    # scaffold a schema-valid chapter
 npm run stats          # the numbers in this README, computed
 npm run format         # Prettier
