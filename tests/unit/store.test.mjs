@@ -6,15 +6,126 @@ import {
 } from "../../scripts/lib/load-curriculum.mjs";
 
 /** Fresh store over a fresh in-memory localStorage for each test. */
-function freshStore() {
+function freshStore(seed) {
   const util = loadModule("js/core/util.js");
   const storage = makeMemoryStorage();
+  if (seed !== undefined) storage.setItem("forge.ai.v1", seed);
   const sandbox = loadModule("js/core/store.js", {
     U: util.U,
     localStorage: storage,
   });
   return { Store: sandbox.Store, storage };
 }
+
+describe("damaged stored state", () => {
+  /* Settings offers JSON export and import, so a hand-edited file is a supported
+     way in. Defaulting only on null let a wrong *type* through into code that
+     assumes shape: {"progress":"nope"} threw on the first completion, and
+     {"xp":"lots"} became "lots50" the first time anything was awarded, which
+     permanently breaks level, progress bar and badge arithmetic. */
+  const CASES = [
+    ["unparseable", "{not json"],
+    ["a bare string", '"hello"'],
+    ["a bare array", "[1,2,3]"],
+    ["a number", "42"],
+    ["empty object", "{}"],
+    ["progress as a string", '{"progress":"nope","xp":10}'],
+    ["progress as an array", '{"progress":[1,2],"xp":10}'],
+    ["a progress record that is a number", '{"progress":{"role":7},"xp":5}'],
+    ["xp as a string", '{"xp":"lots"}'],
+    ["xp negative", '{"xp":-500}'],
+    ["xp not finite", '{"xp":1e999}'],
+    ["streak as a string", '{"streak":"7 days"}'],
+    ["streak counters as strings", '{"streak":{"n":"many","best":"lots"}}'],
+    ["cards as an array", '{"cards":[]}'],
+    ["days as a string", '{"days":"x"}'],
+    ["notes as an array", '{"notes":[]}'],
+    ["projects as a string", '{"projects":"none"}'],
+    ["profile as a string", '{"profile":"backend"}'],
+    [
+      "profile skills as a string",
+      '{"profile":{"track":"backend","skills":"apis"}}',
+    ],
+  ];
+
+  for (const [name, seed] of CASES) {
+    test(`recovers from ${name}`, () => {
+      const { Store } = freshStore(seed);
+      const s = Store.state();
+
+      assert.equal(typeof s.xp, "number", "xp must be a number");
+      assert.ok(isFinite(s.xp) && s.xp >= 0, `xp is ${s.xp}`);
+      for (const k of [
+        "progress",
+        "notes",
+        "cards",
+        "projects",
+        "days",
+        "labs",
+      ]) {
+        assert.ok(
+          s[k] && typeof s[k] === "object" && !Array.isArray(s[k]),
+          `${k} must be a plain object, got ${JSON.stringify(s[k])}`
+        );
+      }
+      assert.equal(typeof s.streak.n, "number");
+      assert.equal(typeof s.streak.best, "number");
+      assert.ok(s.profile === null || typeof s.profile === "object");
+      if (s.profile) assert.ok(Array.isArray(s.profile.skills));
+
+      // And the write paths still work on top of it.
+      Store.complete("role", true);
+      assert.equal(Store.isDone("role"), true);
+      assert.equal(typeof Store.state().xp, "number");
+      assert.ok(Store.state().xp >= Store.XP.chapter);
+      Store.saveQuiz("role", 3, 4);
+      Store.saveCheck("role", "k1", true);
+      assert.equal(Store.getCheck("role", "k1"), true);
+      assert.equal(typeof Store.level().name, "string");
+    });
+  }
+
+  test("import runs through the same sanitiser as load", () => {
+    const { Store } = freshStore();
+    Store.import('{"xp":"lots","progress":"nope","streak":"never"}');
+    const s = Store.state();
+    assert.equal(typeof s.xp, "number");
+    assert.ok(s.progress && !Array.isArray(s.progress));
+    assert.equal(typeof s.streak.n, "number");
+    Store.complete("tokens", true);
+    assert.equal(typeof Store.state().xp, "number");
+  });
+
+  test("import still rejects a payload that is not an object", () => {
+    const { Store } = freshStore();
+    for (const bad of ['"hi"', "[1,2]", "null", "7"]) {
+      assert.throws(() => Store.import(bad), /bad payload/);
+    }
+  });
+
+  test("a valid export round-trips unchanged", () => {
+    // The sanitiser must not quietly rewrite legitimate state.
+    const a = freshStore().Store;
+    a.complete("tokens", true);
+    a.saveQuiz("tokens", 4, 4);
+    a.saveCheck("tokens", "t-mid", true);
+    a.setProfile({
+      track: "backend",
+      skills: ["apis"],
+      hoursPerWeek: 10,
+      goal: "job",
+    });
+    const json = a.export();
+
+    const b = freshStore().Store;
+    b.import(json);
+    assert.equal(b.isDone("tokens"), true);
+    assert.equal(b.getCheck("tokens", "t-mid"), true);
+    assert.equal(b.profile().track, "backend");
+    assert.deepEqual(b.profile().skills, ["apis"]);
+    assert.equal(b.state().xp, a.state().xp);
+  });
+});
 
 describe("chapter progress", () => {
   let Store;

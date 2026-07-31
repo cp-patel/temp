@@ -128,7 +128,8 @@ paraphrase matching_ — the lab's entire point — so it was rebuilt.
 - Screen-reader-legible: a correct heading outline on every route, navigation
   announced in a live region, and quiz results conveyed in text as well as colour
 
-Everything is stored in `localStorage` under one key. **No network requests after
+Everything is stored in `localStorage` under one key, type-checked on read so a
+hand-edited import cannot break the app. **No network requests after
 page load** — no analytics, no backend, no telemetry. Export and import your
 progress as JSON from Settings.
 
@@ -142,8 +143,8 @@ js/content/                 phases, projects, glossary, 8 phase files, tracks (p
 js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
-tests/unit/                 83 assertions — util, store, plan engine
-tests/e2e/                  124 checks in real Chromium, incl. a full first-visitor walkthrough
+tests/unit/                 105 assertions — util, store, plan engine
+tests/e2e/                  128 checks in real Chromium, incl. a full first-visitor walkthrough
                             and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```

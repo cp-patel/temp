@@ -1381,6 +1381,78 @@ async function main() {
     await cctx.close();
   }
 
+  /* ---------------- a damaged stored state still works ---------------- */
+  /* The unit tests cover the sanitiser; this covers the thing it protects — that
+     the app boots and stays usable on top of state it did not write. Settings
+     offers JSON import, so a hand-edited file is a supported way in. */
+  section("damaged state");
+  for (const [name, seed] of [
+    ["unparseable", "{not json"],
+    ["progress as a string", '{"progress":"nope","xp":10}'],
+    ["xp as a string", '{"xp":"lots"}'],
+    ["a progress record that is a number", '{"progress":{"role":7},"xp":5}'],
+  ]) {
+    const dctx = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      colorScheme: "dark",
+    });
+    // Seeded once, before any app script, then out of the way.
+    await dctx.addInitScript((payload) => {
+      try {
+        if (!sessionStorage.getItem("seeded")) {
+          localStorage.setItem("forge.ai.v1", payload);
+          sessionStorage.setItem("seeded", "1");
+        }
+      } catch {
+        /* storage unavailable is its own case */
+      }
+    }, seed);
+    const dp = await dctx.newPage();
+    const dErrors = [];
+    dp.on("pageerror", (e) => dErrors.push(e.message));
+    dp.on("console", (m) => {
+      if (m.type() === "error") dErrors.push(m.text());
+    });
+    await dp.goto(BASE + "#/dashboard", { waitUntil: "networkidle" });
+    await dp.evaluate(() => Store.skipOnboarding());
+    await dp.waitForTimeout(300);
+
+    let rendered = 0;
+    for (const r of [
+      "#/plan",
+      "#/roadmap",
+      "#/review",
+      "#/settings",
+      "#/labs",
+    ]) {
+      await dp.goto(BASE + r, { waitUntil: "networkidle" });
+      await dp.waitForTimeout(150);
+      if (await dp.evaluate(() => document.body.innerText.length > 200))
+        rendered++;
+    }
+
+    await dp.goto(BASE + "#/chapter/role", { waitUntil: "networkidle" });
+    await dp.waitForTimeout(250);
+    await dp.locator(".chdone .btn").click();
+    await dp.waitForTimeout(250);
+    const after = await dp.evaluate(() => ({
+      done: Store.isDone("role"),
+      xpIsNumber: typeof Store.state().xp === "number",
+      xp: Store.state().xp,
+    }));
+
+    check(
+      `boots and records progress with ${name}`,
+      dErrors.length === 0 &&
+        rendered === 5 &&
+        after.done &&
+        after.xpIsNumber &&
+        after.xp >= 50,
+      `${dErrors.slice(0, 1).join("")} rendered=${rendered} ${JSON.stringify(after)}`
+    );
+    await dctx.close();
+  }
+
   /* ---------------- the first visitor's whole path ---------------- */
   /* Everything above drives the app with state pre-seeded from JS, because that
      is how you test a screen. Nobody arrives that way. This walks the actual

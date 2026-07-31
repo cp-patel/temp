@@ -51,6 +51,56 @@
   var state = load();
   var listeners = [];
 
+  function clone(d) {
+    return d && typeof d === "object" ? JSON.parse(JSON.stringify(d)) : d;
+  }
+
+  /* Accept a stored value only if it is the same *kind* as the default.
+     Defaulting on null alone was not enough: a wrong type passed straight into
+     code that assumes shape. `{"progress":"nope"}` threw "cannot create property
+     'role' on string" on the first completion, and `{"xp":"lots"}` survived to
+     become "lots50" the first time anything was awarded — permanently breaking
+     level, progress bar and badge arithmetic. Settings offers JSON import, so a
+     hand-edited file is a supported way in, not a hypothetical. */
+  function sane(v, d) {
+    if (v === null || v === undefined) return clone(d);
+    if (typeof d === "number")
+      return typeof v === "number" && isFinite(v) && v >= 0 ? v : d;
+    if (typeof d === "boolean") return typeof v === "boolean" ? v : d;
+    if (Array.isArray(d)) return Array.isArray(v) ? v : clone(d);
+    if (d && typeof d === "object")
+      return v && typeof v === "object" && !Array.isArray(v) ? v : clone(d);
+    // theme and profile default to null: any object or string is plausible.
+    return v;
+  }
+
+  /* Nested shapes the rest of the file dereferences without asking. */
+  function saneState(out) {
+    var streak = out.streak;
+    if (!streak || typeof streak !== "object" || Array.isArray(streak)) {
+      out.streak = clone(DEFAULTS.streak);
+    } else {
+      out.streak = {
+        n: typeof streak.n === "number" && streak.n >= 0 ? streak.n : 0,
+        last: typeof streak.last === "string" ? streak.last : null,
+        best:
+          typeof streak.best === "number" && streak.best >= 0 ? streak.best : 0,
+      };
+    }
+    Object.keys(out.progress).forEach(function (id) {
+      var rec = out.progress[id];
+      if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
+        delete out.progress[id];
+      }
+    });
+    if (out.profile !== null && typeof out.profile === "object") {
+      if (!Array.isArray(out.profile.skills)) out.profile.skills = [];
+    } else if (out.profile !== null) {
+      out.profile = null;
+    }
+    return out;
+  }
+
   function load() {
     var s;
     try {
@@ -58,18 +108,13 @@
     } catch (e) {
       s = null;
     }
+    if (!s || typeof s !== "object" || Array.isArray(s)) s = null;
     var out = {};
     Object.keys(DEFAULTS).forEach(function (k) {
-      var d = DEFAULTS[k];
-      var v = s && s[k] !== undefined ? s[k] : null;
-      if (v === null || v === undefined) {
-        out[k] = d && typeof d === "object" ? JSON.parse(JSON.stringify(d)) : d;
-      } else {
-        out[k] = v;
-      }
+      out[k] = sane(s ? s[k] : null, DEFAULTS[k]);
     });
     if (!out.started) out.started = U.today();
-    return out;
+    return saneState(out);
   }
 
   function save() {
@@ -163,9 +208,14 @@
   /* ---- chapters ---- */
 
   S.chapter = function (id) {
-    if (!state.progress[id]) state.progress[id] = { done: false, checks: {} };
-    if (!state.progress[id].checks) state.progress[id].checks = {};
-    return state.progress[id];
+    var rec = state.progress[id];
+    // A record of the wrong type is replaced, not written onto: `{"role": 7}`
+    // used to throw "cannot create property 'checks' on number".
+    if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
+      rec = state.progress[id] = { done: false, checks: {} };
+    }
+    if (!rec.checks || typeof rec.checks !== "object") rec.checks = {};
+    return rec;
   };
 
   S.isDone = function (id) {
@@ -422,10 +472,14 @@
 
   S.import = function (json) {
     var parsed = JSON.parse(json);
-    if (!parsed || typeof parsed !== "object") throw new Error("bad payload");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      throw new Error("bad payload");
+    // Through the same sanitiser as load(). An import is the most likely source
+    // of a wrong-typed field, since the file is offered for hand editing.
     Object.keys(DEFAULTS).forEach(function (k) {
-      if (parsed[k] !== undefined) state[k] = parsed[k];
+      if (parsed[k] !== undefined) state[k] = sane(parsed[k], DEFAULTS[k]);
     });
+    saneState(state);
     save();
   };
 
