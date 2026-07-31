@@ -128,11 +128,15 @@
 }
 
 /* range input */
+/* 24px, not 20px: WCAG 2.5.8 asks for a 24×24 minimum target and these sliders
+   are the primary control in seventeen labs. The visual track stays 5px — the
+   extra height is invisible hit area, which is exactly what the criterion is
+   about. Nothing above this line changes visually. */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 20px;
+  height: 26px;
   background: none;
   cursor: pointer;
 }

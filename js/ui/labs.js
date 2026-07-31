@@ -789,10 +789,15 @@
           grip.appendChild(up);
           grip.appendChild(dn);
 
-          row.sw.onclick = function () {
+          /* The whole row toggles, as in every other lab that uses switchRow.
+             The 34x19 pill is under the 24px target minimum, and the reorder
+             buttons above already stopPropagation, so there is nothing the row
+             handler can steal. */
+          row.onclick = function () {
             on[id] = !on[id];
             render();
           };
+          row.style.cursor = "pointer";
           list.appendChild(row);
         });
         update();

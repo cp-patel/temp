@@ -59,12 +59,16 @@
   line-height: 1.06;
 }
 
+/* Held to the prose measure rather than its own em count, so the lede's right
+   edge lands exactly where every paragraph below it does. A lede one measure
+   wider than the body it introduces makes the eye travel further for the first
+   sentence than for any that follow. */
 .chhead__sub {
   margin-top: var(--s-4);
   font-size: var(--t-lg);
   color: var(--ink-2);
   line-height: 1.55;
-  max-width: 68ch;
+  max-width: var(--measure);
 }
 
 .chhead__facts {

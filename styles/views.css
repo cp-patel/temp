@@ -85,7 +85,7 @@
 
 .hero__lede {
   margin: var(--s-6) auto 0;
-  max-width: 62ch;
+  max-width: 32.6em;
   font-size: var(--t-lg);
   line-height: 1.6;
   color: var(--ink-2);
@@ -334,7 +334,7 @@
 }
 
 .cta-band p {
-  max-width: 52ch;
+  max-width: 27.3em;
   margin: var(--s-4) auto var(--s-8);
   color: var(--ink-2);
 }
@@ -596,7 +596,7 @@
   margin-top: 4px;
   font-size: var(--t-sm);
   color: var(--ink-2);
-  max-width: 66ch;
+  max-width: 34.6em;
 }
 
 .phase__meta {
@@ -1027,7 +1027,7 @@
 .resume p {
   color: var(--ink-2);
   font-size: var(--t-sm);
-  max-width: 60ch;
+  max-width: 31.5em;
   margin-bottom: var(--s-5);
 }
 
@@ -1652,14 +1652,14 @@
   color: var(--ink);
   letter-spacing: var(--tr-tight);
   line-height: 1.35;
-  max-width: 44ch;
+  max-width: 23.1em;
 }
 
 .fcface__a {
   font-size: var(--t-md);
   color: var(--ink-1);
   line-height: 1.65;
-  max-width: 52ch;
+  max-width: 27.3em;
 }
 
 .fcface__hint {
@@ -1717,7 +1717,7 @@
   font-size: var(--t-xs);
   color: var(--ink-3);
   margin-top: 2px;
-  max-width: 56ch;
+  max-width: 29.4em;
 }
 
 .seg {

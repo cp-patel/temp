@@ -279,7 +279,7 @@
   font-size: var(--t-sm);
   color: var(--ink-2);
   line-height: 1.65;
-  max-width: 68ch;
+  max-width: 35.7em;
 }
 
 /* mode legend */

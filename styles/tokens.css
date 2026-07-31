@@ -22,8 +22,16 @@
   /* Body copy in the chapter reader. Separate from --t-md, which is a UI size
      used in cards and panels: sustained reading wants more than interface text,
      and 17px against a 91-character line was most of why chapters read as
-     "small". 18px is the size long-form reading guidance converges on. */
-  --t-read: 1.125rem;
+     "small". 18px is the size long-form reading guidance converges on.
+
+     But 18px on a 360px phone yields a 36-character line, and short lines are
+     their own kind of tiring — the eye returns constantly and the rag gets ugly.
+     A phone cannot be given a wider column, so it gets slightly smaller type
+     instead: 16.5px below 360px rising to 18px at 600px, which moves a phone
+     from 36 characters to 39–44 and leaves every wider viewport at exactly 18px
+     and 66 characters. The rem term keeps it responsive to browser zoom, which a
+     bare vw value would not be. */
+  --t-read: clamp(1.03125rem, 0.8906rem + 0.625vw, 1.125rem);
 
   --t-lg: clamp(1.125rem, 0.4vw + 1.05rem, 1.25rem);
   --t-xl: clamp(1.375rem, 0.8vw + 1.2rem, 1.625rem);

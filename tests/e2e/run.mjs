@@ -221,7 +221,9 @@ async function main() {
         const rows = lab.querySelectorAll("table tbody tr").length;
         return rows < 3;
       })
-      .map((lab) => (lab.querySelector(".lab__t") || lab).innerText.split("\n")[0])
+      .map(
+        (lab) => (lab.querySelector(".lab__t") || lab).innerText.split("\n")[0]
+      )
   );
   check(
     "every plotted lab reads its values out without hover",
@@ -715,6 +717,75 @@ async function main() {
   check(
     "mobile nav drawer opens",
     await mp.evaluate(() => document.body.classList.contains("nav-open"))
+  );
+
+  /* Reading comfort on a phone, not just absence of overflow. Every measurement
+     before this was taken at 1280px and up, where the column is capped by
+     --measure; a phone's column is capped by the phone, so the only lever is
+     type size. 18px on a 360px screen gives a 36-character line, and short lines
+     are their own kind of tiring — constant eye returns and an ugly rag. The
+     comfortable band on a narrow viewport is roughly 35–50. */
+  await mp.goto(BASE + "#/chapter/api-surface", { waitUntil: "networkidle" });
+  await mp.waitForTimeout(400);
+  const mread = await mp.evaluate(() => {
+    const el = [...document.querySelectorAll(".prose p")].sort(
+      (a, b) => b.textContent.length - a.textContent.length
+    )[0];
+    const cs = getComputedStyle(el);
+    const colW = el.getBoundingClientRect().width;
+    const c2 = document.createElement("canvas").getContext("2d");
+    c2.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const text = el.textContent.trim();
+    let n = 0;
+    while (
+      n < text.length &&
+      c2.measureText(text.slice(0, n + 1)).width <= colW
+    )
+      n++;
+    return { cpl: n, px: parseFloat(cs.fontSize) };
+  });
+  check(
+    `mobile line length ${mread.cpl} chars is comfortable`,
+    mread.cpl >= 38 && mread.cpl <= 55,
+    `${mread.cpl} chars at ${mread.px}px — want 38–55`
+  );
+  check(
+    "mobile body text stays above the 16px floor",
+    mread.px >= 16,
+    `${mread.px}px`
+  );
+
+  /* WCAG 2.5.8: a target smaller than 24x24 is hard to hit accurately. The range
+     sliders were 20px tall — the primary control in seventeen labs — and the
+     prompt builder made a 34x19 pill the only way to toggle a row. */
+  const tiny = new Map();
+  for (const r of ["#/labs", "#/plan", "#/chapter/tokens", "#/review"]) {
+    await mp.goto(BASE + r, { waitUntil: "networkidle" });
+    await mp.waitForTimeout(450);
+    const found = await mp.evaluate(() => {
+      const out = [];
+      document
+        .querySelectorAll("a, button, input[type=range], [role=button]")
+        .forEach((e) => {
+          const box = e.getBoundingClientRect();
+          if (box.width < 4 || box.height < 4) return;
+          if (box.height < 24 || box.width < 24)
+            out.push(
+              `${e.tagName.toLowerCase()}.${(e.className || "?").toString().split(" ")[0]} ` +
+                `${Math.round(box.width)}x${Math.round(box.height)}`
+            );
+        });
+      return [...new Set(out)];
+    });
+    found.forEach((f) => tiny.set(f, r));
+  }
+  check(
+    "every tap target meets 24x24",
+    tiny.size === 0,
+    [...tiny.entries()]
+      .slice(0, 4)
+      .map(([k, v]) => `${k} on ${v}`)
+      .join("; ")
   );
   await mctx.close();
 
