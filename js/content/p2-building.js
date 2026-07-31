@@ -152,6 +152,18 @@
           ],
         },
 
+        {
+          t: "check",
+          key: "api-mid",
+          q: 'A response comes back with HTTP 200, readable text, and `stop_reason: "length"`. What should your code do?',
+          options: [
+            "Return it to the user — a 200 with text is a successful response",
+            "Treat it as an error: the output was cut off at your token cap",
+            "Retry the identical request, since the model may finish next time",
+          ],
+          answer: 1,
+          why: "The model ran out of your budget mid-sentence, so the text is incomplete even though nothing failed at the transport layer. Returning it ships a truncated answer that looks fine; retrying unchanged hits the same cap. Either raise `max_tokens`, or shorten what you asked for. This is the failure mode that makes checking the stop reason non-optional.",
+        },
         { t: "h", text: "The error taxonomy" },
         {
           t: "p",
@@ -777,6 +789,18 @@ messages = [{
           text: "Two queries differing only in a critical entity — a plan name, a date, an account — can sit above 0.95 cosine similarity while having completely different correct answers. If you use semantic caching, namespace the key by every entity that changes the answer, and never share a cache across tenants.",
         },
 
+        {
+          t: "check",
+          key: "res-mid",
+          q: "Your system prompt begins `Current time: 2026-07-25T14:02:11Z` followed by 6,000 stable tokens. What is your prompt-cache hit rate?",
+          options: [
+            "High — only the first line changes and the rest is identical",
+            "Essentially zero, because the prefix has to match byte for byte",
+            "Around 50%, since half the prefix is reusable",
+          ],
+          answer: 1,
+          why: "Caching matches a prefix exactly, from the first byte. A timestamp that changes every request invalidates everything after it, so 6,000 perfectly stable tokens are recomputed every call. Move volatile content to the *end* of the prompt and the same 6,000 tokens become a cache hit — which is why prompt layout is a cost decision worth 75–90% of those tokens.",
+        },
         { t: "h", text: "Retries that don't amplify an outage" },
         {
           t: "p",
@@ -1082,6 +1106,18 @@ async def build_messages(conv_id: str, new_msg: str, budget: int):
           text: "Compaction is another LLM call — adding it inline to a user request adds a second or more of latency. Trigger it as a background task after responding, so the *next* turn benefits. Users never wait for housekeeping.",
         },
 
+        {
+          t: "check",
+          key: "cs-mid",
+          q: "Your browser client sends the full message array with every request and the server forwards it to the model. What is the problem?",
+          options: [
+            "Bandwidth — the payload grows with every turn",
+            "The client can rewrite the history, including the system prompt",
+            "Nothing, as long as the client is your own code",
+          ],
+          answer: 1,
+          why: 'Anything the browser sends is attacker-controlled, including previous "assistant" turns and any instructions among them. A user can edit the history to claim the assistant already agreed to something, or drop your system prompt entirely. Keep conversation state server-side and let the client send only the new message and a conversation id.',
+        },
         { t: "h", text: "Long-term memory: extract, don't dump" },
         {
           t: "p",
@@ -1354,6 +1390,18 @@ Same feature, agentic, 12 model calls per request
           ],
         },
 
+        {
+          t: "check",
+          key: "cl-mid",
+          q: "Your AI feature averages $3/user/month, but the top 5% of users cost $40 each. What do you do first?",
+          options: [
+            "Optimise the average case, since it covers 95% of users",
+            "Find out what the heavy users are doing and bound it",
+            "Raise the price for everyone to cover the tail",
+          ],
+          answer: 1,
+          why: "The tail is where the money is, and it is usually a small number of behaviours — enormous documents, runaway conversation lengths, retry loops — rather than users being 13× more valuable. Bounding those specific cases costs far less than a general optimisation and protects your margin. Optimising the average case moves a number that was already fine.",
+        },
         { t: "h", text: "Latency budgets" },
         {
           t: "p",

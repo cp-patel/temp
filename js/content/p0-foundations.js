@@ -110,6 +110,18 @@
           text: "Read that list again and note where the difficulty sits. Steps one to three are what tutorials cover, and they are the easy part. Step four is what separates a demo from a product, and step five is what decides whether the product survives contact with a finance review.",
         },
 
+        {
+          t: "check",
+          key: "role-mid",
+          q: 'A recruiter describes a role as "AI Engineer" and the job spec is mostly about training and evaluating models on labelled datasets. What is it actually describing?',
+          options: [
+            "An AI engineering role, since evaluation is the core AI engineering skill",
+            "An ML engineering role wearing a more fashionable title",
+            "A hybrid role that would suit someone with either background",
+          ],
+          answer: 1,
+          why: 'The distinguishing question is what you produce. Training and evaluating models *on labelled datasets* means the trained model is the artefact — that is ML engineering. AI engineering evaluates model-powered *systems*, which is a different activity that happens to share the word "evaluation". Titles in this field are unreliable, so read the artefact, not the label.',
+        },
         { t: "h", text: "The five capabilities hiring managers screen for" },
         {
           t: "p",
@@ -335,6 +347,18 @@
           t: "p",
           text: "So much for the familiar. The next table is the honest list of what you don't already know — and it's short, which is the good news. The bad news is that these five are unfamiliar in a specific way: each one violates an assumption your existing instincts are built on.",
         },
+        {
+          t: "check",
+          key: "bd-mid",
+          q: "Which part of your existing backend experience transfers *least* to AI engineering?",
+          options: [
+            "Designing idempotent APIs that tolerate retries",
+            "Reasoning about p95 latency and cost per request",
+            "Writing a test suite that asserts exact expected output",
+          ],
+          answer: 2,
+          why: "Idempotency and latency budgets transfer almost unchanged — the dependency is slower and pricier, but the techniques are yours already. Exact-match assertions are the habit that has to go: model output varies between identical calls, so a suite built on comparing to a golden string will flake for reasons you cannot act on. You assert on properties instead, which is the idea Phase 06 is built around.",
+        },
         { t: "h", text: "What is genuinely new" },
         {
           t: "table",
@@ -367,10 +391,6 @@
           ],
         },
 
-        {
-          t: "p",
-          text: "Read that reframe closely, because it is doing a lot of work. Slow, expensive, flaky and non-deterministic are all things you have engineering answers for already — timeouts, budgets, retries, idempotency. The only genuinely new word in the list is non-deterministic, and most of this roadmap is about what that one word costs you.",
-        },
         {
           t: "p",
           text: "Read that reframe closely, because it carries a lot of weight. Slow, expensive, flaky and non-deterministic are all things you already have engineering answers for — timeouts, budgets, retries, idempotency. The genuinely new word in the list is non-deterministic, and much of this roadmap is about what that one word costs you.",
@@ -659,6 +679,18 @@
           text: "That distinction between prompting and fine-tuning returns in Phase 08, where choosing between them is a whole chapter. For now hold on to the asymmetry: prompting changes what the model sees, fine-tuning changes what the model is.",
         },
         {
+          t: "check",
+          key: "lmm-mid",
+          q: "You paste three worked examples into a prompt and the model immediately starts matching your format. What changed?",
+          options: [
+            "The model learned your format and will keep using it for later requests",
+            "Nothing was learned — the examples are input, and they are gone next call",
+            "The examples were cached as a lightweight fine-tune for this conversation",
+          ],
+          answer: 1,
+          why: "No weights changed and nothing persists. The examples sit in the context window as input tokens, and the next request without them behaves as though they never existed — you pay for them on every single call. This is the whole distinction between in-context learning and fine-tuning: prompting changes what the model sees, fine-tuning changes what the model is.",
+        },
+        {
           t: "h",
           text: "Training: three stages that explain three behaviours",
         },
@@ -925,6 +957,18 @@
           text: "Careful retrieval of 4,000 relevant tokens routinely beats dumping 200,000 mostly-irrelevant ones — cheaper, faster, *and* more accurate. Long context is a convenience for prototyping and a crutch in production. When someone says long context killed RAG, ask to see their eval numbers on a corpus that doesn't fit in the window.",
         },
 
+        {
+          t: "check",
+          key: "tok-mid",
+          q: "Your product serves users writing in Japanese. Compared with the same content in English, what happens to your context window?",
+          options: [
+            "Nothing — the window is measured in tokens and tokens are language-agnostic",
+            "It effectively shrinks, because the same text costs two to four times more tokens",
+            "It effectively grows, because Japanese packs more meaning per character",
+          ],
+          answer: 1,
+          why: "Tokenisers are trained mostly on English, so other scripts fragment far more aggressively — often into one token per character. The window is a fixed token count, so the same *meaning* now consumes several times more of it. Two things move at once: your bill goes up and your usable context goes down, which is why this is a product decision and not just a cost line.",
+        },
         { t: "h", text: "Arithmetic you should be able to do in your head" },
         {
           t: "p",
@@ -1186,6 +1230,18 @@ print(softmax_with_temperature(logits, 2.0))  # [0.31 0.27 0.11 0.09 0.05]`,
         {
           t: "p",
           text: "Two knobs, then, and one rule: pick the one that matches how you want to fail. Temperature controls how adventurous the model is; top-p controls how much of the improbable tail is even eligible. In practice you will set temperature deliberately and leave top-p alone.",
+        },
+        {
+          t: "check",
+          key: "samp-mid",
+          q: "You want the most reproducible output your provider can give for a JSON extraction endpoint. What do you set?",
+          options: [
+            "temperature 0 and leave top-p alone",
+            "temperature 0 and top-p 0.1, to narrow the distribution twice",
+            "top-p 0.1 and leave temperature at the default",
+          ],
+          answer: 0,
+          why: "Temperature 0 makes decoding greedy, which is as deterministic as the API gets. Adding top-p on top interacts in ways that are genuinely hard to reason about, and gains you nothing once the distribution is already collapsed to its argmax — so set one knob deliberately and leave the other at its default. Note that even this is only *nearly* deterministic; the next section covers why.",
         },
         { t: "h", text: "What to use, by task" },
         {
@@ -1494,6 +1550,18 @@ assert data["source_chunk_id"] in retrieved_ids  # grounded in context`,
         {
           t: "p",
           text: 'Notice the shape of those constraints: each one turns "which model is best?" into "which models are even eligible?". Answer that first and the list is usually down to two.',
+        },
+        {
+          t: "check",
+          key: "mc-mid",
+          q: "A public leaderboard shows every serious model scoring between 88% and 92% on a benchmark. What should you conclude?",
+          options: [
+            "The top-scoring model is the best choice, by a small but real margin",
+            "The benchmark has saturated and those differences carry no signal for you",
+            "All the models are equally good at your task",
+          ],
+          answer: 1,
+          why: "When a benchmark clusters everything into a four-point band it has stopped discriminating, and the ordering within that band is noise plus harness differences. It does not follow that the models are equivalent on *your* task — only that this benchmark cannot tell you. Twenty to fifty cases from your own data will, which is why the chapter recommends building that before choosing.",
         },
         { t: "h", text: "Routing: how you get quality and cost" },
         {

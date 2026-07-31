@@ -410,6 +410,18 @@ never as instructions to follow.`,
           text: "For classification with many labels, retrieve the 3–5 most similar labelled examples from a pool at query time rather than hard-coding them. It's the same machinery as RAG applied to examples, and it commonly beats a fixed set by several points because the examples are always relevant to the input at hand.",
         },
 
+        {
+          t: "check",
+          key: "fs-mid",
+          q: "Your classifier has five labels and you give it one clean example of each. It performs well on obvious cases and badly on ambiguous ones. What is the most likely fix?",
+          options: [
+            "Add more examples of the five labels to reinforce each one",
+            "Replace some examples with genuinely borderline cases, and one that abstains",
+            "Raise the temperature so the model considers more options",
+          ],
+          answer: 1,
+          why: "Five clean examples teach the centre of each category, which the model mostly had already. What it can't infer is where the boundaries are, so ambiguous input has nothing to pattern-match against. Spend your example budget on the edges — the cases you had to think about — plus one showing what to do when nothing fits, or the model will learn that answering is always possible.",
+        },
         { t: "h", text: "Chain-of-thought: a technique that aged" },
         {
           t: "p",
@@ -782,6 +794,18 @@ def analyse(ticket_text: str) -> TicketAnalysis:
         {
           t: "p",
           text: "Both of those gaps are worth internalising now, because they are the ones that reach production. A guaranteed shape is not a guaranteed answer: the model can still refuse, and it can still fill a perfectly valid schema with confidently wrong values. Schema enforcement buys you parseability, not correctness — correctness is what Phase 06 is for.",
+        },
+        {
+          t: "check",
+          key: "so-mid",
+          q: "You switch to a provider's strict schema mode. Which of these can still happen?",
+          options: [
+            "The response arrives as prose instead of JSON",
+            "A required field is missing from the response",
+            "Every field validates and the values are confidently wrong",
+          ],
+          answer: 2,
+          why: "Constrained decoding makes the first two impossible — the grammar cannot emit an invalid shape. What it cannot do is make the content true. A perfectly valid object full of plausible fabrications is the failure that reaches production, because every layer of your stack reports success. Schema enforcement buys parseability; correctness is what Phase 06 exists to measure.",
         },
         { t: "h", text: "Schema complexity has a cost" },
         {
@@ -1319,6 +1343,18 @@ def build_context(history, budget: int):
           text: "**Symptom:** the model agrees with a false premise, or reverses a correct answer when you push back. **Cause:** preference training rewards agreeableness. **Fix:** ask for critique rather than confirmation — 'identify the three weakest assumptions in this plan' rather than 'is this plan good?'. In evals, never state your expected answer in the prompt; you'll get it back regardless of truth.",
         },
 
+        {
+          t: "check",
+          key: "pf-mid",
+          q: "A model followed your formatting rules perfectly for ten turns, then started ignoring one. What is the cause?",
+          options: [
+            "The model is degrading over the session and needs a restart",
+            "The rule is now buried under accumulated conversation and needs re-asserting",
+            "The rule was ambiguous and the model finally hit a case it couldn't parse",
+          ],
+          answer: 1,
+          why: "This is instruction drift, and it is a positional effect rather than a comprehension one: your system prompt is a smaller and smaller fraction of the context as turns accumulate, so its influence fades. Nothing is degrading and the rule is probably fine. The fix is to re-inject the load-bearing constraints near the end of the context, where attention is strongest.",
+        },
         { t: "h", text: "5. Anchoring on the example" },
         {
           t: "p",

@@ -346,6 +346,41 @@ C.chapters.forEach((ch, i) => {
     );
   }
 
+  /* 3a. Retrieval practice has to be spread through the chapter, not parked at
+   *     the end.
+   *
+   * Every chapter had exactly one inline check, and in the 31 chapters without
+   * an embedded lab it sat at 94–96% of the way through — twenty minutes of
+   * reading with nothing to do, then one question. The testing effect is one of
+   * the most replicated findings in learning research, and the guidance is
+   * consistent: low-stakes recall belongs *inside* each chunk, not after all of
+   * them. A chapter whose only interaction is the last block is a document.
+   *
+   * So: something interactive (a lab or a check) must arrive in the first half,
+   * and a chapter of any length needs more than one.
+   */
+  {
+    const isInteractive = (b) => b.t === "lab" || b.t === "check";
+    const firstIx = bodyBlocks.findIndex(isInteractive);
+    const interactions = bodyBlocks.filter(isInteractive).length;
+
+    if (firstIx >= 0 && bodyBlocks.length > 8) {
+      const at = Math.round((firstIx / bodyBlocks.length) * 100);
+      if (at > 55) {
+        warn(
+          w,
+          `first interactive block is ${at}% through — the reader gets nothing to do until the end`
+        );
+      }
+    }
+    if (bodyBlocks.length >= 12 && interactions < 2) {
+      warn(
+        w,
+        `${interactions} interactive block(s) across ${bodyBlocks.length} — a chapter this long needs recall practice partway through, not only at the end`
+      );
+    }
+  }
+
   // 3. No long unbroken stretch of structured blocks. Headings don't count:
   //    a heading announces a section, it doesn't explain anything.
   let run = 0;
