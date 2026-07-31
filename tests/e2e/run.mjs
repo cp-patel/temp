@@ -343,6 +343,53 @@ async function main() {
     await page.evaluate(() => document.getElementById("palette").hidden)
   );
 
+  /* ---------------- reading measure ---------------- */
+  /* Line length is the single biggest lever on whether long-form text is
+     comfortable, and it is easy to break without noticing because nothing looks
+     wrong — the page just becomes tiring. Research puts the comfortable range at
+     50–75 characters (66 the most cited target); WCAG 1.4.8 asks for no more
+     than 80. This measures what the browser actually renders rather than
+     trusting the CSS: the previous `--measure: 74ch` looked correct and produced
+     91 characters, because `ch` is the width of the "0" glyph and Inter's zero
+     is wider than its average lowercase letter. */
+  section("reading measure");
+  for (const w of [1600, 1440, 1280]) {
+    const rctx = await browser.newContext({
+      viewport: { width: w, height: 1000 },
+      colorScheme: "dark",
+    });
+    const rp = await rctx.newPage();
+    await rp.goto(BASE, { waitUntil: "networkidle" });
+    await rp.evaluate(() => Store.skipOnboarding());
+    await rp.goto(BASE + "#/chapter/api-surface", { waitUntil: "networkidle" });
+    await rp.waitForTimeout(500);
+    const m = await rp.evaluate(() => {
+      const prose = document.querySelector(".prose");
+      const el = [...prose.querySelectorAll("p")].sort(
+        (a, b) => b.textContent.length - a.textContent.length
+      )[0];
+      const cs = getComputedStyle(el);
+      const colW = el.getBoundingClientRect().width;
+      const ctx2 = document.createElement("canvas").getContext("2d");
+      ctx2.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const text = el.textContent.trim();
+      let n = 0;
+      while (
+        n < text.length &&
+        ctx2.measureText(text.slice(0, n + 1)).width <= colW
+      ) {
+        n++;
+      }
+      return { cpl: n, fontPx: parseFloat(cs.fontSize) };
+    });
+    check(
+      `${w}px: line length ${m.cpl} chars is comfortable`,
+      m.cpl >= 50 && m.cpl <= 80,
+      `${m.cpl} chars at ${m.fontPx}px — want 50–80`
+    );
+    await rctx.close();
+  }
+
   /* ---------------- scroll reveal never strands content ---------------- */
   /* Jump straight to the bottom of the longest page. Every revealable element
      must end up visible, including the ones the viewport skipped over — an

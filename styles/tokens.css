@@ -18,6 +18,13 @@
   --t-sm: 0.8125rem;
   --t-base: 0.9375rem;
   --t-md: 1.0625rem;
+
+  /* Body copy in the chapter reader. Separate from --t-md, which is a UI size
+     used in cards and panels: sustained reading wants more than interface text,
+     and 17px against a 91-character line was most of why chapters read as
+     "small". 18px is the size long-form reading guidance converges on. */
+  --t-read: 1.125rem;
+
   --t-lg: clamp(1.125rem, 0.4vw + 1.05rem, 1.25rem);
   --t-xl: clamp(1.375rem, 0.8vw + 1.2rem, 1.625rem);
   --t-2xl: clamp(1.75rem, 1.4vw + 1.4rem, 2.25rem);
@@ -64,7 +71,20 @@
   /* ---- Layout ---- */
   --sidebar-w: 288px;
   --topbar-h: 60px;
-  --measure: 74ch;
+
+  /* Reading measure, in rem rather than ch.
+     `ch` is the advance width of the "0" glyph, which in Inter is wider than an
+     average lowercase letter — so the previous `74ch` rendered as 91 characters
+     per line, measured. Research puts comfortable reading at 50–75 characters
+     (66 is the most cited target) and WCAG 1.4.8 asks for no more than 80, so
+     the old column was around 20% too wide and reading it was tiring.
+     39rem measures at ~67 characters at the reading size below. */
+  --measure: 39rem;
+
+  /* Artefacts get more room than prose. A table or a code listing is scanned,
+     not read line by line, so the constraint that helps text hurts them. */
+  --measure-wide: 50rem;
+
   --page-max: 1320px;
 
   /* ---- Brand accents (theme independent hues) ---- */

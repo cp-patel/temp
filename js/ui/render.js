@@ -250,10 +250,15 @@
     var wrap = el("div", "flow");
     var row = el("div", "flow__row");
     b.nodes.forEach(function (n, i) {
+      /* Each arrow is grouped with the node it points at, rather than being a
+         sibling of both. The row wraps, and loose arrows would get stranded at
+         the end of a line pointing into empty space; bound to their target they
+         can only ever begin a line, which reads as a continuation. */
+      var step = el("div", "flow__step");
       if (i > 0) {
         var a = el("div", "flow__arrow");
         a.innerHTML = Icons.get("arrowRight", 18);
-        row.appendChild(a);
+        step.appendChild(a);
       }
       var node = el("div", "flow__node" + (n.c ? " flow__node--" + n.c : ""));
       node.innerHTML =
@@ -261,7 +266,8 @@
         esc(n.b) +
         "</b>" +
         (n.s ? "<span>" + esc(n.s) + "</span>" : "");
-      row.appendChild(node);
+      step.appendChild(node);
+      row.appendChild(step);
     });
     wrap.appendChild(row);
     if (b.cap) wrap.appendChild(el("div", "flow__cap", md(b.cap)));

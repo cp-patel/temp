@@ -136,15 +136,39 @@
    Prose
    ============================================================ */
 
+/* Text is held to the reading measure; artefacts are allowed the wider column.
+   A table or a code listing is scanned rather than read line by line, so the
+   narrow measure that helps prose actively hurts them — and cramming a
+   five-column table into 39rem is how you get a horizontal scrollbar on a
+   desktop screen. */
 .prose {
-  max-width: var(--measure);
-  font-size: var(--t-md);
-  line-height: 1.72;
+  max-width: var(--measure-wide);
+  font-size: var(--t-read);
+  line-height: 1.68;
   color: var(--ink-1);
+}
+
+.prose > p,
+.prose > h2,
+.prose > h3,
+.prose > ul,
+.prose > ol,
+.prose > blockquote,
+.prose > .callout,
+.prose > .objectives,
+.prose > .takeaways {
+  max-width: var(--measure);
 }
 
 .prose > * + * {
   margin-top: var(--s-5);
+}
+
+/* Paragraph-to-paragraph spacing is tighter than block-to-block. Consecutive
+   paragraphs are one thought continuing; a paragraph next to a table is a
+   change of gear, and the rhythm should say which is happening. */
+.prose > p + p {
+  margin-top: var(--s-4);
 }
 
 .prose h2 {
@@ -371,6 +395,16 @@
    Callouts
    ============================================================ */
 
+/* Two weights, on purpose.
+   Every callout used to be a filled, bordered, rounded box in its own colour.
+   With five kinds and 148 instances that produces uniform noise: when
+   everything is emphasised nothing is, and a page of competing boxes is what
+   made chapters read as "messy". So the kinds are now split by whether the
+   reader can safely skip them.
+
+   Default (insight, pro, money) is an aside — a coloured rule and a whisper of
+   tint, sitting quietly beside the prose. Pitfall and warn keep the full box,
+   because those are the ones that cost you an afternoon if you skim past. */
 .callout {
   --co: var(--accent);
   --co-soft: var(--accent-soft);
@@ -378,21 +412,38 @@
   grid-template-columns: auto 1fr;
   gap: var(--s-4);
   margin: var(--s-6) 0 !important;
-  padding: var(--s-5);
-  border-radius: var(--r-lg);
-  background: var(--co-soft);
-  border: 1px solid color-mix(in oklab, var(--co) 26%, transparent);
+  padding: var(--s-2) 0 var(--s-2) var(--s-5);
+  border-left: 2px solid color-mix(in oklab, var(--co) 55%, transparent);
+  background: none;
 }
 
+/* The two that interrupt. */
+.callout--pitfall,
+.callout--warn {
+  padding: var(--s-5);
+  border-left: 0;
+  border: 1px solid color-mix(in oklab, var(--co) 30%, transparent);
+  border-radius: var(--r-lg);
+  background: var(--co-soft);
+}
+
+/* On an aside the icon is a glyph, not a chip — a filled tile would put the
+   weight straight back. The boxed kinds keep the tile. */
 .callout__ic {
   display: grid;
   place-items: center;
+  width: 22px;
+  height: 26px;
+  flex: none;
+  color: var(--co);
+}
+
+.callout--pitfall .callout__ic,
+.callout--warn .callout__ic {
   width: 30px;
   height: 30px;
-  flex: none;
   border-radius: var(--r-sm);
   background: color-mix(in oklab, var(--co) 22%, transparent);
-  color: var(--co);
 }
 
 .callout__ic svg {
@@ -536,8 +587,16 @@
   transition: background var(--dur-fast) var(--ease);
 }
 
-.tablewrap tbody tr:hover {
+/* Zebra rows. These tables are read across — "what does this parameter do, and
+   what should I set it to" — and with only a hairline between rows the eye drifts
+   a row while crossing three columns. Alternating bands are the cheapest fix for
+   that and cost no vertical space. */
+.tablewrap tbody tr:nth-child(even) {
   background: var(--surface-raised);
+}
+
+.tablewrap tbody tr:hover {
+  background: color-mix(in oklab, var(--accent) 7%, transparent);
 }
 
 .tablewrap td strong {
@@ -674,28 +733,42 @@
   border-radius: var(--r-lg);
   border: 1px solid var(--line);
   background: var(--surface-2);
-  overflow-x: auto;
 }
 
+/* Wraps rather than scrolls. `min-width: max-content` inside an overflow
+   container meant a seven-stage pipeline ran off the right edge with no
+   affordance saying so — the last stage of the diagram was simply invisible
+   unless you thought to drag it. A diagram you can't see all of isn't one, and
+   left-to-right then top-to-bottom is a reading order nobody needs taught. */
 .flow__row {
   display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-width: max-content;
+  align-items: stretch;
+  flex-wrap: wrap;
+  row-gap: var(--s-3);
   justify-content: center;
+}
+
+/* An arrow and the node it points at, kept together so wrapping can't separate
+   them. See the comment in render.js. */
+.flow__step {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s-1);
+  min-width: 0;
 }
 
 .flow__node {
   display: grid;
   place-items: center;
+  align-content: center;
   gap: 2px;
-  min-width: 92px;
-  padding: var(--s-3) var(--s-4);
+  min-width: 78px;
+  padding: var(--s-3);
   border-radius: var(--r-md);
   background: var(--surface-1);
   border: 1px solid var(--line-strong);
   text-align: center;
-  flex: none;
+  flex: 0 1 auto;
 }
 
 .flow__node b {
@@ -740,20 +813,36 @@
   height: 18px;
 }
 
+/* Below this width a pipeline reads better stacked than wrapped: every stage
+   gets the full column and the arrows turn to point down the page. One rule set
+   owns that — there used to be a second, separate breakpoint rotating the arrow,
+   and adding a rotation here composed with it to 180 degrees, leaving the arrows
+   pointing back the way they came. */
+@media (max-width: 720px) {
+  .flow__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .flow__step {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .flow__arrow svg {
+    transform: rotate(90deg);
+  }
+
+  .flow__node {
+    width: 100%;
+  }
+}
+
 .flow__cap {
   margin-top: var(--s-4);
   text-align: center;
   font-size: var(--t-xs);
   color: var(--ink-3);
-}
-
-@media (max-width: 720px) {
-  .flow__row {
-    flex-direction: column;
-  }
-  .flow__arrow svg {
-    transform: rotate(90deg);
-  }
 }
 
 /* ============================================================
