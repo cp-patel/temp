@@ -480,6 +480,24 @@ C.projects.forEach((p, i) => {
   if (!phaseIds.has(p.phase)) err(w, `unknown phase "${p.phase}"`);
   if (!Array.isArray(p.tasks) || p.tasks.length < 3)
     err(w, "needs at least 3 tasks");
+
+  /* Every milestone names the chapter that teaches it. Projects are the bulk of
+     the plan's hours and used to have no route back to the material at all, so a
+     reader stuck mid-task had to remember which chapter covered it. A dangling
+     reference is worse than none — it renders a link to a blank page. */
+  (p.tasks || []).forEach((t, ti) => {
+    const label = `${w} task[${ti}]`;
+    if (typeof t === "string") {
+      warn(label, "has no `ch` — no route back to the chapter that teaches it");
+      return;
+    }
+    if (!t.t) err(label, "missing task text `t`");
+    if (!t.ch) {
+      warn(label, "has no `ch` — no route back to the chapter that teaches it");
+    } else if (!chapterIds.has(t.ch)) {
+      err(label, `references unknown chapter "${t.ch}"`);
+    }
+  });
 });
 
 /* ------------------------------------------------------------------ *

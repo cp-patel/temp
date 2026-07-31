@@ -751,6 +751,66 @@ async function main() {
     String(revealed.why)
   );
 
+  /* ---------------- projects link back to the material ---------------- */
+  /* Projects are 118 of the plan's 147 hours and had no route back to the 44
+     chapters at all: a reader stuck on "fuse BM25 and dense with RRF" had to
+     remember which chapter covered it and go looking. Every milestone now names
+     the chapter that teaches it. */
+  section("projects");
+  await go("#/projects");
+  await page.waitForTimeout(500);
+  const projLinks = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll(".ckrow")];
+    const refs = [...document.querySelectorAll(".ckref")];
+    const ids = new Set(window.Curriculum.chapters.map((c) => c.id));
+    return {
+      rows: rows.length,
+      refs: refs.length,
+      resolve: refs.every((r) =>
+        ids.has(r.getAttribute("href").replace("#/chapter/", ""))
+      ),
+      labelled: refs.every(
+        (r) =>
+          (r.getAttribute("title") || "").length > 8 &&
+          /\S/.test(r.innerText || r.textContent)
+      ),
+      tiny: refs.filter((r) => {
+        const b = r.getBoundingClientRect();
+        return b.width < 24 || b.height < 24;
+      }).length,
+      // the reference must not be inside the toggle: tapping "done" must not navigate
+      nested: refs.filter((r) => r.closest("button")).length,
+    };
+  });
+  check(
+    "every project milestone links to the chapter that teaches it",
+    projLinks.rows > 30 &&
+      projLinks.refs === projLinks.rows &&
+      projLinks.resolve,
+    JSON.stringify(projLinks)
+  );
+  check(
+    "those links are labelled, big enough, and outside the toggle",
+    projLinks.labelled && projLinks.tiny === 0 && projLinks.nested === 0,
+    JSON.stringify(projLinks)
+  );
+  const beforeNav = await page.evaluate(() => location.hash);
+  await page.locator(".ckitem").first().click();
+  await page.waitForTimeout(250);
+  check(
+    "ticking a milestone records it without navigating",
+    (await page.evaluate(() => location.hash)) === beforeNav &&
+      (await page.evaluate(() => Store.projDone("p-classifier"))) === 1,
+    `hash ${await page.evaluate(() => location.hash)}`
+  );
+  await page.locator(".ckref").first().click();
+  await page.waitForTimeout(400);
+  check(
+    "its reference opens the chapter",
+    /#\/chapter\//.test(await page.evaluate(() => location.hash)),
+    await page.evaluate(() => location.hash)
+  );
+
   /* ---------------- reading measure ---------------- */
   /* Line length is the single biggest lever on whether long-form text is
      comfortable, and it is easy to break without noticing because nothing looks

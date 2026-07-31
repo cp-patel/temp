@@ -1484,6 +1484,48 @@
   margin-bottom: var(--s-5);
 }
 
+/* The milestone and its chapter reference share a row but not a hit target: the
+   toggle is a button, the reference is a link beside it, so tapping "done" never
+   navigates. On a narrow screen the reference wraps under the milestone. */
+.ckrow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  /* Never wrap: a 26px icon on a line of its own reads as debris rather than as
+     a reference belonging to the milestone above it. The button shrinks instead. */
+  flex-wrap: nowrap;
+}
+
+.ckrow > .ckitem {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 24x24 to clear WCAG 2.5.8, and it holds its width so the milestone text never
+   reflows around it. */
+.ckref {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-top: 0.15rem;
+  color: var(--ink-3);
+  border: 1px solid var(--line-faint);
+  border-radius: var(--r-sm);
+  transition:
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.ckref:hover,
+.ckref:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
 .ckitem {
   display: flex;
   align-items: flex-start;

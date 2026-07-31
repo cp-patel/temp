@@ -154,12 +154,30 @@
       stack: "Python · Pydantic · any LLM API · pytest",
       proves: "Prompt design, structured output, schema validation, retries",
       tasks: [
-        "Define a Pydantic model for the target schema with real constraints (enums, ranges, optional fields)",
-        "Pass the schema to the model as a tool definition, not as prose in the prompt",
-        "Handle refusals and malformed output with a bounded repair loop (max 2 retries)",
-        "Write 25 hand-labelled test cases including 5 deliberately adversarial inputs",
-        "Measure field-level accuracy, not whole-record accuracy — report per-field precision",
-        "Add a confidence field the model must populate, then check whether it correlates with correctness",
+        {
+          t: "Define a Pydantic model for the target schema with real constraints (enums, ranges, optional fields)",
+          ch: "structured-output",
+        },
+        {
+          t: "Pass the schema to the model as a tool definition, not as prose in the prompt",
+          ch: "tool-use",
+        },
+        {
+          t: "Handle refusals and malformed output with a bounded repair loop (max 2 retries)",
+          ch: "prompt-failures",
+        },
+        {
+          t: "Write 25 hand-labelled test cases including 5 deliberately adversarial inputs",
+          ch: "eval-datasets",
+        },
+        {
+          t: "Measure field-level accuracy, not whole-record accuracy — report per-field precision",
+          ch: "eval-metrics",
+        },
+        {
+          t: "Add a confidence field the model must populate, then check whether it correlates with correctness",
+          ch: "llm-judge",
+        },
       ],
     },
     {
@@ -173,13 +191,34 @@
       stack: "FastAPI · SSE · Redis · Docker",
       proves: "Streaming, state management, caching, cost control, resilience",
       tasks: [
-        "Stream tokens over SSE with correct backpressure and client-disconnect handling",
-        "Persist conversation history server-side; never trust the client's copy",
-        "Implement sliding-window history with a summarise-and-compact step at 70% of context",
-        "Add prompt caching for the system block and measure the cost delta",
-        "Route trivial turns to a small model and hard turns to a large one; log which fired",
-        "Add timeouts, exponential backoff with jitter, and a circuit breaker for provider outages",
-        "Expose /metrics with p50/p95 time-to-first-token, tokens per request, and cost per conversation",
+        {
+          t: "Stream tokens over SSE with correct backpressure and client-disconnect handling",
+          ch: "streaming",
+        },
+        {
+          t: "Persist conversation history server-side; never trust the client's copy",
+          ch: "conversation-state",
+        },
+        {
+          t: "Implement sliding-window history with a summarise-and-compact step at 70% of context",
+          ch: "context-engineering",
+        },
+        {
+          t: "Add prompt caching for the system block and measure the cost delta",
+          ch: "resilience",
+        },
+        {
+          t: "Route trivial turns to a small model and hard turns to a large one; log which fired",
+          ch: "model-choice",
+        },
+        {
+          t: "Add timeouts, exponential backoff with jitter, and a circuit breaker for provider outages",
+          ch: "resilience",
+        },
+        {
+          t: "Expose /metrics with p50/p95 time-to-first-token, tokens per request, and cost per conversation",
+          ch: "cost-latency",
+        },
       ],
     },
     {
@@ -193,13 +232,34 @@
       stack: "Postgres + pgvector (or Qdrant) · BM25 · a reranker · FastAPI",
       proves: "Chunking, hybrid search, reranking, citation, RAG evaluation",
       tasks: [
-        "Build an ingestion pipeline that preserves document structure and metadata",
-        "Compare three chunking strategies on the same 30-question eval set and publish the numbers",
-        "Implement hybrid retrieval: BM25 + dense vectors fused with Reciprocal Rank Fusion",
-        "Add a cross-encoder reranker over the top 50 and measure the recall@5 improvement",
-        "Force inline citations and add a check that every claim maps to a retrieved chunk",
-        "Build a 40-question eval set with graded relevance labels and track faithfulness + answer relevance",
-        "Add a 'no answer in corpus' path and test it with 10 unanswerable questions",
+        {
+          t: "Build an ingestion pipeline that preserves document structure and metadata",
+          ch: "chunking",
+        },
+        {
+          t: "Compare three chunking strategies on the same 30-question eval set and publish the numbers",
+          ch: "chunking",
+        },
+        {
+          t: "Implement hybrid retrieval: BM25 + dense vectors fused with Reciprocal Rank Fusion",
+          ch: "hybrid-rerank",
+        },
+        {
+          t: "Add a cross-encoder reranker over the top 50 and measure the recall@5 improvement",
+          ch: "hybrid-rerank",
+        },
+        {
+          t: "Force inline citations and add a check that every claim maps to a retrieved chunk",
+          ch: "rag-architecture",
+        },
+        {
+          t: "Build a 40-question eval set with graded relevance labels and track faithfulness + answer relevance",
+          ch: "eval-datasets",
+        },
+        {
+          t: "Add a 'no answer in corpus' path and test it with 10 unanswerable questions",
+          ch: "rag-debug",
+        },
       ],
     },
     {
@@ -213,14 +273,38 @@
       stack: "Any agent framework or hand-rolled loop · OpenTelemetry · MCP",
       proves: "Tool design, agent loop control, memory, guardrails, tracing",
       tasks: [
-        "Write 4–6 tools with descriptions written for a model, not a human reader",
-        "Implement the loop yourself once before reaching for a framework",
-        "Enforce hard budgets: max steps, max tokens, max wall-clock, max spend per run",
-        "Add a tool-result validator so a bad tool response cannot corrupt the trajectory",
-        "Emit an OpenTelemetry trace per run with a span per LLM call and per tool call",
-        "Expose one tool over MCP and connect it from a second client",
-        "Build a 20-case trajectory eval: does it call the right tools in a defensible order?",
-        "Add a human-approval gate for any irreversible action",
+        {
+          t: "Write 4–6 tools with descriptions written for a model, not a human reader",
+          ch: "tool-use",
+        },
+        {
+          t: "Implement the loop yourself once before reaching for a framework",
+          ch: "agent-loop",
+        },
+        {
+          t: "Enforce hard budgets: max steps, max tokens, max wall-clock, max spend per run",
+          ch: "agent-guardrails",
+        },
+        {
+          t: "Add a tool-result validator so a bad tool response cannot corrupt the trajectory",
+          ch: "agent-guardrails",
+        },
+        {
+          t: "Emit an OpenTelemetry trace per run with a span per LLM call and per tool call",
+          ch: "observability",
+        },
+        {
+          t: "Expose one tool over MCP and connect it from a second client",
+          ch: "mcp",
+        },
+        {
+          t: "Build a 20-case trajectory eval: does it call the right tools in a defensible order?",
+          ch: "agent-evals",
+        },
+        {
+          t: "Add a human-approval gate for any irreversible action",
+          ch: "agent-guardrails",
+        },
       ],
     },
     {
@@ -235,13 +319,34 @@
       proves:
         "Eval design, LLM-as-judge calibration, regression gating, statistics",
       tasks: [
-        "Assemble 60+ cases: 40 from real or realistic traffic, 20 adversarial edge cases",
-        "Write deterministic assertions wherever possible — never grade with a model what code can check",
-        "Build an LLM-as-judge with a rubric, few-shot anchors, and a forced structured verdict",
-        "Calibrate the judge against 40 human labels; report agreement and fix disagreements",
-        "Run the suite in CI on every PR and fail the build on a statistically meaningful regression",
-        "Report confidence intervals — a 3-point move on 50 cases is noise, and your harness should say so",
-        "Add an online eval that samples 2% of production traffic and alerts on drift",
+        {
+          t: "Assemble 60+ cases: 40 from real or realistic traffic, 20 adversarial edge cases",
+          ch: "eval-datasets",
+        },
+        {
+          t: "Write deterministic assertions wherever possible — never grade with a model what code can check",
+          ch: "eval-metrics",
+        },
+        {
+          t: "Build an LLM-as-judge with a rubric, few-shot anchors, and a forced structured verdict",
+          ch: "llm-judge",
+        },
+        {
+          t: "Calibrate the judge against 40 human labels; report agreement and fix disagreements",
+          ch: "llm-judge",
+        },
+        {
+          t: "Run the suite in CI on every PR and fail the build on a statistically meaningful regression",
+          ch: "evals-ci",
+        },
+        {
+          t: "Report confidence intervals — a 3-point move on 50 cases is noise, and your harness should say so",
+          ch: "eval-metrics",
+        },
+        {
+          t: "Add an online eval that samples 2% of production traffic and alerts on drift",
+          ch: "evals-ci",
+        },
       ],
     },
     {
@@ -255,14 +360,38 @@
       stack: "Your choice — but it must be publicly reachable and observable",
       proves: "Everything. Judgement, prioritisation, and operational nerve.",
       tasks: [
-        "Pick one narrow problem for one specific person; resist scope creep aggressively",
-        "Deploy behind a real domain with auth, rate limits, and abuse controls",
-        "Instrument tracing and cost tracking before launch, not after the first bill",
-        "Write a threat model for prompt injection and implement the mitigations you chose",
-        "Publish a unit-economics table: cost per active user per month, with the arithmetic shown",
-        "Get 10 people who aren't you to use it, then read every single trace",
-        "Fix the top three failure modes your traces reveal, and add an eval case for each",
-        "Write a public post-mortem of what broke and what you changed — this is your best interview artefact",
+        {
+          t: "Pick one narrow problem for one specific person; resist scope creep aggressively",
+          ch: "role",
+        },
+        {
+          t: "Deploy behind a real domain with auth, rate limits, and abuse controls",
+          ch: "deployment",
+        },
+        {
+          t: "Instrument tracing and cost tracking before launch, not after the first bill",
+          ch: "observability",
+        },
+        {
+          t: "Write a threat model for prompt injection and implement the mitigations you chose",
+          ch: "prompt-injection",
+        },
+        {
+          t: "Publish a unit-economics table: cost per active user per month, with the arithmetic shown",
+          ch: "cost-latency",
+        },
+        {
+          t: "Get 10 people who aren't you to use it, then read every single trace",
+          ch: "why-evals",
+        },
+        {
+          t: "Fix the top three failure modes your traces reveal, and add an eval case for each",
+          ch: "rag-debug",
+        },
+        {
+          t: "Write a public post-mortem of what broke and what you changed — this is your best interview artefact",
+          ch: "interview-prep",
+        },
       ],
     },
   ];

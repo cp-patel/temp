@@ -1739,9 +1739,20 @@
         "</dl>";
       node.innerHTML = headHtml;
 
+      /* Each milestone names the chapter that teaches it. Projects are 118 of the
+         plan's 147 hours and had no link back to the 44 chapters at all, so a
+         reader stuck on "fuse BM25 and dense with RRF" had to remember which
+         chapter covered it and go find it. The row stays a single toggle target;
+         the reference is a sibling link, outside the button, so tapping the
+         milestone never navigates by accident. */
       var cl = el("div", "checklist");
       pr.tasks.forEach(function (t, i) {
+        var text = typeof t === "string" ? t : t.t;
+        var chId = typeof t === "string" ? null : t.ch;
+        var ch = chId ? chapter(chId) : null;
         var on = !!(Store.state().projects[pr.id] || {})[i];
+
+        var row = el("div", "ckrow");
         var b = el("button", "ckitem" + (on ? " is-on" : ""));
         b.type = "button";
         b.innerHTML =
@@ -1749,14 +1760,32 @@
           Icons.get("check", 11) +
           "</span>" +
           "<span>" +
-          md(t) +
+          md(text) +
           "</span>";
         b.onclick = function () {
           var nowOn = Store.projTask(pr.id, i);
           b.classList.toggle("is-on", nowOn);
           paintFoot();
         };
-        cl.appendChild(b);
+        row.appendChild(b);
+
+        if (ch) {
+          /* Icon only. Spelling out 43 chapter titles doubled the length of every
+             checklist in a three-up grid and made the milestones themselves hard
+             to scan — the value here is being able to reach the chapter, not
+             reading its name twice. The title survives as the tooltip, the
+             accessible name, and the link's own text for a screen reader. */
+          var link = el("a", "ckref");
+          link.href = "#/chapter/" + ch.id;
+          link.innerHTML =
+            Icons.get("book", 13) +
+            '<span class="u-sr">Read the chapter: ' +
+            esc(ch.title) +
+            "</span>";
+          link.title = "Read: " + ch.title;
+          row.appendChild(link);
+        }
+        cl.appendChild(row);
       });
       node.appendChild(cl);
 

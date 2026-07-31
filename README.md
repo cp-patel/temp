@@ -117,7 +117,8 @@ paraphrase matching_ — the lab's entire point — so it was rebuilt.
   chapter unlocks when you complete it — you can't retrieval-practise a chapter
   you haven't read, so a fresh account has an empty deck rather than 167 cold cards
 - XP, levels, streaks, per-phase mastery, milestone badges, activity heatmap
-- Per-chapter notes, project milestone checklists
+- Per-chapter notes, and project milestone checklists where every milestone links
+  to the chapter that teaches it
 - Command palette (`⌘K` / `Ctrl+K` / `/`) over chapters, labs, glossary, commands
 - Keyboard-operable throughout: a skip link, focus-trapped dialogs that close on
   Escape and restore focus, and lab toggles that are real `role="switch"` buttons
@@ -139,7 +140,7 @@ js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
 tests/unit/                 80 assertions — util, store, plan engine
-tests/e2e/                  116 checks in real Chromium, incl. a full first-visitor walkthrough
+tests/e2e/                  120 checks in real Chromium, incl. a full first-visitor walkthrough
                             and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```
@@ -172,7 +173,8 @@ npm run validate
 ```
 
 The validator is the safety net. It catches quiz answer indices out of range,
-labs declared but never embedded, duplicate ids, ragged tables, unbalanced
+labs declared but never embedded, project milestones referencing a chapter that
+doesn't exist, duplicate ids, ragged tables, unbalanced
 inline markdown, unknown icons, and phases with no chapters — the mistakes that
 otherwise surface as a blank panel in the browser.
 
