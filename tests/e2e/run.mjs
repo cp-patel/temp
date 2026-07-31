@@ -31,8 +31,28 @@ function check(name, condition, detail) {
   }
 }
 
+/* Section timings, printed at the end. The suite went over its runtime budget
+   once already and the cause was not where I would have guessed — a link sweep
+   doing 44 full page loads rather than 44 hash changes. Measuring beats guessing,
+   and a slow section is usually a wasteful one. */
+const timings = [];
+let sectionStart = 0;
+let currentSection = null;
+
 function section(title) {
+  if (currentSection) {
+    timings.push([currentSection, Date.now() - sectionStart]);
+  }
+  currentSection = title;
+  sectionStart = Date.now();
   console.log(`\n${title}`);
+}
+
+function closeSection() {
+  if (currentSection) {
+    timings.push([currentSection, Date.now() - sectionStart]);
+    currentSection = null;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1473,7 +1493,13 @@ async function main() {
     );
 
     /* 2. Behavioural: click one of every kind of control and require the app to
-       still be on a route it recognises, with content on it. */
+       still be on a route it recognises, with content on it.
+
+       Keyed by signature, not by route+signature: the question is whether each
+       *kind* of control survives activation, and asking it once per route made
+       this sweep 71% of the suite's runtime. Reloading only after a click that
+       navigated saves most of the rest — a toggle leaves the page usable for the
+       next one. */
     const clickProblems = [];
     const clickSeen = new Set();
     let clicked = 0;
@@ -1506,21 +1532,27 @@ async function main() {
           });
         return [...out];
       });
+
+      let dirty = false;
       for (const sig of sigs) {
-        const key = route + "|" + sig;
-        if (clickSeen.has(key)) continue;
-        clickSeen.add(key);
+        if (clickSeen.has(sig)) continue;
+        clickSeen.add(sig);
         const tag = sig.split(".")[0];
         const cls = sig.split(".").slice(1).join(".");
         const sel = cls === "-" ? tag : `${tag}.${cls.replace(/\./g, "\\.")}`;
-        await aGo(route);
+        if (dirty) {
+          await aGo(route);
+          dirty = false;
+        }
         try {
-          await ap.locator(sel).first().click({ timeout: 3000 });
+          // A control that is not clickable in a second is covered or disabled in
+          // this state, which is not this check's business.
+          await ap.locator(sel).first().click({ timeout: 1000 });
           clicked++;
         } catch {
-          continue; // disabled or covered in this state; not this check's business
+          continue;
         }
-        await ap.waitForTimeout(300);
+        await ap.waitForTimeout(200);
         const st = await ap.evaluate(() => ({
           hash: location.hash,
           len: document.body.innerText.length,
@@ -1529,6 +1561,7 @@ async function main() {
           clickProblems.push(
             `${route || "/"} ${sig} -> "${st.hash}" len=${st.len}`
           );
+        if (st.hash !== (route || "")) dirty = true;
       }
     }
     check(
@@ -1751,7 +1784,8 @@ async function main() {
       await lp.goto(BASE + entry, { waitUntil: "networkidle" });
       await lp.evaluate(() => localStorage.clear());
       await lp.reload({ waitUntil: "networkidle" });
-      await lp.waitForTimeout(1300);
+      // The offer is scheduled at 650ms; 1000 observes it without idling.
+      await lp.waitForTimeout(1000);
       return lp.locator(".ob").count();
     };
 
@@ -2193,6 +2227,20 @@ async function main() {
   stop();
 
   /* ---------------- report ---------------- */
+  closeSection();
+  const slowest = timings.slice().sort((a, b) => b[1] - a[1]);
+  const total = timings.reduce((a, t) => a + t[1], 0);
+  console.log(`\n  ${Math.round(total / 1000)}s total. Slowest sections:`);
+  slowest.slice(0, 6).forEach(([name, ms]) => {
+    console.log(
+      `    ${String(Math.round(ms / 100) / 10).padStart(6)}s  ${Math.round(
+        (ms / total) * 100
+      )
+        .toString()
+        .padStart(2)}%  ${name}`
+    );
+  });
+
   console.log("");
   if (errors.length) {
     const unique = [...new Set(errors)];

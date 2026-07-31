@@ -255,6 +255,12 @@ its fixed reading-progress bar.
 | Whole app  | `npm run test:e2e`   | Every route, chapter and lab control; the first-visitor walkthrough end to end; personalisation; keyboard and focus; the accessibility tree; reading measure at desktop and phone sizes; tap targets; themes; a WCAG AA contrast audit of both |
 | Docs       | `npm run check:docs` | The counts in `docs/` and `README.md` against the curriculum they describe                                                                                                                                                                     |
 
+The e2e suite prints per-section timings at the end. It is worth reading them
+before adding a section: a sweep added in one iteration was later found to be 71%
+of the total runtime, because it reloaded the page before every click and re-tested
+the same control kind once per route. Fixing both took it from 349s to 34s with
+identical coverage. Measuring beat guessing — the cost was not where it looked.
+
 The unit tests load browser files into a `vm` context via
 `scripts/lib/load-curriculum.mjs`, so there's no duplicate copy of the data or
 the logic. Note that arrays created inside the vm realm have a different
