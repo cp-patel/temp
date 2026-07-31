@@ -712,18 +712,20 @@ class TicketAnalysis(BaseModel):
     # Forces evidence — and gives you something to audit.
     evidence_quote: str = Field(
         min_length=8, max_length=280,
-        description="Verbatim span from the ticket that justifies the category. "
-                    "Must appear in the input text exactly.",
+        description="Verbatim span from the ticket that justifies "
+                    "the category. Must appear in the input exactly.",
     )
 
     # Optional means optional — don't make the model invent a value.
     account_id: Optional[str] = Field(
         default=None,
-        description="Only if explicitly present in the ticket. Never inferred.",
+        description="Only if explicitly present in the ticket. "
+                    "Never inferred.",
     )
 
     requires_human: bool = Field(
-        description="True if resolving this needs an action the bot cannot take.",
+        description="True if resolving this needs an action the "
+                    "bot cannot take.",
     )
 
 # The description fields are prompt engineering. The model reads them.`,
@@ -769,7 +771,7 @@ def analyse(ticket_text: str) -> TicketAnalysis:
             "type": "json_schema",
             "json_schema": {
                 "name": "ticket_analysis",
-                "strict": True,                       # enforced, not requested
+                "strict": True,          # enforced, not requested
                 "schema": TicketAnalysis.model_json_schema(),
             },
         },
@@ -1136,8 +1138,15 @@ def build_context(history, budget: int):
     brief = call_model(COMPACT_PROMPT, older, max_tokens=500)
 
     return [
-        {"role": "user",      "content": f"<conversation_brief>\\n{brief}\\n</conversation_brief>"},
-        {"role": "assistant", "content": "Understood. Continuing from that brief."},
+        {
+            "role": "user",
+            "content": f"<conversation_brief>\\n{brief}\\n"
+                       f"</conversation_brief>",
+        },
+        {
+            "role": "assistant",
+            "content": "Understood. Continuing from that brief.",
+        },
         *recent,
     ]`,
         },
@@ -1418,7 +1427,8 @@ if resp.stop_reason == "max_tokens":
     citations: list[str] = []
     missing: Optional[str] = Field(
         default=None,
-        description="If insufficient_context: what information would be needed.",
+        description="If insufficient_context: what information "
+                    "would be needed.",
     )
 
 # In the prompt:

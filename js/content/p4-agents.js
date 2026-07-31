@@ -90,6 +90,18 @@ async def run_with_tools(messages: list, tools: list) -> str:
           title: "Return errors to the model, don't swallow them",
           text: "A tool error is information the model can act on. 'Error: user_id must be a UUID, got \"john@acme.com\"' lets it look up the ID and retry. Catching the exception and returning a bland 'tool failed' throws that away, and the model either gives up or guesses. Make error messages instructive — they are prompts.",
         },
+        {
+          t: "check",
+          key: "tu-mid",
+          q: 'A tool call fails with "customer not found". What should the loop send back to the model?',
+          options: [
+            "Nothing — catch it, log it, and return a generic failure to the user",
+            "The error message itself, as the tool result",
+            "A retry of the same call, in case it was transient",
+          ],
+          answer: 1,
+          why: "A tool error is information the model can act on: told the customer wasn't found, it can try a different identifier, ask the user, or say it can't proceed. Swallowing it removes the model's ability to recover and turns a handled situation into a dead end. Return errors as results — with the caveat that error text is untrusted input, so it needs the same treatment as any other tool output.",
+        },
 
         { t: "h", text: "Tool descriptions are prompts" },
         {
@@ -167,24 +179,16 @@ async def run_with_tools(messages: list, tools: list) -> str:
 }`,
         },
         {
+          t: "p",
+          text: "Count the words in that definition that describe behaviour rather than shape. The schema — types, enums, which field is required — is perhaps a third of it; the rest tells the model when to reach for this tool, when not to, and what the values look like in practice. That inversion is the whole skill: a schema validator cares about the types, and the model cares about everything else.",
+        },
+        {
           t: "note",
           kind: "insight",
           title: "The 'do NOT use this to' block is the highest-value sentence",
           text: "Most tool-selection errors come from overlapping tools. Explicitly naming the alternative — 'use get_order for a single order' — converts an ambiguous choice into a clear one. If you fix one thing about your tool definitions, fix this. It's also self-documenting for your teammates.",
         },
 
-        {
-          t: "check",
-          key: "tu-mid",
-          q: 'A tool call fails with "customer not found". What should the loop send back to the model?',
-          options: [
-            "Nothing — catch it, log it, and return a generic failure to the user",
-            "The error message itself, as the tool result",
-            "A retry of the same call, in case it was transient",
-          ],
-          answer: 1,
-          why: "A tool error is information the model can act on: told the customer wasn't found, it can try a different identifier, ask the user, or say it can't proceed. Swallowing it removes the model's ability to recover and turns a handled situation into a dead end. Return errors as results — with the caveat that error text is untrusted input, so it needs the same treatment as any other tool output.",
-        },
         { t: "h", text: "How many tools is too many" },
         {
           t: "p",

@@ -505,6 +505,30 @@ async function main() {
     "folding must not truncate the source"
   );
 
+  /* Horizontal scroll inside a listing is worse than vertical: you lose the left
+     edge, which is where the indentation carrying the structure lives. The
+     validator flags source lines over 78 chars, but that is a proxy — this
+     measures what the browser actually does at reading width, across every
+     chapter, and is the check that says the proxy is calibrated. */
+  const sideways = [];
+  for (const id of ids) {
+    await page.evaluate((i) => {
+      location.hash = "#/chapter/" + i;
+    }, id);
+    await page.waitForTimeout(120);
+    const over = await page.evaluate(() =>
+      [...document.querySelectorAll(".codeblock pre")]
+        .map((pre) => pre.scrollWidth - pre.clientWidth)
+        .filter((n) => n > 2)
+    );
+    if (over.length) sideways.push(`${id}: +${over.join("px, +")}px`);
+  }
+  check(
+    "no code block scrolls sideways at reading width",
+    sideways.length === 0,
+    sideways.slice(0, 4).join("; ")
+  );
+
   /* ---------------- scroll reveal never strands content ---------------- */
   /* Jump straight to the bottom of the longest page. Every revealable element
      must end up visible, including the ones the viewport skipped over — an

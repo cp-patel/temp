@@ -1020,6 +1020,10 @@ async def handle(req):
           ],
         },
         {
+          t: "p",
+          text: "Read down the left column and notice that only two of the six rows are about retrieval mechanics. The rest is process: what you established before designing, how you would know it worked, what happens when it cannot answer. Candidates over-prepare the architecture and under-prepare the framing, which is why the requirements-first row is the one that most often decides the round in the first five minutes.",
+        },
+        {
           t: "note",
           kind: "pro",
           title: "Bring numbers, not preferences",
@@ -1075,6 +1079,10 @@ async def handle(req):
           },
         },
         {
+          t: "p",
+          text: 'Comparing the two columns, the rejection signals are not the opposite of the strong ones — they are what the strong ones look like without evidence underneath. "I\'d add a reranker" and "I added a reranker and recall@5 went from 41% to 78%" are the same sentence with and without a measurement, and the loop is largely a filter for which one you produce under pressure.',
+        },
+        {
           t: "note",
           kind: "pitfall",
           title: "The framework-name trap",
@@ -1118,6 +1126,10 @@ async def handle(req):
           ],
         },
         {
+          t: "p",
+          text: "The ordering here is almost entirely by how hard the artefact is to fake. Anyone can follow a tutorial; nobody can publish a recall number without having built an eval set, and nobody can write honestly about what broke without having run the thing in front of real users. That is why the top two rows outperform a longer list of projects.",
+        },
+        {
           t: "note",
           kind: "money",
           title: "Frame projects around outcomes, not tool lists",
@@ -1144,6 +1156,10 @@ async def handle(req):
             "**Have a position on agents versus workflows** and be able to defend it. Interviewers increasingly probe whether you reach for autonomy reflexively.",
             "**Read your own traces before the interview.** If you can describe a specific surprising thing your traces revealed, you have credibility that no amount of theory buys.",
           ],
+        },
+        {
+          t: "p",
+          text: "Six items, and the two that pay for themselves fastest are the least glamorous: rehearsing your own numbers out loud until they are automatic, and writing the failure section of one project README. Both take an afternoon and both are what the questions above are actually reaching for.",
         },
         {
           t: "note",
@@ -1308,6 +1324,10 @@ async def handle(req):
           },
         },
         {
+          t: "p",
+          text: "The test that sorts a topic into one column or the other is simple: ask whether the thing would still be true if every model in production were replaced tomorrow. Retrieval fundamentals survive that; a leaderboard position does not. Six of this roadmap's eight phases are deliberately on the left, which is why they were worth months rather than an afternoon.",
+        },
+        {
           t: "note",
           kind: "insight",
           title: "The ratio that matters",
@@ -1343,6 +1363,10 @@ async def handle(req):
               text: "Most announcements won't matter to your work. The ones that do will come up repeatedly, from multiple independent sources, over months. That repetition is your filter.",
             },
           ],
+        },
+        {
+          t: "p",
+          text: "What those five have in common is that none of them is a feed. A feed optimises for what is new, and almost everything genuinely important in this field arrives at least twice — once as noise and again, months later, as a technique with results attached. Waiting for the second arrival costs you very little and saves you most of the reading.",
         },
         {
           t: "note",
@@ -1395,6 +1419,10 @@ async def handle(req):
             ["A list of frameworks in your CV", "Near-zero signal"],
             ["Course certificates", "Near-zero signal"],
           ],
+        },
+        {
+          t: "p",
+          text: "The strength ordering is the same one the interviewing chapter arrives at from the other direction, which is not a coincidence: what makes an artefact convincing to a hiring loop is exactly what makes it evidence that you can do the job. Both come down to whether a number is attached.",
         },
         {
           t: "note",
@@ -1459,6 +1487,10 @@ async def handle(req):
               "Injection, red-teaming, safe architecture. Very scarce, growing quickly.",
             ],
           ],
+        },
+        {
+          t: "p",
+          text: "None of these directions requires abandoning what you already are. Each is the same application engineering with one dimension pushed further — deeper into the model, further into the infrastructure, or closer to a domain — and the fundamentals from the previous seven phases are what makes any of them approachable rather than a restart.",
         },
         {
           t: "note",

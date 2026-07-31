@@ -339,6 +339,10 @@ def run_evals():
           text: "Size comes next, and it is where most teams are unknowingly fooling themselves.",
         },
         {
+          t: "p",
+          text: "Read that table as a statistical commitment rather than a convenience. Detectable difference shrinks with the square root of the sample, so each row buys resolution at a steeply rising price in authoring effort: doubling from 50 cases to 100 does not halve your uncertainty, it cuts it by about 30%. Pick the size that matches the decision you intend to make — a PR gate catching regressions needs far less resolution than a call on which of two models to ship.",
+        },
+        {
           t: "table",
           head: ["Size", "Detects", "Use"],
           rows: [
@@ -370,6 +374,10 @@ def run_evals():
           kind: "warn",
           title: "The statistics nobody does, and should",
           text: "On 50 cases, moving from 80% to 84% is two extra cases passing. That is noise — a 95% confidence interval on 50 binary trials at 80% spans roughly ±11 points. If your harness reports bare percentages without intervals, you will chase phantom improvements and dismiss real ones. Print the interval; it's one line of code.",
+        },
+        {
+          t: "p",
+          text: "Here is that line of code. The Wilson score interval is the one to reach for: the textbook normal approximation misbehaves badly at small samples and near 0% or 100%, which is exactly where eval scores live. Print it beside every number your harness reports and phantom improvements stop being tempting.",
         },
         {
           t: "code",
@@ -448,6 +456,10 @@ report("faithfulness", 82, 100)  # faithfulness  82.0%  [73.3%, 88.3%]  n=100
 }`,
         },
         {
+          t: "p",
+          text: "Almost none of that structure is about grading the answer. The `expect` block is the only part a scorer reads; everything else exists so that six months from now you can answer questions about your own eval set — which cases came from real traffic, which were added after a specific failure, and which slice of behaviour is dragging the average down.",
+        },
+        {
           t: "note",
           kind: "pro",
           title: "Tag everything, then slice",
@@ -468,6 +480,10 @@ report("faithfulness", 82, 100)  # faithfulness  82.0%  [73.3%, 88.3%]  n=100
             "**Rebalance deliberately.** If 80% of cases are easy lookups because they were easy to write, your aggregate score mostly measures the easy path.",
             "**Include the abstention cases.** At least 10% of cases should have 'cannot be answered from the corpus' as the correct response.",
           ],
+        },
+        {
+          t: "p",
+          text: "None of the five is technically difficult and all five get skipped under deadline. The one worth defending hardest is the held-out split, because its absence is invisible: a set you have been iterating against for three months reports how well your prompt fits those particular cases, and you find out it was measuring the wrong thing only when the same prompt meets real traffic.",
         },
 
         {
@@ -627,7 +643,9 @@ def deterministic_checks(out, case) -> dict:
     text = out.text
     return {
         # --- structure ---
-        "valid_json": is_valid_json(text) if case.get("expects_json") else None,
+        "valid_json": (
+            is_valid_json(text) if case.get("expects_json") else None
+        ),
         "schema_ok": validates_against(text, case.get("schema")),
         "not_truncated": out.stop_reason != "length",
 
@@ -1347,7 +1365,8 @@ if k < 0.6:
 
     # Route: required calls, with a genuine dependency encoded.
     "required_calls": [
-        {"tool": "lookup_customer", "args_contain": {"email": "j@example.com"}},
+        {"tool": "lookup_customer",
+         "args_contain": {"email": "j@example.com"}},
         {"tool": "search_invoices", "after": "lookup_customer"},
         {"tool": "search_docs"},
     ],
@@ -1734,6 +1753,10 @@ async def eval_recovery(golden, fault_name, fault):
           title: "Keep the PR gate under five minutes",
           text: "A suite that takes twenty minutes gets skipped, or worse, people stop reading its output. Run deterministic checks on every commit for fast feedback, a moderate judged suite on PRs, and the exhaustive run nightly. Fast feedback that people actually use beats comprehensive feedback they route around.",
         },
+        {
+          t: "p",
+          text: "Notice what the tiering is really doing: it separates checks by how much confidence they buy per second of runtime. Deterministic assertions are nearly free and catch the failures that should never reach review, so they run everywhere. Judged metrics are slow and noisy, so they run where a human is already waiting and can read a result. The exhaustive suite is where you put everything too slow to gate on but too important to never run.",
+        },
 
         { t: "h", text: "Gating without flakiness" },
         {
@@ -1768,7 +1791,9 @@ def gate(current: dict, n: int) -> int:
 
     for metric, floor in FLOORS.items():
         if current[metric] < floor:
-            failures.append(f"{metric} {current[metric]:.1%} < floor {floor:.0%}")
+            failures.append(
+                f"{metric} {current[metric]:.1%} < floor {floor:.0%}"
+            )
 
     for metric, tol in TOLERANCE.items():
         base = BASELINE[metric]
@@ -1799,6 +1824,10 @@ sys.exit(gate(run_evals(), n=len(CASES)))`,
           kind: "warn",
           title: "Two failure modes of eval gates",
           text: "**Too strict** and the suite blocks legitimate changes over noise; people add `--skip-evals` and you've lost the whole benefit. **Too loose** and real regressions ship. Gate hard on deterministic invariants (citations must resolve, schema must validate — zero tolerance), and gate softly on judged metrics with confidence intervals and a small tolerance.",
+        },
+        {
+          t: "p",
+          text: "The asymmetry is the point, and it follows from the previous chapter: a deterministic assertion has no confidence interval, so failing it is unambiguous evidence of a bug. A judged score has an interval wide enough that ordinary variation crosses any tight threshold you set, so treating the two the same is what produces a gate people disable.",
         },
 
         {
@@ -1885,6 +1914,10 @@ async def evaluate_async(req, result):
           ],
         },
         {
+          t: "p",
+          text: "Six signals is about the ceiling for a set of alerts anyone will keep responding to. What makes them useful is not the thresholds but the last clause of each: every one is scoped to a version or a stage, so firing tells you where to look rather than only that something is wrong.",
+        },
+        {
           t: "note",
           kind: "pitfall",
           title: "Tag every request with your versions",
@@ -1921,6 +1954,10 @@ async def evaluate_async(req, result):
               "Version prompts in git; require a version bump to deploy",
             ],
           ],
+        },
+        {
+          t: "p",
+          text: "Three of those four are detected by pinning a version and re-running on a schedule — which is why the schedule matters even in a week when you shipped nothing. The fourth is different in kind, and it is the one that quietly undermines everything else in this phase.",
         },
         {
           t: "note",

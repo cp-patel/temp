@@ -148,8 +148,10 @@ async def generate(question: str, chunks: list, ctx) -> Answer:
             raise
 
         span.set_attribute("gen_ai.response.model", resp.resolved_model)
-        span.set_attribute("gen_ai.usage.input_tokens", resp.usage.input_tokens)
-        span.set_attribute("gen_ai.usage.output_tokens", resp.usage.output_tokens)
+        span.set_attribute("gen_ai.usage.input_tokens",
+                           resp.usage.input_tokens)
+        span.set_attribute("gen_ai.usage.output_tokens",
+                           resp.usage.output_tokens)
         span.set_attribute("gen_ai.usage.cached_tokens",
                            resp.usage.cached_input_tokens)
         span.set_attribute("gen_ai.response.finish_reasons",
@@ -222,7 +224,8 @@ PATTERNS = [
     (re.compile(r"[\\w.+-]+@[\\w-]+\\.[\\w.]+"), "[EMAIL]"),
     (re.compile(r"\\b(?:\\d[ -]*?){13,16}\\b"), "[CARD]"),
     (re.compile(r"\\b\\d{3}-\\d{2}-\\d{4}\\b"), "[SSN]"),
-    (re.compile(r"\\b(?:sk|pk|ghp|xox[bp])[-_][A-Za-z0-9]{16,}\\b"), "[SECRET]"),
+    (re.compile(r"\\b(?:sk|pk|ghp|xox[bp])[-_][A-Za-z0-9]{16,}\\b"),
+     "[SECRET]"),
     (re.compile(r"\\+?\\d[\\d\\s().-]{8,}\\d"), "[PHONE]"),
 ]
 
@@ -783,6 +786,10 @@ PROMPT_ROLLOUT = {
     "support_agent@v6": 0.95,
     "support_agent@v7": 0.05,     # canary
 }`,
+        },
+        {
+          t: "p",
+          text: "The five-step sequence in that comment is the part worth copying, and step five is the one that makes the rest usable: because the rollout is a config value rather than a code path, backing out a bad prompt is a percentage change somebody can make in seconds under pressure. A rollback that requires a deploy will not happen at 2am.",
         },
         {
           t: "note",

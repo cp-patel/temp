@@ -5,7 +5,7 @@ engineer**: the person who ships products on top of models someone else trained,
 and can prove the result works.
 
 **44 chapters · 8 phases · 17 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
-~68,000 words · zero dependencies**
+~73,000 words · zero dependencies**
 
 It adapts to you. Tell it you're a backend engineer and it marks the nine chapters
 you can skim — each with a note on exactly what _is_ new in it — and builds a
@@ -132,7 +132,7 @@ js/ui/                      labs, block renderer + quiz, views, onboarding
 js/app.js                   router, shell, command palette, keyboard
 scripts/                    dev server, content validator, scaffolder, stats
 tests/unit/                 78 assertions — util, store, plan engine
-tests/e2e/                  94 checks in real Chromium, incl. a full first-visitor walkthrough
+tests/e2e/                  95 checks in real Chromium, incl. a full first-visitor walkthrough
                             and a WCAG AA audit of both themes
 docs/                       architecture, content schema, roadmap
 ```
