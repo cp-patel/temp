@@ -3969,6 +3969,377 @@
     },
   };
 
+  /* =========================================================
+     17. VRAM FIT
+     ========================================================= */
+
+  /* Real architecture shapes, because the KV cache depends on them and the
+     whole lesson is that the cache is not a rounding error. kvh is grouped-query
+     heads: the number that actually sizes the cache, and the reason a modern 70B
+     is servable at long context at all. */
+  var VF_MODELS = [
+    { id: "8b", label: "8B", params: 8.0, layers: 32, kvh: 8, hd: 128 },
+    { id: "14b", label: "14B", params: 14.8, layers: 48, kvh: 8, hd: 128 },
+    { id: "32b", label: "32B", params: 32.8, layers: 64, kvh: 8, hd: 128 },
+    { id: "70b", label: "70B", params: 70.6, layers: 80, kvh: 8, hd: 128 },
+    { id: "123b", label: "123B", params: 123, layers: 88, kvh: 8, hd: 128 },
+  ];
+
+  /* Bits per weight as actually stored, not nominally named: a GGUF k-quant
+     carries per-block scales and keeps some tensors at higher precision, so
+     "4-bit" costs about 4.85 bits. Quality is a rough perplexity delta against
+     FP16 on models of this class — an order of magnitude, not a measurement. */
+  var VF_QUANTS = [
+    { id: "fp16", label: "FP16", bits: 16, dq: 0, q: "baseline" },
+    { id: "q8", label: "Q8_0", bits: 8.5, dq: 0.1, q: "indistinguishable" },
+    { id: "q6", label: "Q6_K", bits: 6.6, dq: 0.3, q: "indistinguishable" },
+    { id: "q5", label: "Q5_K_M", bits: 5.7, dq: 0.6, q: "very close" },
+    { id: "q4", label: "Q4_K_M", bits: 4.85, dq: 1.4, q: "small, acceptable" },
+    { id: "q3", label: "Q3_K_M", bits: 3.9, dq: 4, q: "noticeable" },
+    { id: "q2", label: "Q2_K", bits: 3.35, dq: 11, q: "degraded" },
+  ];
+
+  var VF_CTX = [2048, 4096, 8192, 16384, 32768, 65536, 131072];
+  /* Labelled, not computed: U.compact(32768) is "32.8k", which is correct and
+     reads as noise next to a control whose stops everyone calls 32k. */
+  var VF_CTX_L = ["2k", "4k", "8k", "16k", "32k", "64k", "128k"];
+
+  /* Labelled by capacity, not by product name: the tiers outlast the SKUs. */
+  var VF_CARDS = [
+    { id: "16", label: "16 GB", gb: 16, note: "mid-range consumer" },
+    { id: "24", label: "24 GB", gb: 24, note: "consumer flagship" },
+    { id: "48", label: "48 GB", gb: 48, note: "workstation" },
+    { id: "80", label: "80 GB", gb: 80, note: "datacentre" },
+    { id: "128", label: "128 GB", gb: 128, note: "unified memory" },
+  ];
+
+  var VF_KVQ = [
+    { id: "16", label: "FP16", bytes: 2 },
+    { id: "8", label: "Q8", bytes: 1 },
+    { id: "4", label: "Q4", bytes: 0.5 },
+  ];
+
+  L.vramfit = {
+    title: "Will this model fit?",
+    sub: "Weights are the part everyone budgets for. The KV cache is the part that surprises them.",
+    tag: "Tool",
+    icon: "db",
+    render: function (root) {
+      /* Opens on a configuration that works. A lab whose first frame is a
+         failure reads as broken rather than as instructive; the point lands
+         harder when the reader breaks it themselves, which the footer directs. */
+      var mId = "70b",
+        qId = "q4",
+        cardId = "80",
+        kvqId = "16";
+      var ctxIdx = 4; // 32k
+      var conc = 1;
+
+      var GIB = 1024 * 1024 * 1024;
+      var OVERHEAD = 1.2; // CUDA context, framework, activation scratch
+
+      function pick(list, id) {
+        return list.filter(function (x) {
+          return x.id === id;
+        })[0];
+      }
+
+      /* --- controls --- */
+      var grid = el("div", "lab__grid lab__grid--sidebar");
+      var left = el("div", "lab__panel");
+
+      left.appendChild(el("div", "u-eyebrow", "Model"));
+      left.lastChild.style.marginBottom = "var(--s-2)";
+      var mPick = toggles(VF_MODELS, mId, function (id) {
+        mId = id;
+        update();
+      });
+      mPick.style.marginBottom = "var(--s-4)";
+      left.appendChild(mPick);
+
+      left.appendChild(el("div", "u-eyebrow", "Weight quantisation"));
+      left.lastChild.style.marginBottom = "var(--s-2)";
+      var qPick = toggles(VF_QUANTS, qId, function (id) {
+        qId = id;
+        update();
+      });
+      qPick.style.marginBottom = "var(--s-4)";
+      left.appendChild(qPick);
+
+      left.appendChild(el("div", "u-eyebrow", "GPU memory"));
+      left.lastChild.style.marginBottom = "var(--s-2)";
+      var cPick = toggles(VF_CARDS, cardId, function (id) {
+        cardId = id;
+        update();
+      });
+      cPick.style.marginBottom = "var(--s-4)";
+      left.appendChild(cPick);
+
+      var ctxCtl = slider(
+        "Context length",
+        0,
+        VF_CTX.length - 1,
+        1,
+        ctxIdx,
+        "Every token in the window costs KV cache, for every concurrent request."
+      );
+      ctxCtl.input.addEventListener("input", update);
+      left.appendChild(ctxCtl);
+
+      var concCtl = slider(
+        "Concurrent requests",
+        1,
+        16,
+        1,
+        conc,
+        "Batching is how you get throughput. Each slot holds its own cache."
+      );
+      concCtl.input.addEventListener("input", update);
+      left.appendChild(concCtl);
+
+      left.appendChild(el("div", "u-eyebrow", "KV cache precision"));
+      left.lastChild.style.marginBottom = "var(--s-2)";
+      var kvPick = toggles(VF_KVQ, kvqId, function (id) {
+        kvqId = id;
+        update();
+      });
+      left.appendChild(kvPick);
+
+      /* --- chart --- */
+      var right = el("div", "lab__panel");
+      var chart = el("div", "vfit");
+      chart.innerHTML =
+        '<div class="vfit__head"><span>memory used (GiB)</span>' +
+        '<span class="vfit__read" data-read>hover a segment</span></div>' +
+        '<div class="vfit__track" data-track><div class="vfit__cap" data-cap></div></div>' +
+        '<div class="vfit__caplbl"><span>0</span><span data-capl></span></div>';
+      right.appendChild(chart);
+
+      var leg = el("div", "blegend");
+      right.appendChild(leg);
+
+      var verdict = el("div", "vfit__verdict");
+      right.appendChild(verdict);
+
+      var mm = metrics([
+        { k: "total", l: "Total VRAM" },
+        { k: "kvshare", l: "KV cache share", tone: "accent" },
+        { k: "maxctx", l: "Context that fits", tone: "emerald" },
+        { k: "quality", l: "Quality cost", tone: "amber" },
+      ]);
+      mm.style.marginTop = "var(--s-4)";
+      right.appendChild(mm);
+
+      var tbl = el("div", "ccurve__table");
+      right.appendChild(tbl);
+
+      grid.appendChild(left);
+      grid.appendChild(right);
+      root.appendChild(grid);
+      root.appendChild(
+        foot(
+          "The table in this chapter says a 4-bit 70B is “~40 GB”, and that is true — " +
+            "of the <b>weights</b>. Switch to the 48 GB card and drag context to 128k: the " +
+            "cache alone passes the weights and nothing loads. That is " +
+            "the mistake this tool exists to prevent, and it is why <b>“context that fits”</b> " +
+            "is the number to quote when someone asks whether a model fits a card. Two " +
+            "cheap fixes to try: quantise the KV cache to Q8, which costs far less quality " +
+            "than the same step on weights, and check what grouped-query attention is " +
+            "already saving you — at 32 KV heads instead of 8, every cache figure here " +
+            "would be four times larger. Overhead is modelled as a flat " +
+            "1.2 GiB for the CUDA context and activation scratch; under heavy batching " +
+            "it grows somewhat."
+        )
+      );
+
+      function kvBytesPerToken(m, kvBytes) {
+        // 2 tensors (K and V) x layers x grouped-query heads x head dim
+        return 2 * m.layers * m.kvh * m.hd * kvBytes;
+      }
+
+      function update() {
+        var m = pick(VF_MODELS, mId);
+        var q = pick(VF_QUANTS, qId);
+        var card = pick(VF_CARDS, cardId);
+        var kvq = pick(VF_KVQ, kvqId);
+        ctxIdx = +ctxCtl.input.value;
+        conc = +concCtl.input.value;
+        var ctx = VF_CTX[ctxIdx];
+
+        ctxCtl.out.textContent = VF_CTX_L[ctxIdx];
+        concCtl.out.textContent =
+          conc + (conc === 1 ? " request" : " requests");
+
+        var wGb = (m.params * 1e9 * (q.bits / 8)) / GIB;
+        var perTok = kvBytesPerToken(m, kvq.bytes);
+        var kvGb = (perTok * ctx * conc) / GIB;
+        var total = wGb + kvGb + OVERHEAD;
+        var cap = card.gb;
+
+        /* Largest context that fits, which is the answer people actually want
+           and the one the chapter's weights-only table cannot give. */
+        var room = cap - wGb - OVERHEAD;
+        var maxCtx = room > 0 ? Math.floor((room * GIB) / (perTok * conc)) : 0;
+
+        var segs = [
+          { k: "weights", l: "Weights", v: wGb },
+          { k: "kv", l: "KV cache", v: kvGb },
+          { k: "over", l: "Overhead", v: OVERHEAD },
+        ];
+        var scale = Math.max(total, cap) * 1.02;
+
+        var track = chart.querySelector("[data-track]");
+        U.qa(".vfit__seg", track).forEach(function (n) {
+          n.parentNode.removeChild(n);
+        });
+        leg.innerHTML = "";
+        var capNode = chart.querySelector("[data-cap]");
+
+        segs.forEach(function (s) {
+          var seg = el("div", "vfit__seg");
+          seg.setAttribute("data-k", s.k);
+          /* Take the two 2px inter-segment gaps out of the space being divided,
+             or the sum overshoots the track and clips the last segment. */
+          seg.style.width =
+            "calc((100% - 4px) * " + (s.v / scale).toFixed(5) + ")";
+          if ((s.v / scale) * 100 > 11) seg.textContent = s.v.toFixed(1);
+          seg.setAttribute(
+            "title",
+            s.l + ": " + s.v.toFixed(1) + " GiB of " + total.toFixed(1)
+          );
+          seg.onmouseenter = function () {
+            chart.querySelector("[data-read]").innerHTML =
+              s.l +
+              " <b>" +
+              s.v.toFixed(1) +
+              " GiB</b> · " +
+              Math.round((s.v / total) * 100) +
+              "% of the total";
+          };
+          seg.onmouseleave = function () {
+            chart.querySelector("[data-read]").innerHTML = "hover a segment";
+          };
+          track.insertBefore(seg, capNode);
+
+          var lg = el("div", "bleg");
+          lg.innerHTML =
+            '<span class="bleg__sw" style="background:' +
+            (s.k === "weights"
+              ? "hsl(262 74% 56%)"
+              : s.k === "kv"
+                ? "hsl(196 78% 46%)"
+                : "hsl(220 12% 46%)") +
+            '"></span>' +
+            esc(s.l) +
+            " <b>" +
+            s.v.toFixed(1) +
+            " GiB</b>";
+          leg.appendChild(lg);
+        });
+
+        /* Only draw the limit line when something crosses it. Under capacity it
+           sits pinned at 98% of the track, where it is both uninformative — the
+           empty remainder already *is* the headroom — and clipped by the track's
+           rounded corner into something that looks like a rendering fault. */
+        capNode.style.left = (cap / scale) * 100 + "%";
+        capNode.style.display = total > cap ? "" : "none";
+        chart.querySelector("[data-capl]").textContent =
+          card.label + " · " + card.note;
+
+        mm.set("total", total.toFixed(1) + "<small>GiB</small>");
+        mm.set(
+          "kvshare",
+          Math.round((kvGb / total) * 100) + "<small>%</small>"
+        );
+        mm.set(
+          "maxctx",
+          maxCtx < 512
+            ? '<span class="metric__none">none</span>'
+            : U.compact(maxCtx)
+        );
+        mm.set(
+          "quality",
+          q.dq === 0
+            ? '<span class="metric__none">none</span>'
+            : "+" + q.dq + "<small>% ppl</small>"
+        );
+
+        var spare = cap - total;
+        verdict.className = "vfit__verdict";
+        if (spare < 0) {
+          verdict.classList.add("is-bad");
+          /* Name the lever that actually closes this gap. Comparing cache
+             against weights is the wrong test: at 32k on a 70B the weights are
+             four times the cache and yet context is still the cheap fix, because
+             the weights fit — it is the context on top of them that does not. */
+          verdict.innerHTML =
+            Icons.get("x", 16) +
+            "<div><b>Over by " +
+            Math.abs(spare).toFixed(1) +
+            " GiB.</b> It will not load. " +
+            (maxCtx >= 512
+              ? "The weights do fit — what does not is the context on top of them. " +
+                "There is room for <b>" +
+                U.compact(maxCtx) +
+                "</b> at this batch size, against the " +
+                VF_CTX_L[ctxIdx] +
+                " you asked for. Cut context, quantise the cache, or batch less " +
+                "before you touch the model."
+              : "The weights alone are " +
+                wGb.toFixed(1) +
+                " GiB, so no context setting saves this — quantise harder or drop " +
+                "a size.") +
+            "</div>";
+        } else if (spare < cap * 0.08) {
+          verdict.classList.add("is-tight");
+          verdict.innerHTML =
+            Icons.get("alert", 16) +
+            "<div><b>Fits, with " +
+            spare.toFixed(1) +
+            " GiB spare.</b> That is inside the margin where fragmentation and a " +
+            "long prompt will OOM you in production. Leave real headroom.</div>";
+        } else {
+          verdict.classList.add("is-ok");
+          verdict.innerHTML =
+            Icons.get("checkCircle", 16) +
+            "<div><b>Fits, with " +
+            spare.toFixed(1) +
+            " GiB spare</b> — room for about " +
+            U.compact(maxCtx) +
+            " of context at this batch size, against the " +
+            VF_CTX_L[ctxIdx] +
+            " you asked for.</div>";
+        }
+
+        /* Table twin: the same figures, readable without colour vision and
+           copyable into a capacity plan. */
+        tbl.innerHTML =
+          "<table><thead><tr><th>Component</th><th>GiB</th><th>Share</th>" +
+          "<th>Scales with</th></tr></thead><tbody>" +
+          "<tr><td>Weights</td><td>" +
+          wGb.toFixed(1) +
+          "</td><td>" +
+          Math.round((wGb / total) * 100) +
+          "%</td><td>params × bits</td></tr>" +
+          "<tr><td>KV cache</td><td>" +
+          kvGb.toFixed(1) +
+          "</td><td>" +
+          Math.round((kvGb / total) * 100) +
+          "%</td><td>context × batch</td></tr>" +
+          "<tr><td>Overhead</td><td>" +
+          OVERHEAD.toFixed(1) +
+          "</td><td>" +
+          Math.round((OVERHEAD / total) * 100) +
+          "%</td><td>fixed</td></tr>" +
+          "</tbody></table>";
+
+        L.touched("vramfit");
+      }
+
+      update();
+    },
+  };
+
   /* ---------------- mount ---------------- */
 
   /* Labs record use from their update() function, which also runs once on

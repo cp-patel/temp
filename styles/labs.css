@@ -1387,3 +1387,124 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 0 0 4px 4px;
   background: var(--rose);
 }
+
+/* ---- VRAM fit ----
+   A stacked bar that is allowed to *overflow* its container: the whole point of
+   the lab is watching the total run past the card's capacity, so the track is
+   scaled to max(total, capacity) and the capacity marker slides left as the
+   total grows past it. A percentage-partition bar like .budget cannot show this
+   — it normalises the overflow away. */
+
+.vfit__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-4);
+  margin-bottom: var(--s-3);
+  font-size: 0.68rem;
+  color: var(--ink-3);
+}
+
+.vfit__read {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.vfit__read b {
+  color: var(--ink);
+}
+
+.vfit__track {
+  position: relative;
+  display: flex;
+  gap: 2px; /* surface gap, not a border: a border would eat the fill */
+  height: 34px;
+  padding: 0;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.vfit__seg {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--ink-inv);
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+.vfit__seg[data-k="weights"] {
+  background: hsl(262 74% 56%);
+}
+.vfit__seg[data-k="kv"] {
+  background: hsl(196 78% 46%);
+}
+.vfit__seg[data-k="over"] {
+  background: hsl(220 12% 46%);
+}
+.vfit__seg[data-k="spill"] {
+  background: var(--rose);
+}
+
+/* The capacity marker. A dashed rule rather than a filled region so it reads as
+   a limit line, and it sits above the segments without repainting them. */
+.vfit__cap {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 0;
+  border-left: 2px dashed var(--ink);
+  opacity: 0.85;
+  transition: left var(--dur-slow) var(--ease-out);
+  pointer-events: none;
+}
+
+.vfit__caplbl {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+}
+
+.vfit__verdict {
+  margin-top: var(--s-4);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+
+.vfit__verdict svg {
+  flex: none;
+  margin-top: 0.15em;
+}
+
+.vfit__verdict.is-ok {
+  border-color: hsl(156 58% 40% / 0.4);
+}
+
+.vfit__verdict.is-tight {
+  border-color: hsl(38 84% 50% / 0.45);
+}
+
+.vfit__verdict.is-bad {
+  border-color: hsl(350 70% 55% / 0.45);
+}
+
+.vfit__verdict b {
+  color: var(--ink);
+}

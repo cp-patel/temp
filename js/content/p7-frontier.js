@@ -637,7 +637,9 @@ Levers
         "Decide between hosted APIs and self-hosted inference",
         "Understand quantisation and its quality trade-off",
         "Estimate the true cost of self-hosting",
+        "Size a model, its context, and its batch against real GPU memory",
       ],
+      lab: "vramfit",
       body: [
         {
           t: "p",
@@ -708,6 +710,15 @@ Levers
           kind: "insight",
           title: "The rule of thumb worth remembering",
           text: "A 4-bit quantisation of a larger model generally beats full precision of a much smaller one at the same memory budget. If you have 40GB of VRAM, a 4-bit 70B model usually outperforms a 16-bit 13B model. Prefer more parameters at lower precision over fewer at higher precision — up to about 4 bits, below which quality falls off sharply.",
+        },
+        {
+          t: "p",
+          text: "Every figure in that table is weights only, and weights are not what fills a GPU in production. The KV cache — the attention keys and values held for every token in the window, for every request in flight — is charged separately, and at long context it overtakes the weights entirely. A 4-bit 70B is ~40GB of weights; the same model serving 128k of context needs another ~40GB on top. Budget on the weights alone and the model loads in testing and dies the first time somebody pastes a long document.",
+        },
+        { t: "lab", id: "vramfit" },
+        {
+          t: "p",
+          text: 'So the useful question is never "does this model fit?" but "how much context fits alongside it?". Two levers move that answer cheaply. Quantising the KV cache to 8-bit halves it for far less quality damage than the same step costs on weights. And grouped-query attention — where a group of query heads shares one key-value head — is already saving you most of it: the same 70B built with one KV head per query head would need four times the cache, which is why long context on a single card is a recent development rather than an old one.',
         },
 
         {

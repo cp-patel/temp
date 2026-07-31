@@ -4,10 +4,10 @@ An interactive, opinionated curriculum for becoming an **AI application
 engineer**: the person who ships products on top of models someone else trained,
 and can prove the result works.
 
-**44 chapters · 8 phases · 16 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
+**44 chapters · 8 phases · 17 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
 ~68,000 words · zero dependencies**
 
-It adapts to you. Tell it you're a backend engineer and it marks the ten chapters
+It adapts to you. Tell it you're a backend engineer and it marks the nine chapters
 you can skim — each with a note on exactly what _is_ new in it — and builds a
 week-by-week schedule from your real available hours.
 
@@ -78,7 +78,7 @@ number that nobody should believe.
 
 ### Interactive labs
 
-Sixteen labs, each making one idea manipulable rather than described.
+Seventeen labs, each making one idea manipulable rather than described.
 
 | Lab                           | Teaches                                                                      |
 | ----------------------------- | ---------------------------------------------------------------------------- |
@@ -98,11 +98,13 @@ Sixteen labs, each making one idea manipulable rather than described.
 | **Conversation cost curve**   | Why a 20-turn chat bills quadratically, and what flattens it                 |
 | **Why chains of agents fail** | Move reliability and agent count; watch the product, not the average         |
 | **Fine-tuning break-even**    | One fixed cost against a cheaper rate — find the crossing point              |
+| **VRAM fit calculator**       | Weights are what people budget for; the KV cache is what defeats them        |
 
-Two labs use deliberate simplifications, stated in their own UI: the tokenizer
-approximates subword segmentation heuristically, and the retrieval lab's dense
-retriever is a hand-authored concept-space stand-in for an embedding model. The
-first version of that lab used lexical hashing and _couldn't demonstrate
+Three labs use deliberate simplifications, stated in their own UI: the tokenizer
+approximates subword segmentation heuristically, the retrieval lab's dense
+retriever is a hand-authored concept-space stand-in for an embedding model, and
+the VRAM calculator models activation scratch as a flat 1.2 GiB. The first
+version of the retrieval lab used lexical hashing and _couldn't demonstrate
 paraphrase matching_ — the lab's entire point — so it was rebuilt.
 
 ### Progress tracking
