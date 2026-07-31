@@ -160,6 +160,95 @@ describe("plan generation", () => {
   });
 });
 
+describe("project cross-references", () => {
+  test("every milestone points at a chapter that exists", () => {
+    const ids = new Set(C.chapters.map((c) => c.id));
+    let n = 0;
+    for (const pr of C.projects) {
+      for (const [i, t] of pr.tasks.entries()) {
+        assert.ok(t.t, `${pr.id} task[${i}] has no text`);
+        assert.ok(t.ch, `${pr.id} task[${i}] has no chapter reference`);
+        assert.ok(ids.has(t.ch), `${pr.id} task[${i}] -> unknown "${t.ch}"`);
+        n++;
+      }
+    }
+    assert.ok(n >= 40, `expected 40+ milestones, got ${n}`);
+  });
+
+  test("the reverse index agrees with the forward references", () => {
+    /* The chapter's "where you'll use this" is computed from the milestones
+       rather than authored, so the two directions cannot drift. This asserts the
+       derivation, since it is the thing a future edit would break. */
+    const reverse = {};
+    for (const pr of C.projects) {
+      for (const [i, t] of pr.tasks.entries()) {
+        (reverse[t.ch] = reverse[t.ch] || []).push(`${pr.id}#${i}`);
+      }
+    }
+    const forward = [];
+    for (const pr of C.projects)
+      for (const [i, t] of pr.tasks.entries()) forward.push(`${pr.id}#${i}`);
+
+    assert.equal(
+      Object.values(reverse).flat().sort().join(),
+      forward.sort().join(),
+      "every milestone appears exactly once in the reverse index"
+    );
+
+    // A chapter with no milestone is legitimate — groundwork and optional
+    // directions — but most of the curriculum should be applied somewhere.
+    const covered = Object.keys(reverse).length;
+    assert.ok(
+      covered >= 24 && covered <= C.chapters.length,
+      `${covered} of ${C.chapters.length} chapters are used by a project`
+    );
+  });
+
+  /* A milestone may legitimately draw on material from a later phase — the
+     warm-up project asks for hand-labelled test cases and per-field precision,
+     which is evaluation work taught in phase 6, and that is the project being
+     honest about what shipping requires rather than a bad reference. But it must
+     be a decision, not a slip: the first version of this mapping sent a phase-2
+     project's reader to Tool Use & Function Calling in phase 5 when Prompt
+     Anatomy in phase 2 taught the same point. Every forward reference is listed
+     here, so adding one means writing down why. */
+  const FORWARD_OK = new Set([
+    "p-classifier#3", // hand-labelled test cases -> eval-datasets
+    "p-classifier#4", // per-field precision -> eval-metrics
+    "p-classifier#5", // confidence correlation -> llm-judge
+    "p-rag#5", // graded relevance labels -> eval-datasets
+    "p-agent#4", // OpenTelemetry spans -> observability
+    "p-agent#6", // trajectory eval -> agent-evals
+    "p-ship#7", // public post-mortem -> interview-prep
+  ]);
+
+  test("a milestone reaching into a later phase is a listed decision", () => {
+    const order = C.phases.map((p) => p.id);
+    const phaseOf = {};
+    C.chapters.forEach((c) => (phaseOf[c.id] = order.indexOf(c.phase)));
+    const forward = [];
+    for (const pr of C.projects) {
+      const own = order.indexOf(pr.phase);
+      for (const [i, t] of pr.tasks.entries()) {
+        if (phaseOf[t.ch] > own) forward.push(`${pr.id}#${i}`);
+      }
+    }
+    for (const key of forward) {
+      assert.ok(
+        FORWARD_OK.has(key),
+        `${key} points at a later phase and is not in FORWARD_OK — ` +
+          `either pick an earlier chapter that teaches the same point, or list it`
+      );
+    }
+    for (const key of FORWARD_OK) {
+      assert.ok(
+        forward.includes(key),
+        `${key} is listed as a forward reference but no longer is one`
+      );
+    }
+  });
+});
+
 describe("scheduling", () => {
   test("total time includes project hours, not just reading", () => {
     const plan = C.planFor(BACKEND);

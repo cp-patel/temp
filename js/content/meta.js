@@ -160,7 +160,7 @@
         },
         {
           t: "Pass the schema to the model as a tool definition, not as prose in the prompt",
-          ch: "tool-use",
+          ch: "prompt-anatomy",
         },
         {
           t: "Handle refusals and malformed output with a bounded repair loop (max 2 retries)",

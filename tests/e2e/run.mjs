@@ -806,9 +806,87 @@ async function main() {
   await page.locator(".ckref").first().click();
   await page.waitForTimeout(400);
   check(
+    "each reference names the phase its chapter is in",
+    await page.evaluate(() =>
+      [...document.querySelectorAll(".ckref")].every((r) =>
+        /Phase \d/.test(r.getAttribute("title") || "")
+      )
+    )
+  );
+
+  check(
     "its reference opens the chapter",
     /#\/chapter\//.test(await page.evaluate(() => location.hash)),
     await page.evaluate(() => location.hash)
+  );
+
+  /* The other half of the link. Reading a chapter and building with it were one
+     navigation apart with nothing joining them, and the projects hold four fifths
+     of the plan's hours — so a chapter says which milestones it unlocks, computed
+     from the milestone references rather than authored, and shows which of them
+     you have already ticked. */
+  await go("#/chapter/llm-judge");
+  await page.waitForTimeout(400);
+  const usesBlock = await page.evaluate(() => {
+    const u = document.querySelector(".uses");
+    if (!u) return null;
+    const expected = window.Curriculum.projects.reduce(
+      (n, pr) => n + pr.tasks.filter((t) => t.ch === "llm-judge").length,
+      0
+    );
+    return {
+      items: u.querySelectorAll(".uses__item").length,
+      expected,
+      links: [...u.querySelectorAll("a")].every(
+        (a) => a.getAttribute("href") === "#/projects"
+      ),
+      namesProject: /Evaluation Harness/.test(u.innerText),
+    };
+  });
+  check(
+    "a chapter lists the project milestones that apply it",
+    !!usesBlock &&
+      usesBlock.items === usesBlock.expected &&
+      usesBlock.items >= 2 &&
+      usesBlock.links &&
+      usesBlock.namesProject,
+    JSON.stringify(usesBlock)
+  );
+
+  /* A ticked milestone must read as done here too, or the two views disagree
+     about the same fact. */
+  await page.evaluate(() => Store.projTask("p-evals", 2));
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(500);
+  check(
+    "a milestone already ticked shows as done in the chapter",
+    (await page.locator(".uses__item.is-done").count()) === 1,
+    `${await page.locator(".uses__item.is-done").count()} done`
+  );
+
+  /* And it appears only where a milestone actually points. */
+  const usesCoverage = await page.evaluate(async () => {
+    const ids = window.Curriculum.chapters.map((c) => c.id);
+    const referenced = new Set();
+    window.Curriculum.projects.forEach((pr) =>
+      pr.tasks.forEach((t) => referenced.add(t.ch))
+    );
+    let shown = 0;
+    let wrong = [];
+    for (const id of ids) {
+      location.hash = "#/chapter/" + id;
+      await new Promise((r) => setTimeout(r, 55));
+      const has = !!document.querySelector(".uses");
+      if (has) shown++;
+      if (has !== referenced.has(id)) wrong.push(id);
+    }
+    return { shown, referenced: referenced.size, wrong };
+  });
+  check(
+    "the block appears on exactly the chapters a project uses",
+    usesCoverage.wrong.length === 0 &&
+      usesCoverage.shown === usesCoverage.referenced,
+    JSON.stringify(usesCoverage)
   );
 
   /* ---------------- reading measure ---------------- */

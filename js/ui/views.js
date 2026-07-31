@@ -96,6 +96,22 @@
     return ids;
   }
 
+  /* The reverse of the milestone -> chapter references, computed rather than
+     authored so the two directions cannot disagree. A chapter with no milestone
+     is not a gap: tokens and sampling are conceptual groundwork, multimodal and
+     local inference are optional directions. 27 of the 44 have one. */
+  function projectUsesOf(chapterId) {
+    var out = [];
+    C.projects.forEach(function (pr) {
+      (pr.tasks || []).forEach(function (t, i) {
+        if (t && t.ch === chapterId) {
+          out.push({ project: pr, index: i, task: t.t });
+        }
+      });
+    });
+    return out;
+  }
+
   function totalMinutes() {
     return C.chapters.reduce(function (a, c) {
       return a + c.minutes;
@@ -109,6 +125,7 @@
     phaseProgress: phaseProgress,
     overall: overall,
     nextChapter: nextChapter,
+    projectUsesOf: projectUsesOf,
     allCardIds: allCardIds,
     unlockedCardIds: unlockedCardIds,
     totalMinutes: totalMinutes,
@@ -738,6 +755,39 @@
 
     /* --- takeaways --- */
     if (ch.takeaways) main.appendChild(Render.takeaways(ch.takeaways));
+
+    /* --- where you'll use this --- */
+    /* The other half of the project links. Reading a chapter and then building
+       with it are separated by a navigation step in every curriculum I looked at,
+       and the projects hold four fifths of this one's hours — so the chapter says
+       which milestone it unlocks, and whether that milestone is already ticked. */
+    var uses = projectUsesOf(ch.id);
+    if (uses.length) {
+      var ub = el("div", "uses");
+      ub.innerHTML =
+        "<h2>" + Icons.get("hammer", 16) + " Where you'll use this</h2>";
+      var ul = el("div", "uses__list");
+      uses.forEach(function (u) {
+        var doneTask = !!(Store.state().projects[u.project.id] || {})[u.index];
+        var a = el("a", "uses__item" + (doneTask ? " is-done" : ""));
+        a.href = "#/projects";
+        a.innerHTML =
+          '<span class="uses__mark">' +
+          (doneTask ? Icons.get("check", 12) : "") +
+          "</span>" +
+          '<span><span class="uses__t">' +
+          md(u.task) +
+          "</span>" +
+          '<span class="uses__p">' +
+          esc(u.project.tier) +
+          " · " +
+          esc(u.project.title) +
+          "</span></span>";
+        ul.appendChild(a);
+      });
+      ub.appendChild(ul);
+      main.appendChild(ub);
+    }
 
     /* --- quiz --- */
     if (ch.quiz && ch.quiz.length) main.appendChild(Render.quiz(ch));
@@ -1775,14 +1825,22 @@
              to scan — the value here is being able to reach the chapter, not
              reading its name twice. The title survives as the tooltip, the
              accessible name, and the link's own text for a screen reader. */
+          var chPhase = phase(ch.phase);
+          /* Name the phase. Seven milestones deliberately draw on material from a
+             later phase — the warm-up project asks for hand-labelled test cases,
+             which is phase 6 work — and a reader who clicks through without
+             warning lands somewhere they have not reached and reads it as being
+             behind. Saying "Phase 06" first makes it a choice. */
+          var where = chPhase ? " · Phase " + chPhase.n : "";
           var link = el("a", "ckref");
           link.href = "#/chapter/" + ch.id;
           link.innerHTML =
             Icons.get("book", 13) +
             '<span class="u-sr">Read the chapter: ' +
             esc(ch.title) +
+            esc(where) +
             "</span>";
-          link.title = "Read: " + ch.title;
+          link.title = "Read: " + ch.title + where;
           row.appendChild(link);
         }
         cl.appendChild(row);

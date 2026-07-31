@@ -1468,3 +1468,94 @@
   color: var(--ink-3);
   flex: none;
 }
+
+/* ---- Where you'll use this ----
+   Derived from the project milestones that reference this chapter, so it stays in
+   step with them automatically. Styled as a quiet list rather than a callout: it
+   is a pointer forward, not something to read. */
+
+.uses {
+  margin-top: var(--s-8) !important;
+  padding: var(--s-5) var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  max-width: var(--measure);
+}
+
+.uses h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: var(--t-xs);
+  font-weight: 680;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: var(--s-4);
+}
+
+.uses h2 svg {
+  flex: none;
+}
+
+.uses__list {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.uses__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  color: var(--ink-1);
+  border: 1px solid transparent;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.uses__item:hover {
+  color: var(--ink);
+  background: var(--surface-3);
+  border-color: var(--line-faint);
+}
+
+.uses__mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 0.1em;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  color: var(--ink-inv);
+}
+
+.uses__item.is-done .uses__mark {
+  background: var(--emerald);
+  border-color: var(--emerald);
+}
+
+.uses__t {
+  display: block;
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+
+.uses__item.is-done .uses__t {
+  text-decoration: line-through;
+  color: var(--ink-3);
+}
+
+.uses__p {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--ink-3);
+}
