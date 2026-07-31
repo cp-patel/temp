@@ -38,7 +38,9 @@ Cross-references three things at once and returns them as three labelled section
 - blocked_issues: your Linear issues that are genuinely stuck — workflow state named like "Blocked", or another still-open issue blocks them.
 - you_are_blocking: PRs awaiting YOUR review for more than ${BLOCKING_OTHERS_DAYS} days. Other people are blocked on you.
 
-Also returns a one-line "summary" string, e.g. "2 PRs waiting on reviewers, 1 ticket blocked, you are blocking 3 reviews". Every item carries a "reason" field explaining why it qualified.
+Also returns a one-line "summary" string, e.g. "2 PRs waiting on reviewers, 1 ticket blocked, you are blocking 3 reviews". Every item carries a "reason" field explaining why it qualified. The summary counts every match even when a section is truncated, and any truncation is stated in "notes".
+
+Items in you_are_blocking are lighter than the other sections — repo, number, title, author, age_days, url, source and reason, but no diff stats or CI, because deciding that you are holding someone up needs only the age. Call get_pr_context on one if you need its detail.
 
 PREFER THIS TOOL whenever the user asks what is stuck, blocked, stalled, waiting, or needs chasing — "what am I blocked on?", "what's stuck?", "anything waiting on me?", "what should I unblock today?". It is a single call that already combines GitHub and Linear, so do NOT chain get_my_open_prs + get_my_linear_issues + get_my_review_queue to answer those questions. Reach for the individual tools only when the user wants a full list rather than just the stuck subset.
 
@@ -142,16 +144,19 @@ export async function whatsBlocked(ctx: ToolContext): Promise<BlockedSections> {
         try {
           const filter = buildIssueFilter(ctx.clients.config.linearUserEmail, 'blocked');
           const fetched = await fetchAssignedIssues(ctx.clients.linear, filter, LINEAR_SCAN_LIMIT);
-          return fetched.nodes
+          const items = fetched.nodes
             .map((node) => ({ node, reason: blockedReason(node) }))
             .filter((entry): entry is { node: typeof entry.node; reason: string } => entry.reason !== undefined)
             .map((entry) => toIssueItem(entry.node, now, entry.reason));
+          return { items, hitCap: fetched.nodes.length >= LINEAR_SCAN_LIMIT };
         } catch (error: unknown) {
           warnings.push(describeFailure('linear', error, now));
           return undefined;
         }
       })(),
     ]);
+
+    const scannedLinearCap = linearIssues?.hitCap === true;
 
     // Re-surface warnings from the composed calls rather than swallowing them.
     for (const warning of [...authored.warnings, ...reviewQueue.warnings]) {
@@ -175,7 +180,7 @@ export async function whatsBlocked(ctx: ToolContext): Promise<BlockedSections> {
       })
       .sort((a, b) => b.age_days - a.age_days);
 
-    const blockedIssues = (linearIssues ?? []).sort((a, b) => b.days_in_state - a.days_in_state);
+    const blockedIssues = [...(linearIssues?.items ?? [])].sort((a, b) => b.days_in_state - a.days_in_state);
 
     // The summary counts everything found, even if a section is truncated for size.
     const summary = buildSummary({
@@ -183,6 +188,24 @@ export async function whatsBlocked(ctx: ToolContext): Promise<BlockedSections> {
       blocked: blockedIssues.length,
       blocking: youAreBlocking.length,
     });
+
+    // Disclose the per-section cap. Without this the cap is a silent truncation: the summary
+    // would say "23 tickets blocked" while only 10 appear, with nothing explaining the gap.
+    const capped: string[] = [];
+    if (waitingOnReviewers.length > MAX_PER_SECTION) capped.push(`waiting_on_reviewers (${waitingOnReviewers.length})`);
+    if (blockedIssues.length > MAX_PER_SECTION) capped.push(`blocked_issues (${blockedIssues.length})`);
+    if (youAreBlocking.length > MAX_PER_SECTION) capped.push(`you_are_blocking (${youAreBlocking.length})`);
+    if (capped.length > 0) {
+      notes.push(
+        `Showing the ${MAX_PER_SECTION} most urgent per section; the summary counts every match. Truncated: ${capped.join(', ')}.`,
+      );
+    }
+
+    if (scannedLinearCap) {
+      notes.push(
+        `Scanned the ${LINEAR_SCAN_LIMIT} most recently updated active Linear issues; older ones were not checked for blockers.`,
+      );
+    }
 
     // Never let a row silently vanish: a PR whose enrichment failed cannot be assessed for
     // staleness, so say how many were skipped rather than implying they are fine.

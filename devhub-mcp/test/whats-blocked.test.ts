@@ -257,6 +257,40 @@ describe('whats_blocked', () => {
     expect(work.calls.filter((call) => call.includes('pulls.get(')).length).toBe(30);
   });
 
+  it('discloses the per-section cap instead of truncating silently', async () => {
+    // 23 blocked tickets but only 10 shown: the summary must say 23, and a note must explain
+    // the gap, or the caller reasonably concludes it received everything.
+    const issues = Array.from({ length: 23 }, (_unused, index) =>
+      linearIssueNode({ identifier: `ENG-${index}`, state: { name: 'Blocked', type: 'started' } }),
+    );
+    const { ctx } = createFakeContext({
+      work: { searchItems: [] },
+      personal: { searchItems: [] },
+      linearHandler: linearHandlerFor({ issues }),
+    });
+
+    const result = await whatsBlocked(ctx);
+
+    expect(result.blocked_issues).toHaveLength(10);
+    expect(result.summary).toMatch(/23 tickets blocked/);
+    expect(result.notes?.join(' ')).toMatch(/blocked_issues \(23\)/);
+    expect(result.notes?.join(' ')).toMatch(/summary counts every match/);
+  });
+
+  it('discloses when the Linear blocker scan hit its cap', async () => {
+    const issues = Array.from({ length: 100 }, (_unused, index) =>
+      linearIssueNode({ identifier: `ENG-${index}` }),
+    );
+    const { ctx } = createFakeContext({
+      work: { searchItems: [] },
+      personal: { searchItems: [] },
+      linearHandler: linearHandlerFor({ issues }),
+    });
+
+    const result = await whatsBlocked(ctx);
+    expect(result.notes?.join(' ')).toMatch(/older ones were not checked for blockers/);
+  });
+
   it('takes no parameters', () => {
     expect(whatsBlockedDescription).toMatch(/Takes no parameters/);
   });
