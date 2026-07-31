@@ -1181,3 +1181,124 @@ input[type="range"]::-moz-range-thumb {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Conversation cost curve ----
+   A single-series column chart: one colour for every bar, because the story is
+   one measure over turns and colouring by height would double-encode what the
+   bar length already says. Switching strategy re-renders the one series rather
+   than overlaying a second, so there is never anything to legend. */
+
+.ccurve {
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--line-faint);
+}
+
+.ccurve__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+  font-size: 0.66rem;
+  color: var(--ink-3);
+}
+
+.ccurve__ylab {
+  font-weight: 620;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ccurve__read {
+  font-variant-numeric: tabular-nums;
+}
+
+.ccurve__read b {
+  color: var(--ink-1);
+}
+
+/* Hairline baseline, one shade off the surface — solid, never dashed. */
+.ccurve__plot {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 190px;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Columns are capped rather than filling their slot, so the band keeps some
+   air. 4px rounded at the data end, square at the baseline. */
+.ccol {
+  position: relative;
+  flex: 1 1 0;
+  max-width: 24px;
+  min-width: 3px;
+  height: var(--h);
+  border-radius: 4px 4px 0 0;
+  background: var(--accent);
+  transition:
+    height var(--dur) var(--ease-out),
+    filter var(--dur-fast) var(--ease);
+  cursor: default;
+}
+
+/* The hit area reaches past the 2px gap so a 3px column is still reachable. */
+.ccol::before {
+  content: "";
+  position: absolute;
+  inset: -6px -4px 0;
+}
+
+.ccol:hover {
+  filter: brightness(1.25);
+}
+
+.ccurve__xlab {
+  margin-top: var(--s-2);
+  font-size: 0.66rem;
+  color: var(--ink-3);
+}
+
+/* Every value is reachable without hovering. */
+.ccurve__table {
+  margin-top: var(--s-3);
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--line-faint);
+  border-radius: var(--r-md);
+}
+
+.ccurve__table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.ccurve__table th {
+  position: sticky;
+  top: 0;
+  padding: 0.4rem var(--s-3);
+  text-align: left;
+  font-size: 0.62rem;
+  font-weight: 680;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--surface-3);
+}
+
+.ccurve__table td {
+  padding: 0.35rem var(--s-3);
+  color: var(--ink-1);
+  border-top: 1px solid var(--line-faint);
+}
+
+/* "no value" in a metric reads as absence, not as zero. */
+.metric__none {
+  color: var(--ink-3);
+  font-weight: 500;
+}

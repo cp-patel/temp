@@ -1007,9 +1007,10 @@ async def handle(req) -> Result:
       title: "Multi-Turn State & Memory",
       subtitle:
         "The API is stateless, so conversation memory is entirely your design problem. Get the layering right and long conversations stay coherent and affordable.",
-      minutes: 20,
+      minutes: 22,
       difficulty: "intermediate",
       tags: ["state", "memory"],
+      lab: "convcost",
       objectives: [
         "Design the three-layer memory model",
         "Implement compaction that survives long sessions",
@@ -1018,7 +1019,12 @@ async def handle(req) -> Result:
       body: [
         {
           t: "p",
-          text: "Because there's no server-side conversation, 'memory' means: what do I put in the next request? Mature systems layer three kinds.",
+          text: "Because there's no server-side conversation, 'memory' means: what do I put in the next request? Before the strategies, it is worth seeing why the question has teeth — drag the length below and watch what a long chat actually bills.",
+        },
+        { t: "lab", id: "convcost" },
+        {
+          t: "p",
+          text: "That curve is the reason this chapter exists. Every technique below is an attempt to bend it: caching makes the resent history cheap, and compaction stops it growing at all. Mature systems layer three kinds of memory to do it.",
         },
         {
           t: "table",

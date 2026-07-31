@@ -4,7 +4,7 @@ An interactive, opinionated curriculum for becoming an **AI application
 engineer**: the person who ships products on top of models someone else trained,
 and can prove the result works.
 
-**44 chapters · 8 phases · 13 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
+**44 chapters · 8 phases · 14 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
 ~68,000 words · zero dependencies**
 
 It adapts to you. Tell it you're a backend engineer and it marks the ten chapters
@@ -78,7 +78,7 @@ number that nobody should believe.
 
 ### Interactive labs
 
-Thirteen labs, each making one idea manipulable rather than described.
+Fourteen labs, each making one idea manipulable rather than described.
 
 | Lab                          | Teaches                                                                      |
 | ---------------------------- | ---------------------------------------------------------------------------- |
@@ -95,6 +95,7 @@ Thirteen labs, each making one idea manipulable rather than described.
 | Eval scorecard & CI gate     | Confidence intervals, and why a 4-point move on 50 cases is noise            |
 | **Golden trajectory scorer** | Break an agent's route and watch which criteria catch it                     |
 | Prompt injection sandbox     | Which defences hold (delimiters don't; capability removal does)              |
+| **Conversation cost curve**  | Why a 20-turn chat bills quadratically, and what flattens it                 |
 
 Two labs use deliberate simplifications, stated in their own UI: the tokenizer
 approximates subword segmentation heuristically, and the retrieval lab's dense

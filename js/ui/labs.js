@@ -3370,6 +3370,254 @@
       update();
     },
   };
+  /* =========================================================
+     14. CONVERSATION COST CURVE
+
+     The chapters state that conversation cost grows with the square of the
+     length. Stating it is not the same as seeing it: the shape is the lesson,
+     and a curve makes "turn 20 pays for turns 1 through 19 again" land in a way
+     a sentence does not. This is also the motivation for every compaction
+     technique in the phase, so the reader should meet it before the techniques.
+     ========================================================= */
+
+  var CC = {
+    system: 1200, // stable prefix: instructions + tool defs
+    user: 60, // a short user message
+    reply: 220, // a typical assistant turn
+    inRate: 3.0, // $ per million input tokens
+    outRate: 15.0, // $ per million output tokens
+    cachedRate: 0.3, // cached input, ~90% off
+    compactAt: 10, // turns before history is summarised
+    compactTo: 400, // size of the summary
+  };
+
+  /* Cost of every turn in a conversation of `turns` under one strategy.
+     Returns per-turn rows so the chart and the table read from one source. */
+  function ccSeries(turns, mode) {
+    var rows = [];
+    var history = 0; // tokens of prior turns resent this turn
+    for (var t = 1; t <= turns; t++) {
+      var compacted = mode === "compact" && t > CC.compactAt ? true : false;
+      if (compacted && history > CC.compactTo) history = CC.compactTo;
+
+      var input = CC.system + history + CC.user;
+      // Everything except the new user message was sent identically last turn,
+      // so a provider cache can serve it. The first turn has nothing to hit.
+      var cacheable = mode === "naive" || t === 1 ? 0 : CC.system + history;
+      var fresh = input - cacheable;
+      var usd =
+        (fresh * CC.inRate +
+          cacheable * CC.cachedRate +
+          CC.reply * CC.outRate) /
+        1e6;
+
+      rows.push({ turn: t, input: input, cached: cacheable, usd: usd });
+      history += CC.user + CC.reply;
+    }
+    return rows;
+  }
+
+  L.convcost = {
+    title: "Conversation cost curve",
+    sub: "Watch what a 20-turn chat actually bills — and what flattens it.",
+    tag: "Lab",
+    icon: "dollar",
+    render: function (root) {
+      var mode = "naive";
+      var turns = 20;
+      var hover = null;
+
+      var grid = el("div", "lab__grid lab__grid--split");
+
+      /* ---- controls ---- */
+      var left = el("div", "lab__panel");
+      var modes = toggles(
+        [
+          { id: "naive", label: "No optimisation" },
+          { id: "cache", label: "Prompt caching" },
+          { id: "compact", label: "Caching + compaction" },
+        ],
+        "naive",
+        function (id) {
+          mode = id;
+          update();
+        }
+      );
+      var len = slider(
+        "Conversation length (turns)",
+        4,
+        40,
+        1,
+        turns,
+        "Every turn resends the whole history. The API keeps no state for you."
+      );
+      len.input.addEventListener("input", function () {
+        turns = +len.input.value;
+        update();
+      });
+      left.appendChild(modes);
+      var spacer = el("div");
+      spacer.style.height = "var(--s-4)";
+      left.appendChild(spacer);
+      left.appendChild(len);
+      var mm = metrics([
+        { k: "total", l: "Whole conversation", tone: "amber" },
+        { k: "last", l: "Final turn" },
+        { k: "mult", l: "Saved vs no optimisation" },
+      ]);
+      left.appendChild(mm);
+
+      /* ---- chart ---- */
+      var right = el("div", "lab__panel");
+      var chart = el("div", "ccurve");
+      chart.innerHTML =
+        '<div class="ccurve__head">' +
+        '<span class="ccurve__ylab">cumulative spend</span>' +
+        '<span class="ccurve__read" data-read></span>' +
+        "</div>" +
+        '<div class="ccurve__plot" data-plot></div>' +
+        '<div class="ccurve__xlab">turn 1 → turn <span data-last></span></div>';
+      var tableBtn = el("button", "btn btn--outline btn--sm");
+      tableBtn.type = "button";
+      tableBtn.style.marginTop = "var(--s-3)";
+      var table = el("div", "ccurve__table");
+      table.hidden = true;
+      var showTable = false;
+      tableBtn.onclick = function () {
+        showTable = !showTable;
+        table.hidden = !showTable;
+        tableBtn.innerHTML = showTable
+          ? "Hide the numbers"
+          : "Show the numbers";
+        update();
+      };
+      tableBtn.innerHTML = "Show the numbers";
+      right.appendChild(chart);
+      right.appendChild(tableBtn);
+      right.appendChild(table);
+
+      grid.appendChild(left);
+      grid.appendChild(right);
+      root.appendChild(grid);
+      root.appendChild(
+        foot(
+          "Rates are <b>illustrative</b> — substitute your provider's. Two things to try. " +
+            "First, drag the length: with no optimisation the bill grows with the " +
+            "<b>square</b> of the conversation, because turn 20 pays for turns 1–19 all " +
+            "over again. Second, switch on caching: the prefix was sent identically last " +
+            "turn, so it bills at roughly a tenth. Compaction then stops the prefix " +
+            "growing at all — at the cost of one cache miss when the summary replaces " +
+            "the history."
+        )
+      );
+
+      function fmt(usd) {
+        return usd < 0.01 ? "$" + usd.toFixed(4) : "$" + usd.toFixed(2);
+      }
+
+      function update() {
+        var rows = ccSeries(turns, mode);
+        /* Cumulative, not per-turn. Per-turn input grows linearly — one more
+           exchange resent each time — so plotting it draws a straight ramp and
+           the chapter's actual claim, that the *bill* grows with the square of
+           the length, never appears. The running total is the curve, and it is
+           also the number you are billed. */
+        var run = 0;
+        rows.forEach(function (r) {
+          run += r.usd;
+          r.cum = run;
+        });
+        var total = run;
+        var last = rows[rows.length - 1];
+
+        // What the same conversation would have cost with nothing switched on.
+        var naiveTotal = ccSeries(turns, "naive").reduce(function (a, r) {
+          return a + r.usd;
+        }, 0);
+
+        mm.set("total", fmt(total));
+        mm.set("last", fmt(last.usd));
+        mm.set(
+          "mult",
+          mode === "naive"
+            ? '<span class="metric__none">—</span>'
+            : Math.round((1 - total / naiveTotal) * 100) + "<small>%</small>"
+        );
+
+        var peak = total;
+        var plot = chart.querySelector("[data-plot]");
+        plot.innerHTML = "";
+        rows.forEach(function (r) {
+          var col = el("div", "ccol");
+          col.style.setProperty("--h", (r.cum / peak) * 100 + "%");
+          col.setAttribute(
+            "title",
+            "After turn " +
+              r.turn +
+              ": " +
+              fmt(r.cum) +
+              " spent (" +
+              U.commas(r.input) +
+              " input tokens this turn)"
+          );
+          col.onmouseenter = function () {
+            hover = r;
+            paintRead();
+          };
+          col.onmouseleave = function () {
+            hover = null;
+            paintRead();
+          };
+          plot.appendChild(col);
+        });
+        chart.querySelector("[data-last]").textContent = String(turns);
+
+        if (showTable) {
+          var html =
+            "<table><thead><tr><th>Turn</th><th>Input tokens</th>" +
+            "<th>Of which cached</th><th>This turn</th>" +
+            "<th>Running total</th></tr></thead><tbody>";
+          rows.forEach(function (r) {
+            html +=
+              "<tr><td>" +
+              r.turn +
+              "</td><td>" +
+              U.commas(r.input) +
+              "</td><td>" +
+              (r.cached ? U.commas(r.cached) : "—") +
+              "</td><td>" +
+              fmt(r.usd) +
+              "</td><td>" +
+              fmt(r.cum) +
+              "</td></tr>";
+          });
+          table.innerHTML = html + "</tbody></table>";
+        }
+
+        paintRead(rows, total);
+        L.touched("convcost");
+      }
+
+      function paintRead(rows, total) {
+        var read = chart.querySelector("[data-read]");
+        if (hover) {
+          read.innerHTML =
+            "after turn <b>" +
+            hover.turn +
+            "</b> · <b>" +
+            fmt(hover.cum) +
+            "</b> spent · " +
+            U.commas(hover.input) +
+            " tokens this turn";
+        } else {
+          read.innerHTML = "hover a turn";
+        }
+      }
+
+      update();
+    },
+  };
+
   /* ---------------- mount ---------------- */
 
   /* Labs record use from their update() function, which also runs once on
