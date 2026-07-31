@@ -346,6 +346,76 @@
   border-color: hsl(var(--hue-emerald) 66% 52% / 0.4);
 }
 
+/* Line count, for scale. Sits next to the language, before the copy button. */
+.codeblock__lines {
+  margin-left: auto;
+  padding-right: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: #7d8298;
+  flex: none;
+}
+
+/* .codeblock__copy already claims margin-left:auto to push right; once a line
+   count is present that job belongs to the count, or the two fight. */
+.codeblock__lines ~ .codeblock__copy {
+  margin-left: 0;
+}
+
+/* A long listing folds to a readable window. The fade says "there is more"
+   without needing a caption to explain the control. */
+/* overflow-y only. `overflow: hidden` would fold the block *and* kill the
+   horizontal scrolling that long lines rely on, so a wide line inside a folded
+   listing became unreachable. */
+.codeblock[data-long="1"]:not(.is-open) pre {
+  max-height: 27rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* The fade hangs off the top of the toggle rather than the bottom of the <pre>.
+   The <pre> scrolls horizontally, so an absolutely positioned child of it would
+   slide sideways with the code; anchoring to the button also guarantees the fade
+   ends exactly where the code does, whatever the fold height. */
+.codeblock[data-long="1"]:not(.is-open) .codeblock__more::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 5rem;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--code-bg));
+}
+
+.codeblock__more {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  width: 100%;
+  padding: 0.55rem;
+  font-size: var(--t-xs);
+  font-weight: 620;
+  color: #9ea3b8;
+  background: rgba(255, 255, 255, 0.035);
+  border: 0;
+  border-top: 1px solid var(--code-line);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.codeblock__more:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.codeblock__more svg {
+  width: 13px;
+  height: 13px;
+}
+
 .codeblock pre {
   margin: 0;
   padding: var(--s-4) var(--s-5);

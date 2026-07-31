@@ -390,6 +390,59 @@ async function main() {
     await rctx.close();
   }
 
+  /* ---------------- no code block is a wall ---------------- */
+  /* A listing taller than the viewport has no landmarks and no sense of how much
+     is left — twelve chapters had one, the worst at 65 lines and 1499px. Long
+     ones fold to a window with an explicit control. This also checks the full
+     text is still in the DOM while folded, since a fold that truncated the code
+     would break Copy and search. */
+  section("code blocks");
+  let walls = [];
+  let foldedButComplete = true;
+  for (const id of [
+    "agent-loop",
+    "agent-evals",
+    "llm-judge",
+    "streaming",
+    "observability",
+  ]) {
+    await go("#/chapter/" + id);
+    await page.waitForTimeout(200);
+    const r = await page.evaluate(() => {
+      const blocks = [...document.querySelectorAll(".codeblock")];
+      return {
+        tall: blocks
+          .map((e) => Math.round(e.getBoundingClientRect().height))
+          .filter((h) => h > 900),
+        folded: blocks.filter((e) => e.dataset.long === "1").length,
+        // does a folded block still hold every line of its source?
+        intact: blocks
+          .filter((e) => e.dataset.long === "1")
+          .every((e) => {
+            const claimed = parseInt(
+              (e.querySelector(".codeblock__lines") || {}).textContent || "0",
+              10
+            );
+            return (
+              e.querySelector("code").textContent.split("\n").length === claimed
+            );
+          }),
+      };
+    });
+    if (r.tall.length) walls.push(`${id}: ${r.tall.join("px, ")}px`);
+    if (r.folded && !r.intact) foldedButComplete = false;
+  }
+  check(
+    "no code block is taller than the viewport",
+    walls.length === 0,
+    walls.join("; ")
+  );
+  check(
+    "a folded code block still contains every line",
+    foldedButComplete,
+    "folding must not truncate the source"
+  );
+
   /* ---------------- scroll reveal never strands content ---------------- */
   /* Jump straight to the bottom of the longest page. Every revealable element
      must end up visible, including the ones the viewport skipped over — an

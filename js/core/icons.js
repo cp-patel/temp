@@ -129,6 +129,7 @@
       P +
       ' d="m13 13 4 4"/>',
     chevDown: "<path " + P + ' d="m5 7.5 5 5 5-5"/>',
+    chevUp: "<path " + P + ' d="m5 12.5 5-5 5 5"/>',
     chevRight: "<path " + P + ' d="m7.5 5 5 5-5 5"/>',
     chevLeft: "<path " + P + ' d="m12.5 5-5 5 5 5"/>',
     arrowRight: "<path " + P + ' d="M3.5 10h13M11.5 5l5 5-5 5"/>',

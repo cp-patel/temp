@@ -31,8 +31,19 @@
 
   /* ---------------- code block ---------------- */
 
+  /* Above this many lines a listing stops being an example and becomes a wall:
+     you cannot see it all at once, so there are no landmarks and no sense of how
+     much is left. Ten of the 73 listings here ran past a full viewport, the worst
+     at 65 lines. Those collapse to a readable window with an explicit control to
+     open them, which keeps the page navigable without hiding anything. */
+  var CODE_FOLD_LINES = 28;
+
   function codeBlock(b) {
     var wrap = el("div", "codeblock");
+    var lineCount = b.code.split("\n").length;
+    var long = lineCount > CODE_FOLD_LINES;
+    if (long) wrap.dataset.long = "1";
+
     var bar = el("div", "codeblock__bar");
     bar.innerHTML =
       '<span class="codeblock__lang">' +
@@ -40,6 +51,11 @@
       "</span>" +
       (b.caption
         ? '<span class="codeblock__cap">' + esc(b.caption) + "</span>"
+        : "") +
+      /* The count is here for scale rather than decoration: knowing a listing is
+         12 lines or 65 changes how you approach it. */
+      (lineCount > 10
+        ? '<span class="codeblock__lines">' + lineCount + " lines</span>"
         : "");
     var copy = el("button", "codeblock__copy");
     copy.type = "button";
@@ -63,6 +79,30 @@
 
     wrap.appendChild(bar);
     wrap.appendChild(pre);
+
+    if (long) {
+      var toggle = el("button", "codeblock__more");
+      toggle.type = "button";
+      var label = function () {
+        var open = wrap.classList.contains("is-open");
+        toggle.innerHTML =
+          Icons.get(open ? "chevUp" : "chevDown", 13) +
+          (open ? " Collapse" : " Show all " + lineCount + " lines");
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      };
+      toggle.onclick = function () {
+        wrap.classList.toggle("is-open");
+        label();
+        // Collapsing from below the fold would otherwise leave the reader
+        // stranded further down the page than where the block now ends.
+        if (!wrap.classList.contains("is-open")) {
+          var top = wrap.getBoundingClientRect().top;
+          if (top < 0) wrap.scrollIntoView({ block: "start" });
+        }
+      };
+      label();
+      wrap.appendChild(toggle);
+    }
     return wrap;
   }
 
