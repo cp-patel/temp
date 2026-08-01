@@ -148,6 +148,42 @@ wrong first:
    validator assert that invariant, because it is the difference between advice
    that agrees with the roadmap and advice that contradicts it.
 
+## Interview drills
+
+`js/content/interview.js` is the only surface that asks the learner to _produce_
+something rather than recognise it, and its whole design follows from one risk: the
+rubric is easy to read and agree with, and agreeing with it is not the same as having
+said it.
+
+So the sequence is enforced rather than suggested. The question renders alone; the
+rubric is **not in the DOM at all** before the reveal, because hiding it with CSS
+would leave it one inspection — or one screen reader — away. There is an e2e check on
+exactly that.
+
+The content bar is enforced too, and it is the unusual part of this module: a vague
+rubric line is a bug in the feature even though nothing throws. Both the validator
+and the unit tests reject a strong- or weak-point under 29 characters, with one
+exemption — a _quoted_ weak answer earns its brevity, because `"Yes, it went up"` is
+the entire failure and padding it would blunt it. Writing the bank, that rule caught
+nine lines like "No error contract" that named an absence without saying what goes
+wrong.
+
+Two decisions worth keeping:
+
+- **Drills do not feed the readiness score.** They are the only self-reported signal
+  in the app, which makes them the easiest to inflate, and that model's bands are
+  calibrated against a measured trajectory and documented in three places. Both the
+  validator and a unit test assert that rating every drill clean moves readiness by
+  exactly zero.
+- **XP is awarded on the first attempt only.** Repeats are the point of the ordering,
+  but paying per repeat would make the one action nobody can verify also the most
+  rewarding thing in the app.
+
+Ordering is deliberately not spaced repetition: unseen, then fumbled, then
+got-there, then clean, tie-broken by least-recently-seen. Twenty-eight items at three
+minutes each do not need a due-date model, and adding one would spend the complexity
+budget on a problem the sort order already solves.
+
 ## The portfolio export
 
 `js/content/portfolio.js` is the only part of this app whose output is meant to

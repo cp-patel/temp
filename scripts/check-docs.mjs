@@ -125,6 +125,7 @@ const metricFields = C.projects.reduce((n, p) => n + p.metrics.length, 0);
 const claimBand = (C.readinessBands || []).filter((b) => b.claim)[0];
 
 const TRUTH = {
+  drills: C.drills.length,
   metricFields,
   competencies: C.competencies.length,
   readOnlyScore,
@@ -218,6 +219,8 @@ const RULES = [
   ["README.md", /(\d+)% after Evaluation/, "bandEvals"],
   ["README.md", /(\d+)% after Production/, "bandProduction"],
   ["README.md", /(\d+) fields across the six projects/, "metricFields"],
+  ["README.md", /(\d+) interview drills/, "drills"],
+  ["README.md", /(\d+) questions from real AI engineering loops/, "drills"],
 ];
 
 /* Every row of the competency table, against the weight it claims. A share that

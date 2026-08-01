@@ -2825,3 +2825,403 @@
   /* Long stack strings and URLs must wrap rather than scroll the page sideways. */
   overflow-wrap: break-word;
 }
+
+/* ============================================================
+   Interview drills
+
+   The layout enforces the sequence: question, then clock, then rubric. Showing the
+   rubric alongside the question would make the whole thing a reading exercise,
+   which is the failure mode this feature exists to avoid.
+   ============================================================ */
+
+.drillpick {
+  gap: var(--s-2);
+  margin-bottom: var(--s-6);
+}
+
+.drillchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-1);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 32px;
+  transition:
+    border-color var(--dur) var(--ease-out),
+    background var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out);
+}
+
+.drillchip:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.drillchip.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink-inv);
+}
+
+.drillchip__n {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+.drillchip.is-on .drillchip__n {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.drill {
+  padding: var(--s-6);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.drill__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+/* The question is the largest text on the page on purpose: it is the only thing
+   you should be looking at while the clock runs. */
+.drill__q {
+  font-size: var(--t-lg);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink);
+  /* 0.525em per character — `ch` is the advance width of "0" and runs ~24% wide. */
+  max-width: 38em;
+  margin-bottom: var(--s-3);
+}
+
+/* Flex, not a plain paragraph: the leading icon is an inline SVG with its own
+   line box, so in flow it dropped the text onto a second line. */
+.drill__kindhint {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  line-height: 1.55;
+  max-width: 42em;
+}
+
+.drill__kindhint svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.drill__took {
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+}
+
+.drill__clock {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-top: var(--s-5);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line-faint);
+}
+
+.drill__t {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+/* Over the target time, without alarm: running long is information, not a
+   failure, and a red flashing clock would push people to stop mid-sentence. */
+.drill__t.is-over {
+  color: var(--amber);
+}
+
+.drill__budget {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.drill__body {
+  margin-top: var(--s-6);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--line);
+}
+
+.drill__probe,
+.drill__follow {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.drill__probe svg,
+.drill__follow svg {
+  flex: none;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+.drill__probe b,
+.drill__follow b {
+  color: var(--ink);
+}
+
+.drill__cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+  margin: var(--s-5) 0;
+}
+
+@media (max-width: 760px) {
+  .drill__cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.drillcol {
+  padding: var(--s-5);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+/* Colour carries the distinction, but so does the icon and the heading text —
+   "A strong answer says" versus "A weak answer says" is legible with no colour at
+   all, which is the requirement. */
+.drillcol--good {
+  border-color: hsl(var(--hue-emerald) 70% 50% / 0.3);
+}
+
+.drillcol--bad {
+  border-color: hsl(var(--hue-rose) 75% 55% / 0.28);
+}
+
+.drillcol__h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: var(--s-4);
+}
+
+.drillcol--good .drillcol__h {
+  color: var(--emerald);
+}
+
+.drillcol--bad .drillcol__h {
+  color: var(--rose);
+}
+
+.drillcol__l {
+  margin: 0;
+  padding-left: 1.1em;
+  display: grid;
+  gap: var(--s-3);
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.drillcol__l li::marker {
+  color: var(--ink-3);
+}
+
+.drill__ch {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: var(--t-xs);
+  transition: border-color var(--dur) var(--ease-out);
+}
+
+.drill__ch:hover {
+  border-color: var(--accent-line);
+}
+
+.drill__ch span {
+  flex: 1;
+}
+
+.drill__ch b {
+  color: var(--ink);
+}
+
+.drill__ch svg:last-child {
+  color: var(--ink-3);
+}
+
+.drill__rate {
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+
+.drill__ratehint {
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  line-height: 1.55;
+  max-width: 42em;
+  margin-bottom: var(--s-4);
+}
+
+.drill__ratehint b,
+.drill__ratehint i {
+  color: var(--ink-1);
+}
+
+.drill__rates {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+@media (max-width: 680px) {
+  .drill__rates {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ratebtn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  text-align: left;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.ratebtn:hover {
+  transform: translateY(-1px);
+}
+
+.ratebtn--0:hover {
+  border-color: var(--rose);
+}
+
+.ratebtn--1:hover {
+  border-color: var(--amber);
+}
+
+.ratebtn--2:hover {
+  border-color: var(--emerald);
+}
+
+.ratebtn__ic {
+  flex: none;
+  margin-top: 1px;
+  color: var(--ink-3);
+}
+
+.ratebtn--0 .ratebtn__ic {
+  color: var(--rose);
+}
+
+.ratebtn--1 .ratebtn__ic {
+  color: var(--amber);
+}
+
+.ratebtn--2 .ratebtn__ic {
+  color: var(--emerald);
+}
+
+.ratebtn__t {
+  display: block;
+  font-size: var(--t-sm);
+  font-weight: 640;
+  color: var(--ink);
+}
+
+.ratebtn__h {
+  display: block;
+  font-size: 0.66rem;
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin-top: 3px;
+}
+
+.drill__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-top: var(--s-6);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line-faint);
+}
+
+.drill__pos {
+  font-size: var(--t-xs);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The link from a readiness gap to the drills that close it. */
+.rdrow__drill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: var(--s-3);
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 1px;
+}
+
+.rdrow__drill:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.rdrow__drill svg {
+  color: var(--ink-3);
+}
+
+.rdrow__drill:hover svg {
+  color: var(--accent);
+}

@@ -723,6 +723,174 @@ if (C.competencies) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Interview drills
+ * ------------------------------------------------------------------ *
+ * The rubric is the product here, not the question. A vague strong-point is a bug
+ * in this feature even though nothing throws: the whole mechanism is that you can
+ * check what you said against something specific, and "No error contract" is not
+ * something you can check an answer against.
+ */
+if (C.drills) {
+  const drillIds = new Set();
+  const kindIds = new Set((C.drillKinds || []).map((k) => k.id));
+  const compIds = new Set((C.competencies || []).map((k) => k.id));
+  const phasesOf = {};
+  (C.competencies || []).forEach((k) => {
+    phasesOf[k.id] = new Set(k.phases);
+  });
+  const chapterPhase = {};
+  C.chapters.forEach((c) => {
+    chapterPhase[c.id] = c.phase;
+  });
+  const byComp = {};
+  const kindsUsed = new Set();
+
+  C.drills.forEach((d, i) => {
+    const w = `drills[${i}] "${d.id || ""}"`;
+    for (const f of [
+      "id",
+      "competency",
+      "ch",
+      "kind",
+      "minutes",
+      "q",
+      "probe",
+      "strong",
+      "weak",
+      "follow",
+    ]) {
+      if (d[f] === undefined) err(w, `missing "${f}"`);
+    }
+    if (drillIds.has(d.id)) err(w, "duplicate drill id");
+    drillIds.add(d.id);
+    if (!/^[a-z0-9-]+$/.test(d.id || "")) err(w, "id must be kebab-case");
+
+    if (!compIds.has(d.competency)) {
+      err(w, `unknown competency "${d.competency}"`);
+    } else {
+      byComp[d.competency] = (byComp[d.competency] || 0) + 1;
+    }
+    if (!kindIds.has(d.kind)) err(w, `unknown kind "${d.kind}"`);
+    else kindsUsed.add(d.kind);
+
+    if (!chapterIds.has(d.ch)) {
+      err(w, `references unknown chapter "${d.ch}"`);
+    } else if (
+      compIds.has(d.competency) &&
+      !phasesOf[d.competency].has(chapterPhase[d.ch])
+    ) {
+      /* Otherwise the "Prepared by" link sends the learner to material that does
+         not cover the question they just failed. */
+      err(
+        w,
+        `chapter "${d.ch}" is in phase "${chapterPhase[d.ch]}", outside competency "${d.competency}"`
+      );
+    }
+
+    if (typeof d.minutes !== "number" || d.minutes < 2 || d.minutes > 6) {
+      err(w, `minutes looks wrong for a spoken answer: ${d.minutes}`);
+    }
+    if ((d.q || "").length < 25) err(w, "question is too bare to answer");
+    if (!/[?.]$/.test((d.q || "").trim())) {
+      warn(w, "question does not end in a question mark or full stop");
+    }
+    if (!/\?$/.test((d.follow || "").trim())) {
+      warn(w, "follow-up is not phrased as a question");
+    }
+    if ((d.probe || "").length < 40) {
+      warn(w, "probe note is thin — it is what makes the rubric legible");
+    }
+    if ((d.strong || []).length < 3) {
+      err(
+        w,
+        `${(d.strong || []).length} strong points — not enough to self-mark`
+      );
+    }
+    if ((d.weak || []).length < 2) {
+      err(w, `${(d.weak || []).length} weak points`);
+    }
+    /* A bare question has to be carried by its rubric. */
+    if ((d.q || "").length < 45 && (d.strong || []).length < 4) {
+      warn(w, "a terse question with a thin rubric gives the learner nothing");
+    }
+    (d.strong || []).concat(d.weak || []).forEach((t) => {
+      /* A quoted weak answer earns its brevity — "Yes, it went up" is the entire
+         failure. Everything else has to be checkable. */
+      const quoted = /^["\u201c]/.test((t || "").trim());
+      if (!quoted && (t || "").length <= 28) {
+        err(w, `rubric line "${t}" is too vague to self-mark against`);
+      }
+    });
+  });
+
+  (C.competencies || []).forEach((k) => {
+    if ((byComp[k.id] || 0) < 3) {
+      err("drills", `competency "${k.id}" has ${byComp[k.id] || 0} drills`);
+    }
+  });
+  const counts = Object.values(byComp);
+  if (counts.length && Math.max(...counts) > Math.min(...counts) * 2) {
+    warn(
+      "drills",
+      `uneven spread across competencies: ${Math.min(...counts)}–${Math.max(...counts)}`
+    );
+  }
+  (C.drillKinds || []).forEach((k) => {
+    if (!kindsUsed.has(k.id))
+      warn("drillKinds", `"${k.id}" is defined but unused`);
+  });
+  if (C.drills.filter((d) => d.kind === "behavioural").length < 2) {
+    warn("drills", "the behavioural round is barely represented");
+  }
+
+  /* Selection, at both ends. */
+  if (C.drillQueue) {
+    const fresh = C.drillQueue("all", {});
+    if (fresh.length !== C.drills.length) {
+      err(
+        "drillQueue",
+        `a fresh queue has ${fresh.length} of ${C.drills.length}`
+      );
+    }
+    if (fresh.some((x) => x.seen)) {
+      err("drillQueue", "a fresh queue reports drills as seen");
+    }
+    if (C.drillsFor("not-a-competency").length) {
+      err("drillsFor", "an unknown competency returns drills");
+    }
+    /* Rated clean, everything should sink below anything unseen. */
+    const st = { drills: {} };
+    st.drills[C.drills[0].id] = { seen: 1, rating: 2, at: 1 };
+    const after = C.drillQueue("all", st);
+    if (after[after.length - 1].drill.id !== C.drills[0].id) {
+      err("drillQueue", "a drill rated clean did not sink to the back");
+    }
+  }
+
+  /* Drills must not reach the readiness score: it is the only self-reported signal
+     in the app, and the model's bands are calibrated and documented. */
+  if (C.readinessFor) {
+    const base = C.readinessFor({}).overall;
+    const withDrills = {
+      done: {},
+      quiz: {},
+      labs: {},
+      projectTasks: {},
+      drills: {},
+    };
+    C.drills.forEach((d) => {
+      withDrills.drills[d.id] = { seen: 1, rating: 2, at: 1 };
+    });
+    if (C.readinessFor(withDrills).overall !== base) {
+      err(
+        "readinessFor",
+        "self-reported drill ratings moved the readiness score"
+      );
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Portfolio metrics
  * ------------------------------------------------------------------ *
  * The export is the only output of this app that a stranger reads with a hiring

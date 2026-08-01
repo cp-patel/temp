@@ -5,7 +5,7 @@ engineer**: the person who ships products on top of models someone else trained,
 and can prove the result works.
 
 **44 chapters · 8 phases · 17 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
-~73,000 words · zero dependencies**
+28 interview drills · ~73,000 words · zero dependencies**
 
 It adapts to you. Tell it you're a backend engineer and it marks the nine chapters
 you can skim — each with a note on exactly what _is_ new in it — and builds a
@@ -191,6 +191,58 @@ minutes, so a 25-minute budget fits exactly one and leaves an awkward remainder;
 packing that with a third of the next chapter loses the thread, and reporting
 eleven idle minutes wastes them. So there is a **stretch item** — one named
 chapter, offered rather than scheduled, and never counted in the total.
+
+### Interview drills
+
+The app can tell you that you know something. It could not tell you whether you can
+**say** it — and explaining hybrid search to a skeptical staff engineer who
+interrupts you at ninety seconds is a different skill from understanding hybrid
+search. It is also the skill that decides the loop.
+
+28 questions from real AI engineering loops, four per competency, across five
+question shapes (system design, deep dive, trade-off, debugging, behavioural) —
+because answering a trade-off question with a system design is a common way to lose
+a round while sounding knowledgeable.
+
+The sequence is the feature. Question first and alone; a clock, with the time a real
+answer takes; then, only once you say you have answered, the rubric:
+
+> **A feature sends a 4,000-token system prompt and a 200-token user message, and
+> gets back 600 tokens. It runs 50,000 times a day. Talk me through the monthly bill
+> and where you would attack it.**
+>
+> _What they are checking._ Whether you can do unit economics out loud. Most
+> candidates have never multiplied it out, and it shows within one sentence.
+>
+> **A strong answer says** · separates input from output pricing · multiplies it out
+> and says the arithmetic · spots that the system prompt is 87% of input · knows
+> caching needs a byte-identical prefix, so prompt layout is a cost decision
+>
+> **A weak answer says** · "It depends on the model" — and then stops · talks about
+> output tokens first because they cost more per token, missing that there are far
+> fewer of them
+>
+> _They will follow up with:_ Now the system prompt has a timestamp in it. What
+> breaks?
+
+**This is not flashcards, and the difference matters.** A card checks recall of a
+fact, and the answer is short enough that self-marking is honest. A drill asks for a
+structured argument under time pressure, where the failure mode is self-flattery —
+you read the model answer, recognise every part of it, and conclude you would have
+said it. So the rubric is the product, not the question: named things a strong answer
+_contains_, named things a weak answer _actually says_. You can lie to yourself about
+"did I know that". It is much harder to lie about "did I say the words `recall@5` out
+loud".
+
+Rate yourself on what you **said** — fumbled, got there, clean. Anything you mark
+fumbled returns to the front of the queue; anything you mark clean sinks to the back.
+Each readiness gap links straight to the drills for that competency.
+
+Drills **deliberately do not feed the readiness score.** That model is calibrated
+against a measured trajectory and its bands are documented; adding a self-reported
+signal would move every number in it and put the least reliable input on the same
+footing as a measured one. There is a test asserting that rating all 28 clean moves
+readiness by zero.
 
 ### Portfolio export
 

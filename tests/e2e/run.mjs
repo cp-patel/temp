@@ -2163,6 +2163,259 @@ async function main() {
     await pctx.close();
   }
 
+  /* ---------------- interview drills ---------------- */
+  /* The sequence is the feature: question, clock, then rubric. Showing the rubric
+     alongside the question would turn the whole thing into a reading exercise,
+     which is precisely the failure it exists to prevent. */
+  section("interview drills");
+  {
+    const ictx = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      colorScheme: "dark",
+    });
+    const ip = await ictx.newPage();
+    ip.on("pageerror", (e) => errors.push(`drills pageerror: ${e.message}`));
+    ip.on("console", (m) => {
+      if (m.type() === "error") errors.push(`drills console: ${m.text()}`);
+    });
+    await ip.goto(BASE + "#/interview", { waitUntil: "networkidle" });
+    await ip.evaluate(() => Store.skipOnboarding());
+    await ip.waitForTimeout(500);
+
+    const start = await ip.evaluate(() => ({
+      chips: document.querySelectorAll(".drillchip").length,
+      comps: window.Curriculum.competencies.length,
+      question: (document.querySelector(".drill__q") || {}).innerText || "",
+      /* Nothing from the rubric may be in the DOM before the reveal. Hiding it with
+         CSS would leave it one devtools inspection — or one screen reader — away. */
+      rubric: document.querySelectorAll(".drillcol").length,
+      rates: document.querySelectorAll(".ratebtn").length,
+      probe: document.querySelectorAll(".drill__probe").length,
+      follow: document.querySelectorAll(".drill__follow").length,
+      clock: (document.querySelector(".drill__t") || {}).innerText || "",
+      pos: (document.querySelector(".drill__pos") || {}).innerText || "",
+      total: window.Curriculum.drills.length,
+    }));
+    check(
+      "one chip per competency plus an everything chip",
+      start.chips === start.comps + 1,
+      JSON.stringify({ chips: start.chips, comps: start.comps })
+    );
+    check(
+      "the question is shown and the rubric is not in the document at all",
+      start.question.length > 30 &&
+        start.rubric === 0 &&
+        start.rates === 0 &&
+        start.probe === 0 &&
+        start.follow === 0,
+      JSON.stringify(start)
+    );
+    check(
+      "the clock starts at zero and the position is 1 of the bank",
+      start.clock === "0:00" && start.pos === "1 of " + start.total,
+      JSON.stringify({ clock: start.clock, pos: start.pos })
+    );
+
+    /* The clock has to actually run — a timer that renders and never ticks makes
+       the pressure fictional. */
+    await ip.locator('.drill button:has-text("Start answering")').click();
+    await ip.waitForTimeout(2400);
+    const ran = await ip.evaluate(
+      () => (document.querySelector(".drill__t") || {}).innerText
+    );
+    check(
+      "the clock ticks once started",
+      ran !== "0:00" && /^\d+:\d\d$/.test(ran),
+      ran
+    );
+
+    await ip.locator('.drill button:has-text("show the rubric")').click();
+    await ip.waitForTimeout(400);
+    const shown = await ip.evaluate(() => {
+      const first = window.Curriculum.drillQueue("all", Store.drillState())[0]
+        .drill;
+      const good = [...document.querySelectorAll(".drillcol--good li")].map(
+        (n) => n.innerText.trim()
+      );
+      const bad = [...document.querySelectorAll(".drillcol--bad li")].map((n) =>
+        n.innerText.trim()
+      );
+      return {
+        strong: good.length,
+        weak: bad.length,
+        wantStrong: first.strong.length,
+        wantWeak: first.weak.length,
+        rates: document.querySelectorAll(".ratebtn").length,
+        probe: document.querySelectorAll(".drill__probe").length,
+        follow: document.querySelectorAll(".drill__follow").length,
+        chLink: (document.querySelector(".drill__ch") || {}).getAttribute?.(
+          "href"
+        ),
+        wantCh: "#/chapter/" + first.ch,
+        /* Whether the clock still offers to run is checked just below, with a
+           text scan — `:has-text()` is a Playwright locator pseudo-class and
+           throws inside querySelectorAll. */
+      };
+    });
+    check(
+      "revealing shows the full rubric, both columns, with the probe and follow-up",
+      shown.strong === shown.wantStrong &&
+        shown.weak === shown.wantWeak &&
+        shown.strong >= 3 &&
+        shown.probe === 1 &&
+        shown.follow === 1 &&
+        shown.rates === 3,
+      JSON.stringify(shown)
+    );
+    check(
+      "and links back to the chapter that prepares the question",
+      shown.chLink === shown.wantCh,
+      JSON.stringify({ got: shown.chLink, want: shown.wantCh })
+    );
+
+    const noResume = await ip.evaluate(
+      () =>
+        ![...document.querySelectorAll(".drill button")].some((b) =>
+          /Resume|Pause|Start answering/.test(b.innerText)
+        )
+    );
+    check(
+      "the clock stops offering to run once the rubric is out",
+      noResume,
+      "a start/resume control survived the reveal"
+    );
+
+    /* Rating advances, records, and pays once. */
+    const rated = await ip.evaluate(() => {
+      const before = Store.state().xp;
+      const first = window.Curriculum.drillQueue("all", Store.drillState())[0]
+        .drill.id;
+      return { before, first };
+    });
+    await ip.locator(".ratebtn--0").click();
+    await ip.waitForTimeout(400);
+    const advanced = await ip.evaluate(
+      (r) => ({
+        xpGained: Store.state().xp - r.before,
+        rec: Store.state().drills[r.first],
+        pos: (document.querySelector(".drill__pos") || {}).innerText,
+        rubricGone: document.querySelectorAll(".drillcol").length === 0,
+        clock: (document.querySelector(".drill__t") || {}).innerText,
+        chip: (document.querySelector(".drillchip.is-on .drillchip__n") || {})
+          .innerText,
+      }),
+      rated
+    );
+    check(
+      "rating records the attempt, awards XP and advances to the next question",
+      advanced.xpGained > 0 &&
+        advanced.rec &&
+        advanced.rec.rating === 0 &&
+        advanced.rec.seen === 1 &&
+        advanced.pos.startsWith("2 of ") &&
+        advanced.rubricGone &&
+        advanced.clock === "0:00",
+      JSON.stringify(advanced)
+    );
+    check(
+      "the competency chip counts the attempt",
+      advanced.chip === "1/" + start.total,
+      String(advanced.chip)
+    );
+
+    /* Filtering scopes the queue, and the counts on the chips are per competency. */
+    const scoped = await ip.evaluate(() => {
+      const k = window.Curriculum.competencies[0];
+      return {
+        id: k.id,
+        short: k.short,
+        n: window.Curriculum.drillsFor(k.id).length,
+      };
+    });
+    await ip.locator(`.drillchip:has-text("${scoped.short}")`).first().click();
+    await ip.waitForTimeout(300);
+    const inScope = await ip.evaluate((s) => {
+      const q = window.Curriculum.drillQueue(s.id, Store.drillState());
+      return {
+        pos: (document.querySelector(".drill__pos") || {}).innerText,
+        want: "1 of " + s.n + " in " + s.short,
+        shownQ: (document.querySelector(".drill__q") || {}).innerText,
+        wantQ: q[0].drill.q,
+      };
+    }, scoped);
+    check(
+      "picking a competency scopes the queue to it",
+      inScope.pos === inScope.want && inScope.shownQ === inScope.wantQ,
+      JSON.stringify(inScope)
+    );
+
+    /* A fumbled drill must come back before a clean one, or the ordering claim is
+       decoration. */
+    const order = await ip.evaluate(() => {
+      const C = window.Curriculum;
+      const ds = C.drillsFor("retrieval");
+      Store.rateDrill(ds[0].id, 2);
+      Store.rateDrill(ds[1].id, 0);
+      const q = C.drillQueue("retrieval", Store.drillState()).map(
+        (x) => x.drill.id
+      );
+      return { q, clean: ds[0].id, fumbled: ds[1].id };
+    });
+    check(
+      "a fumbled drill outranks a clean one in the queue",
+      order.q.indexOf(order.fumbled) < order.q.indexOf(order.clean) &&
+        order.q[order.q.length - 1] === order.clean,
+      JSON.stringify(order)
+    );
+
+    /* The readiness page is where a gap is diagnosed; it has to link to the place
+       you do something about it. */
+    await visit(ip, BASE + "#/readiness");
+    await ip.waitForTimeout(500);
+    const links = await ip.evaluate(() => {
+      const rows = [...document.querySelectorAll(".rdrow")];
+      return {
+        rows: rows.length,
+        drillLinks: document.querySelectorAll(".rdrow__drill").length,
+        hrefs: [
+          ...new Set(
+            [...document.querySelectorAll(".rdrow__drill")].map((a) =>
+              a.getAttribute("href")
+            )
+          ),
+        ],
+        counted: [...document.querySelectorAll(".rdrow__drill")].filter((a) =>
+          /\d+\/\d+ drills/.test(a.innerText)
+        ).length,
+      };
+    });
+    check(
+      "every readiness row links to the drills for that competency",
+      links.drillLinks === links.rows &&
+        links.rows === 7 &&
+        links.hrefs.length === 1 &&
+        links.hrefs[0] === "#/interview" &&
+        links.counted === links.rows,
+      JSON.stringify(links)
+    );
+
+    /* Leaving mid-drill must not leave an interval running against a detached
+       DOM — the classic single-page leak, and it would keep firing forever. */
+    await visit(ip, BASE + "#/interview");
+    await ip.waitForTimeout(400);
+    await ip.locator('.drill button:has-text("Start answering")').click();
+    await ip.waitForTimeout(1200);
+    await visit(ip, BASE + "#/dashboard");
+    await ip.waitForTimeout(1500);
+    check(
+      "navigating away mid-drill leaves no timer running",
+      await ip.evaluate(() => !document.querySelector(".drill")),
+      "the drill survived navigation"
+    );
+
+    await ictx.close();
+  }
+
   /* ---------------- every link and control, activated ---------------- */
   /* The contents-link bug survived twenty iterations because the suite asserted a
      table of contents *exists* without ever activating a link in it. These two

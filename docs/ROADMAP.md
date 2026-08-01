@@ -18,6 +18,7 @@ Written so the next change doesn't have to rediscover the reasoning.
 | Diagnostic      | 7 weighted competencies, 4-part scoring, ranked next actions          |
 | Planning        | Week-by-week schedule, plus a per-session planner from 10 to 90 min   |
 | Output          | Markdown portfolio export, 28 prompted measures across 6 projects     |
+| Rehearsal       | 28 interview drills, 5 question shapes, rubric-based self-marking     |
 | Reference       | 52-term glossary, 91 external resources                               |
 | Tooling         | Validator, unit + e2e suites, docs check, scaffolder, CI              |
 | Deployment      | Static; GitHub Pages workflow included; runs from `file://`           |
@@ -132,10 +133,19 @@ the backend is present; it doesn't stop working when it isn't.
 - **Search over chapter bodies**, not just titles and subtitles. The command
   palette currently misses content buried in prose. This is also the natural
   first consumer of the retrieval backend above.
-- **Portfolio export.** The readiness diagnostic knows which milestones are done;
-  what it cannot produce yet is the artefact — a Markdown write-up of the projects
-  with their numbers, ready to paste into a README or a post. That is the second
-  half of "prove the result works", and the milestone data for it already exists.
+- **Chapter notes in the export.** The portfolio assembles project evidence; the
+  per-chapter notes are still trapped in `localStorage` with no way out but the JSON
+  dump. `U.download` and the export machinery are both in place now, so this is a
+  small addition rather than a feature.
+- **More drills, and a mock loop.** 28 drills is four per competency — enough to
+  rehearse, not enough to avoid memorising them. The natural next step is a "full
+  loop" mode: five drills drawn across competencies in the order a real onsite runs
+  them, timed end to end, with no reveal until the whole loop is done.
+- **Drills as a readiness signal, if it can be earned.** They are excluded today
+  because self-reporting is the easiest input to inflate. A version where the learner
+  types their answer before seeing the rubric would be checkable enough to count —
+  and would need the readiness bands recalibrated, which is why it is a separate
+  piece of work rather than a flag.
 - **Session planner deep links.** The planner names the items; it cannot yet hand
   you a single URL that walks them in order. Related to the lab deep-links above,
   and the natural way to make a plan resumable across devices once there is a sync

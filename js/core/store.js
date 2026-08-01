@@ -19,6 +19,10 @@
        state here that is prose rather than a tick, because it is the only state
        whose purpose is to leave the browser. */
     evidence: {}, // projectId -> { metrics: {key: string}, notes: string }
+    /* Interview drills. Deliberately separate from `progress` and deliberately not
+       an input to the readiness score: it is the only self-reported signal in the
+       app, which makes it the easiest one to inflate. */
+    drills: {}, // drillId -> { seen: n, rating: 0|1|2, at: epochDay }
     xp: 0,
     days: {}, // 'YYYY-MM-DD' -> xp earned that day
     streak: { n: 0, last: null, best: 0 },
@@ -50,6 +54,7 @@
     card: 3,
     task: 15,
     lab: 10,
+    drill: 8,
   };
 
   var state = load();
@@ -117,6 +122,19 @@
         if (typeof rec.metrics[k] !== "string") delete rec.metrics[k];
       });
       if (typeof rec.notes !== "string") rec.notes = "";
+    });
+    Object.keys(out.drills).forEach(function (id) {
+      var rec = out.drills[id];
+      if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
+        delete out.drills[id];
+        return;
+      }
+      rec.seen = typeof rec.seen === "number" && rec.seen > 0 ? rec.seen : 1;
+      rec.rating =
+        rec.rating === 0 || rec.rating === 1 || rec.rating === 2
+          ? rec.rating
+          : 1;
+      rec.at = typeof rec.at === "number" && rec.at >= 0 ? rec.at : 0;
     });
     if (out.profile !== null && typeof out.profile === "object") {
       if (!Array.isArray(out.profile.skills)) out.profile.skills = [];
@@ -402,6 +420,32 @@
       }).length,
       notes: (rec.notes || "").trim().length,
     };
+  };
+
+  /* ---- interview drills ---- */
+
+  /* XP for a drill is flat and small, and awarded on the first attempt only. It is
+     the one action here nobody can verify, so paying per repeat would make the
+     cheapest thing in the app also the most rewarding. */
+  S.rateDrill = function (id, rating) {
+    var rec = state.drills[id];
+    var first = !rec;
+    if (!rec) rec = state.drills[id] = { seen: 0, rating: 1, at: 0 };
+    rec.seen++;
+    rec.rating = rating === 0 || rating === 1 || rating === 2 ? rating : 1;
+    rec.at = U.epochDay();
+    if (first) award(XP.drill, "Interview drill");
+    else save();
+    return rec;
+  };
+
+  S.drillState = function () {
+    return { drills: clone(state.drills) };
+  };
+
+  S.drillStats = function (competencyId) {
+    if (!global.Curriculum || !global.Curriculum.drillStats) return null;
+    return global.Curriculum.drillStats(competencyId, S.drillState());
   };
 
   S.portfolio = function () {

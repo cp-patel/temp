@@ -118,6 +118,7 @@
     { href: "#/library", icon: "grid", label: "Library" },
     { href: "#/labs", icon: "beaker", label: "Labs" },
     { href: "#/review", icon: "cards", label: "Review" },
+    { href: "#/interview", icon: "chat", label: "Interview" },
     { href: "#/projects", icon: "hammer", label: "Projects" },
     { href: "#/glossary", icon: "book", label: "Glossary" },
     { href: "#/settings", icon: "settings", label: "Settings" },
@@ -339,6 +340,7 @@
         library: "Library",
         labs: "Labs",
         review: "Review",
+        interview: "Interview drills",
         projects: "Projects",
         glossary: "Glossary",
         settings: "Settings",
@@ -461,6 +463,7 @@
     { t: "Open my personalised plan", icon: "compass", go: "#/plan" },
     { t: "Open the roadmap", icon: "map", go: "#/roadmap" },
     { t: "Check my interview readiness", icon: "gauge", go: "#/readiness" },
+    { t: "Rehearse interview questions", icon: "chat", go: "#/interview" },
     /* The library had no command either — it is reachable from the sidebar, but
        the palette is meant to be the complete index of where you can go. */
     { t: "Browse the chapter library", icon: "grid", go: "#/library" },
@@ -681,6 +684,7 @@
     "/library": { name: "library", render: Views.library },
     "/labs": { name: "labs", render: Views.labs },
     "/review": { name: "review", render: Views.review },
+    "/interview": { name: "interview", render: Views.interview },
     "/projects": { name: "projects", render: Views.projects },
     "/glossary": { name: "glossary", render: Views.glossary },
     "/settings": { name: "settings", render: Views.settings },
@@ -722,6 +726,10 @@
     roadmap: ".page-head, .rm__legend, .phase",
     readiness:
       ".page-head, .rdhero, .rdscale, .rdnext, .sec-head, .rdrow, .rdfoot",
+    /* Not .drill: the card is replaced on every rating and every skip, and a
+       reveal animation on each replacement reads as a page flicker rather than an
+       entrance. */
+    interview: ".page-head, .drillpick",
     library: ".page-head, .filters, .libcard",
     labs: ".page-head, .lab",
     projects: ".page-head, .proj",

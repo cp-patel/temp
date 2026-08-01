@@ -1905,6 +1905,25 @@
         "</span></div>" +
         U.bar(c.score, { cls: "bar--tall", style: "margin-top:7px" }) +
         "</div></div>" +
+        /* The gap is diagnosed here; the rehearsal is where you do something about
+           it. Without the link the two surfaces never meet, and a learner told
+           "Evaluation 55%" has to go and find the drills themselves. */
+        (Store.drillStats
+          ? (function () {
+              var ds = Store.drillStats(c.id);
+              return (
+                '<a class="rdrow__drill" href="#/interview">' +
+                Icons.get("chat", 13) +
+                " Rehearse · " +
+                ds.attempted +
+                "/" +
+                ds.total +
+                " drills" +
+                (ds.weak ? " · " + ds.weak + " fumbled" : "") +
+                "</a>"
+              );
+            })()
+          : "") +
         '<p class="rdrow__probes">' +
         esc(c.probes) +
         "</p>" +
@@ -1933,6 +1952,341 @@
       "not a prediction — no diagnostic knows the panel you get. Treat a gap as " +
       "a thing to go and build, not a thing to go and revise.</span>";
     root.appendChild(foot);
+  };
+
+  /* =========================================================
+     INTERVIEW DRILLS
+
+     The one activity here that asks you to produce something rather than
+     recognise it. Everything about the layout follows from a single risk: the
+     rubric is easy to read and agree with, and agreeing with it is not the same as
+     having said it. So the question comes first and alone, the timer runs before
+     anything else is visible, and the rubric only appears once you have committed
+     to having answered.
+     ========================================================= */
+
+  var RATING_ICON = { 0: "xCircle", 1: "checkCircle", 2: "trophy" };
+
+  V.interview = function (root) {
+    var scope = "all";
+    var idx = 0;
+    var revealed = false;
+    var elapsed = 0;
+    var ticking = null;
+
+    var head = el("div", "page-head");
+    head.innerHTML =
+      '<div class="u-eyebrow">Rehearsal</div><h1>Interview drills</h1>' +
+      "<p>" +
+      C.drills.length +
+      " questions from real AI engineering loops. Answer each one <b>out loud</b>, " +
+      "against the clock, before you look at the rubric — reading a model answer " +
+      "and recognising every part of it is not the same as having said it, and that " +
+      "gap is the entire reason strong candidates fail rounds they knew the " +
+      "material for.</p>";
+    root.appendChild(head);
+
+    var picker = el("div", "u-row u-wrap drillpick");
+    var stage = el("div");
+
+    function queue() {
+      return C.drillQueue(scope, Store.drillState());
+    }
+
+    function stopClock() {
+      if (ticking) {
+        clearInterval(ticking);
+        ticking = null;
+      }
+    }
+    /* The view can be left mid-drill by any navigation, and an interval that keeps
+       firing against a detached DOM is the classic single-page leak. */
+    App.onLeave(stopClock);
+
+    function paintPicker() {
+      picker.innerHTML = "";
+      var opts = [{ id: "all", short: "Everything" }].concat(
+        C.competencies.map(function (k) {
+          return { id: k.id, short: k.short };
+        })
+      );
+      opts.forEach(function (o) {
+        var st = C.drillStats(
+          o.id === "all" ? "all" : o.id,
+          Store.drillState()
+        );
+        var b = el("button", "drillchip" + (scope === o.id ? " is-on" : ""));
+        b.type = "button";
+        b.setAttribute("aria-pressed", scope === o.id ? "true" : "false");
+        b.innerHTML =
+          esc(o.short) +
+          '<span class="drillchip__n">' +
+          st.attempted +
+          "/" +
+          st.total +
+          "</span>";
+        b.onclick = function () {
+          scope = o.id;
+          idx = 0;
+          revealed = false;
+          paintPicker();
+          paintStage();
+        };
+        picker.appendChild(b);
+      });
+    }
+
+    function paintStage() {
+      stopClock();
+      stage.innerHTML = "";
+      var q = queue();
+      if (!q.length) {
+        stage.appendChild(
+          emptyState(
+            "No drills in this competency yet",
+            "Pick another, or work through everything.",
+            "#/readiness",
+            "Back to readiness"
+          )
+        );
+        return;
+      }
+      if (idx >= q.length) idx = 0;
+      var item = q[idx];
+      var d = item.drill;
+      var kind = C.drillKinds.filter(function (k) {
+        return k.id === d.kind;
+      })[0];
+      var comp = C.competencies.filter(function (k) {
+        return k.id === d.competency;
+      })[0];
+      var ch = chapter(d.ch);
+
+      var card = el("div", "drill");
+
+      /* ---- the question ---- */
+      var qh = el("div", "drill__head");
+      qh.innerHTML =
+        '<div class="drill__tags">' +
+        '<span class="chip chip--accent">' +
+        esc(kind.label) +
+        "</span>" +
+        '<span class="chip">' +
+        esc(comp.short) +
+        "</span>" +
+        '<span class="chip">' +
+        d.minutes +
+        " min answer</span>" +
+        (item.seen
+          ? '<span class="chip chip--' +
+            (item.rating === 2
+              ? "emerald"
+              : item.rating === 0
+                ? "rose"
+                : "amber") +
+            '">' +
+            esc(C.drillRatings[item.rating].label) +
+            " last time</span>"
+          : "") +
+        "</div>" +
+        '<p class="drill__q">' +
+        esc(d.q) +
+        "</p>" +
+        '<p class="drill__kindhint">' +
+        Icons.get("bulb", 13) +
+        " " +
+        esc(kind.hint) +
+        "</p>";
+      card.appendChild(qh);
+
+      /* ---- the clock ---- */
+      var clockRow = el("div", "drill__clock");
+      var readout = el("span", "drill__t", "0:00");
+      var budget = d.minutes * 60;
+
+      function paintClock() {
+        var m = Math.floor(elapsed / 60);
+        var sec = elapsed % 60;
+        readout.textContent = m + ":" + (sec < 10 ? "0" : "") + sec;
+        readout.classList.toggle("is-over", elapsed > budget);
+      }
+      paintClock();
+
+      /* Only while there is still something to time. Once the rubric is out the
+         answer is given, and a button offering to "Resume" reads as an invitation
+         to keep talking at a page that is now showing you the answer. */
+      if (!revealed) {
+        var startBtn = el("button", "btn btn--primary");
+        startBtn.innerHTML =
+          Icons.get("play", 15) + (elapsed ? " Resume" : " Start answering");
+        startBtn.onclick = function () {
+          if (ticking) {
+            stopClock();
+            startBtn.innerHTML = Icons.get("play", 15) + " Resume";
+            return;
+          }
+          ticking = setInterval(function () {
+            elapsed++;
+            paintClock();
+          }, 1000);
+          startBtn.innerHTML = Icons.get("pause", 15) + " Pause";
+        };
+        clockRow.appendChild(startBtn);
+      } else {
+        clockRow.appendChild(el("span", "drill__took", "You took"));
+      }
+      clockRow.appendChild(readout);
+      var target = el("span", "drill__budget", "target " + d.minutes + ":00");
+      clockRow.appendChild(target);
+      card.appendChild(clockRow);
+
+      /* ---- reveal ---- */
+      if (!revealed) {
+        var rev = el("button", "btn btn--outline btn--block");
+        rev.style.marginTop = "var(--s-5)";
+        rev.innerHTML =
+          Icons.get("eye", 15) + " I have answered — show the rubric";
+        rev.onclick = function () {
+          stopClock();
+          revealed = true;
+          paintStage();
+        };
+        card.appendChild(rev);
+      } else {
+        var body = el("div", "drill__body");
+
+        body.appendChild(
+          el(
+            "div",
+            "drill__probe",
+            Icons.get("target", 14) +
+              " <span><b>What they are checking.</b> " +
+              esc(d.probe) +
+              "</span>"
+          )
+        );
+
+        var cols = el("div", "drill__cols");
+        var good = el("div", "drillcol drillcol--good");
+        good.innerHTML =
+          '<div class="drillcol__h">' +
+          Icons.get("check", 13) +
+          " A strong answer says</div>";
+        var gl = el("ul", "drillcol__l");
+        d.strong.forEach(function (t) {
+          var li = el("li");
+          li.innerHTML = md(t);
+          gl.appendChild(li);
+        });
+        good.appendChild(gl);
+
+        var bad = el("div", "drillcol drillcol--bad");
+        bad.innerHTML =
+          '<div class="drillcol__h">' +
+          Icons.get("x", 13) +
+          " A weak answer says</div>";
+        var bl = el("ul", "drillcol__l");
+        d.weak.forEach(function (t) {
+          var li = el("li");
+          li.innerHTML = md(t);
+          bl.appendChild(li);
+        });
+        bad.appendChild(bl);
+
+        cols.appendChild(good);
+        cols.appendChild(bad);
+        body.appendChild(cols);
+
+        body.appendChild(
+          el(
+            "div",
+            "drill__follow",
+            Icons.get("chat", 14) +
+              " <span><b>They will follow up with:</b> " +
+              esc(d.follow) +
+              "</span>"
+          )
+        );
+
+        if (ch) {
+          var back = el("a", "drill__ch");
+          back.href = "#/chapter/" + ch.id;
+          back.innerHTML =
+            Icons.get("book", 14) +
+            " <span>Prepared by <b>" +
+            esc(ch.title) +
+            "</b></span>" +
+            Icons.get("arrowRight", 13);
+          body.appendChild(back);
+        }
+
+        /* ---- self-rating ---- */
+        var rate = el("div", "drill__rate");
+        rate.innerHTML =
+          '<div class="u-eyebrow" style="margin-bottom:var(--s-3)">' +
+          "How did that actually go?</div>" +
+          '<p class="drill__ratehint">Rate what you <b>said</b>, not what you knew. ' +
+          "Anything you mark <i>fumbled</i> comes back to the front of the " +
+          "queue.</p>";
+        var rr = el("div", "drill__rates");
+        C.drillRatings.forEach(function (r) {
+          var b = el("button", "ratebtn ratebtn--" + r.id);
+          b.type = "button";
+          b.innerHTML =
+            '<span class="ratebtn__ic">' +
+            Icons.get(RATING_ICON[r.id], 15) +
+            "</span>" +
+            '<span><span class="ratebtn__t">' +
+            esc(r.label) +
+            "</span>" +
+            '<span class="ratebtn__h">' +
+            esc(r.hint) +
+            "</span></span>";
+          b.onclick = function () {
+            Store.rateDrill(d.id, r.id);
+            /* Advance rather than re-rank in place: re-sorting under the learner
+               would silently change which question "next" means, and a fumbled
+               drill would reappear immediately, which is not practice. */
+            idx++;
+            revealed = false;
+            elapsed = 0;
+            paintPicker();
+            paintStage();
+          };
+          rr.appendChild(b);
+        });
+        rate.appendChild(rr);
+        body.appendChild(rate);
+        card.appendChild(body);
+      }
+
+      /* ---- position ---- */
+      var nav = el("div", "drill__nav");
+      var skip = el("button", "btn btn--ghost btn--sm");
+      skip.innerHTML = "Skip " + Icons.get("arrowRight", 13);
+      skip.onclick = function () {
+        idx++;
+        revealed = false;
+        elapsed = 0;
+        paintStage();
+      };
+      nav.innerHTML =
+        '<span class="drill__pos">' +
+        (idx + 1) +
+        " of " +
+        q.length +
+        (scope === "all" ? "" : " in " + esc(comp.short)) +
+        "</span>";
+      nav.appendChild(skip);
+      card.appendChild(nav);
+
+      stage.appendChild(card);
+    }
+
+    paintPicker();
+    root.appendChild(picker);
+    root.appendChild(stage);
+    paintStage();
   };
 
   /* =========================================================
