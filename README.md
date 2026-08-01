@@ -40,7 +40,31 @@ from the title screen), a **💡 ADVISOR** that suggests a full week with reason
 same bot the balance harness plays — accept any of it or none), a one-time **Week 1
 briefing** instead of a tutorial maze, a **campaign diary** that retells your run
 (seat chart, best/worst week, your arc choices as prose, your hardest-working leader),
-and a downloadable **result card** PNG to share.
+a downloadable **result card** PNG to share, and **14 achievements**.
+
+## 🏅 Achievements
+
+Fourteen of them — 5 bronze, 6 silver, 3 gold — and each one is a line of play the
+efficient route skips. Locked rows show you the *instruction*, not a question mark:
+an achievement you can't read isn't a goal.
+
+* **SAAF-SUTHRA ABHIYAAN** — form a government having never let HEAT leave zero. One
+  vow silently bans MEME BLITZ, ANNOUNCE SCHEME, FREE BIJLI-PAANI, ALLIANCE FLIP *and*
+  the SANSKRITI RAKSHA plank, which bills +0.9 heat every Monday.
+* **VIPAKSH MEIN BAITHENGE** — get within 20 seats of power in a hung house and refuse
+  the deal. The only achievement for losing well, and it can't be earned by losing badly.
+* **THE DAM HOLDS** — in ANTI-INCUMBENCY, end with all twelve regions at or above their
+  week-1 share while erosion takes 0.55 a week off every one of them.
+* **GATHBANDHAN TOOT GAYA** — crack a mahagathbandhan open with Palti Ji and still take
+  272 on your own. The merger only forms if you're strong enough to scare both fronts,
+  so you must dominate *while* carrying the man who defects 12% a week.
+* **HAR HAAL MEIN SARKAR** — form a government in all four scenarios. The one that
+  can't be done in fewer than four campaigns.
+
+Every one is **measured**, not asserted. `node tools/achievements-test.js` plays ~330
+unguided campaigns across every scenario and draft, then runs a scripted *intentional*
+player for each achievement, and fails the build if anything never fires — or if
+anything fires in more than 75% of ordinary runs, which would make it wallpaper.
 
 ## 🧠 The game in one paragraph
 
@@ -119,13 +143,13 @@ The rules engine is pure and runs headlessly, so balance is **measured, not asse
 `node tools/balance.js 250` plays hundreds of full campaigns with scripted players:
 
 ```
-skill gap (thinking player − flailing player)     99 seats
-plank-pair spread across 5 manifestos             21 seats   (no dominant manifesto)
-viable drafts                                     184–251 median seats
-anti-synergy cost (stronger but clashing leader)   −20 seats
-outright majority rate, strong draft + good play   ~13%      (rare and prestigious)
-path to power (majority or coalition shot)         ~96%
-ruthless difficulty                                meaningfully harder
+skill gap (thinking player − flailing player)    101 seats
+plank-pair spread across 5 manifestos             27 seats   (no dominant manifesto)
+viable drafts                                    197–256 median seats
+anti-synergy cost (stronger but clashing leader)  −20 seats
+outright majority rate, strong draft + good play  ~20%       (rare and prestigious)
+path to power (majority or coalition shot)       ~100%
+ruthless difficulty                               meaningfully harder
 invalid states / NaN / seat-count drift            0
 ```
 
@@ -134,7 +158,10 @@ Tuning this surfaced four real design bugs, all fixed:
 * **spillover exploit** — per-neighbour buzz meant aiming a roadshow at the
   most-connected region gave 114 buzz for one AP. Spillover is now a fixed budget.
 * **funds were worthless** — AP is the binding constraint, so cash-income leaders
-  measured at *zero* value. Bahi-Khata Madam's move became a 0-AP free action.
+  measured at *zero* value. Bahi-Khata Madam's move became a 0-AP free action —
+  and then, for four iterations, silently wasn't: `costOf` returned `a.ap || 1`,
+  which turns a declared `0` into `1`. The achievement work surfaced it. The
+  Ledger Lady's move is now actually free, and the skill gap rose 96 → 101.
 * **one mandatory leader** — the base cadre economy was so tight you couldn't afford a
   ground push without a cadre leader.
 * **a single dominant passive** — Mitron Ji's buzz multiplier was worth 2.5× any other
@@ -153,6 +180,8 @@ index.html            the strategy game
 arcade.html           MITRON MAYHEM, the 14-microgame reflex mode
 tools/balance.js      headless balance harness (node tools/balance.js 250)
 tools/screens-test.js dead-end screen guard (node tools/screens-test.js)
+tools/modal-test.js   the week-1 briefing must actually block the board
+tools/achievements-test.js  every achievement reachable, none wallpaper
 
 src/util.js           canvas primitives, palette, maths     ┐ shared engine,
 src/audio.js          WebAudio synth: tabla, drone, plucks  │ borrowed by both

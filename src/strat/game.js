@@ -23,11 +23,15 @@
 
   const KEY = 'chunav-chanakya-v1';
   const store = {
-    data: { best: 0, plays: 0, muted: false, wins: 0 },
+    // `unlocked` and `scenariosWon` are the only cross-run campaign memory —
+    // both plain id arrays, so a corrupt or older save degrades to "none yet"
+    data: { best: 0, plays: 0, muted: false, wins: 0, unlocked: [], scenariosWon: [] },
     load() {
       try {
         Object.assign(this.data, JSON.parse(localStorage.getItem(KEY) || '{}'));
       } catch (e) {}
+      if (!Array.isArray(this.data.unlocked)) this.data.unlocked = [];
+      if (!Array.isArray(this.data.scenariosWon)) this.data.scenariosWon = [];
     },
     save() {
       try {
@@ -150,6 +154,7 @@
     G.screen = 'play';
     G.log = [];
     G.advice = null;
+    G.unlockReel = null; // never show last campaign's medals on this one's result
     store.data.plays++;
     store.save();
     autosave();
@@ -181,6 +186,7 @@
     items.push(
       ['NEW CAMPAIGN', () => (G.screen = 'scenario')],
       ['HOW TO PLAY', () => (G.screen = 'howto')],
+      [`🏅 ACHIEVEMENTS (${(store.data.unlocked || []).length}/${SG.ACHIEVEMENTS.length})`, () => { G.awardsFrom = 'title'; G.screen = 'awards'; }],
       ['ARCADE MODE (the old microgames)', () => (location.href = 'arcade.html')],
       [`SOUND: ${store.data.muted ? 'OFF' : 'ON'}`, () => {
         store.data.muted = !store.data.muted;
@@ -191,8 +197,8 @@
     items.forEach((it, i) => {
       const w = 440;
       const x = W / 2 - w / 2;
-      const y = (saved ? 278 : 296) + i * 50;
-      UI.button(g, x, y, w, 40, it[0], { fn: it[1], size: 16, hoverBg: i === 0 && saved ? C.green : undefined });
+      const y = (saved ? 266 : 294) + i * 45;
+      UI.button(g, x, y, w, 38, it[0], { fn: it[1], size: 15.5, hoverBg: i === 0 && saved ? C.green : undefined });
     });
 
     d.text(
@@ -964,18 +970,45 @@
     d.text(g, `majority mark ${SG.MAJORITY}`, bx + 200, 396, { size: 12, fill: C.dim });
 
     if (R.done) {
-      const hung = R.tot.P < SG.MAJORITY;
+      /* The reveal adds up region by region, which skips the seat tax a dilemma
+         may have levied — SG.seatTotals applies it. Apply it here too, before
+         the button is even labelled, or the screen and the engine can disagree
+         about whether the house is hung. */
+      const final = { ...R.tot };
+      if (st.seatTax > 0) {
+        const t = Math.min(st.seatTax, final.P);
+        final.P -= t;
+        final.O += t;
+      }
+      const hung = final.P < SG.MAJORITY;
+      // never let the tally the player just watched disagree with the result
+      // screen in silence — name the seats and say who took them
+      if (st.seatTax > 0)
+        d.text(g, `⚖ COURT ORDER: ${Math.min(st.seatTax, R.tot.P)} of your seats go to OTHERS → you finish on ${final.P}`, W / 2, 424, {
+          size: 13,
+          fill: C.red,
+        });
       UI.button(g, bx, 448, 400, 48, hung ? 'GOVERNMENT FORMATION ▶' : 'SEE THE RESULT ▶', {
         fn: () => {
           SG.finish(st);
-          st.result.seats = { ...R.tot };
-          st.result.frac = R.tot.P / SG.TOTAL_SEATS;
-          st.result.majority = R.tot.P >= SG.MAJORITY;
-          st.result.largest = ['P', 'A', 'B', 'O'].sort((a, b) => R.tot[b] - R.tot[a])[0];
-          st.result.coalitionPossible = !st.result.majority && st.result.largest === 'P' && R.tot.P + R.tot.O >= SG.MAJORITY;
+          st.result.seats = { ...final };
+          st.result.frac = final.P / SG.TOTAL_SEATS;
+          st.result.majority = final.P >= SG.MAJORITY;
+          // the counting-day fact, frozen before any deal can rewrite seats.P
+          st.result.outright = st.result.majority;
+          st.result.largest = ['P', 'A', 'B', 'O'].sort((a, b) => final[b] - final[a])[0];
+          st.result.coalitionPossible = !st.result.majority && st.result.largest === 'P' && final.P + final.O >= SG.MAJORITY;
           st.result.ending = SG.ENDINGS.find((e) => st.result.frac >= e.min);
           G.screen = st.result.coalitionPossible ? 'coalition' : 'end';
-          finishUp();
+          // The count is locked in either way, so the resume save must die here:
+          // deferring the whole of finishUp past the coalition screen would let a
+          // player reload the tab and re-roll the final week.
+          clearSave();
+          // A hung house is not a finished campaign though — half the checks read
+          // result.coalitionDone, so the AWARD pass waits for that decision and
+          // drawCoalition calls finishUp itself once an offer is taken.
+          if (!st.result.coalitionPossible) finishUp();
+          else G.dealGuard = G.t + 0.35; // swallow a double-click on this button
         },
         hoverBg: C.green,
         size: 17,
@@ -996,14 +1029,29 @@
     }
   }
 
+  /* Called once, when the outcome is final — after the coalition decision, not
+     before it, because half these checks read result.coalitionDone.
+     Idempotent on purpose: two pointer events can land in a single frame, and
+     a second pass would double-count the win and wipe the unlock reel. */
   function finishUp() {
     const st = G.st;
+    if (st.awarded) return;
+    st.awarded = true;
     clearSave();
     if (st.result.seats.P > store.data.best) {
       store.data.best = st.result.seats.P;
       st.result.newBest = true;
     }
     if (st.result.majority) store.data.wins++;
+
+    const earned = SG.checkAchievements(st, st.result, { scenariosWon: store.data.scenariosWon });
+    const fresh = earned.filter((id) => !store.data.unlocked.includes(id));
+    store.data.unlocked = store.data.unlocked.concat(fresh);
+    // recorded AFTER the check so har_haal_sarkar can count this very campaign
+    if (st.result.majority && !store.data.scenariosWon.includes(st.scenario))
+      store.data.scenariosWon.push(st.scenario);
+    st.result.unlocked = fresh;
+    G.unlockReel = fresh.length ? { ids: fresh, t: 0 } : null;
     store.save();
   }
 
@@ -1018,10 +1066,17 @@
       fill: C.gold,
     });
 
+    /* The button that got you here sits where the fourth offer now is, and the
+       fourth offer is "refuse to deal". Ignore clicks for a beat so a double-tap
+       cannot silently choose the one irreversible option on the screen. */
+    const armed = G.t >= (G.dealGuard || 0);
+    if (!armed) d.text(g, '…', W / 2, 200, { size: 14, fill: C.dim2 });
+
     SG.coalitionOffers(st).forEach((o, i) => {
       const y = 216 + i * 78;
       const afford = !o.cost.funds || st.funds >= o.cost.funds;
-      const over = UI.hit(W / 2 - 420, y, 840, 66, afford ? () => {
+      const live = armed && afford;
+      const over = UI.hit(W / 2 - 420, y, 840, 66, live ? () => {
         const res = SG.applyCoalition(st, o);
         if (res.ok) {
           MM.audio.sfx(st.result.majority ? 'fanfare' : 'lose');
@@ -1078,6 +1133,38 @@
     });
     if (r.newBest) d.text(g, '★ NEW PERSONAL BEST', W / 2, H - 168, { size: 20, fill: C.saffron });
 
+    // freshly unlocked achievements, dealt out one at a time
+    const reel = G.unlockReel;
+    if (reel && reel.ids.length) {
+      // paced off the shared clock, not a per-frame increment, so the reel
+      // deals at the same speed on a 60Hz and a 120Hz display
+      if (reel.t0 === undefined) reel.t0 = G.t;
+      reel.t = G.t - reel.t0;
+      const shown = Math.min(reel.ids.length, 1 + Math.floor(reel.t / 0.45));
+      const cw = 268;
+      const total = Math.min(shown, 3);
+      reel.ids.slice(0, shown).forEach((id, i) => {
+        const a = SG.achievementById(id);
+        if (!a || i >= 3) return;
+        const x = W / 2 - (total * cw) / 2 + i * cw + 6;
+        const y = 482;
+        const pop = Math.max(0, 1 - (reel.t - i * 0.45) * 3);
+        g.save();
+        g.translate(x + cw / 2 - 6, y + 26);
+        g.scale(1 + pop * 0.12, 1 + pop * 0.12);
+        g.translate(-(x + cw / 2 - 6), -(y + 26));
+        d.fillRR(g, x, y, cw - 12, 52, 9, 'rgba(255,255,255,.08)');
+        d.strokeRR(g, x, y, cw - 12, 52, 9, TIER_COL[a.tier], 1.8);
+        d.text(g, '🏅', x + 22, y + 32, { size: 20 });
+        d.text(g, a.name, x + 40, y + 22, { size: 11.5, align: 'left', fill: TIER_COL[a.tier] });
+        d.text(g, a.tier.toUpperCase() + ' · UNLOCKED', x + 40, y + 40, { size: 9.5, weight: 700, align: 'left', fill: C.dim });
+        g.restore();
+      });
+      if (reel.ids.length > 3)
+        d.text(g, `+${reel.ids.length - 3} more`, W / 2, 552, { size: 12, fill: C.dim });
+      UI.hit(W / 2 - 400, 476, 800, 64, () => { G.awardsFrom = 'end'; G.screen = 'awards'; }, 'See all achievements');
+    }
+
     // the cast, reacting
     st.leaders.P.forEach((id, i) => {
       const x = W / 2 - 180 + i * 120;
@@ -1096,6 +1183,55 @@
       size: 13,
     });
     UI.button(g, W / 2 + 228, H - 56, 117, 42, 'MENU', { fn: () => (G.screen = 'title'), size: 13 });
+  }
+
+  /* ------------------------------------------------------------- achievements
+     A ladder, shown as one. Locked rows keep their name and hint visible on
+     purpose: an achievement you cannot read is not a goal, it is a surprise,
+     and surprises do not make anyone start a second campaign. */
+  const TIER_COL = { bronze: '#d08a52', silver: '#c8d2e0', gold: '#ffcf49' };
+
+  function drawAwards() {
+    bg();
+    const un = store.data.unlocked || [];
+    UI.panel(g, W / 2 - 500, 34, 1000, H - 118, `🏅 ACHIEVEMENTS — ${un.length} of ${SG.ACHIEVEMENTS.length}`);
+
+    // progress bar across the top
+    const pw = 940;
+    const px = W / 2 - pw / 2;
+    d.fillRR(g, px, 74, pw, 10, 5, 'rgba(255,255,255,.1)');
+    d.fillRR(g, px, 74, (pw * un.length) / SG.ACHIEVEMENTS.length, 10, 5, C.saffron);
+
+    SG.ACHIEVEMENTS.forEach((a, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = W / 2 - 490 + col * 492;
+      const y = 100 + row * 82;
+      const got = un.includes(a.id);
+      d.fillRR(g, x, y, 476, 74, 9, got ? 'rgba(255,255,255,.09)' : 'rgba(0,0,0,.22)');
+      d.strokeRR(g, x, y, 476, 74, 9, got ? TIER_COL[a.tier] : 'rgba(255,255,255,.12)', got ? 1.8 : 1);
+
+      g.save();
+      if (!got) g.globalAlpha = 0.45;
+      d.text(g, got ? '🏅' : '🔒', x + 26, y + 34, { size: 21 });
+      d.text(g, a.name, x + 48, y + 24, { size: 12.5, align: 'left', fill: got ? TIER_COL[a.tier] : C.dim });
+      d.text(g, a.tier.toUpperCase() + (a.crossRun ? ' · ACROSS CAMPAIGNS' : ''), x + 452, y + 24, {
+        size: 9,
+        weight: 700,
+        align: 'right',
+        fill: got ? TIER_COL[a.tier] : C.dim2,
+      });
+      // unlocked shows the joke, locked shows the instruction
+      wrapClipRet(g, got ? a.blurb : a.hint, x + 48, y + 44, 404, 11, 14, got ? C.text : C.dim, 2);
+      g.restore();
+      UI.hit(x, y, 476, 74, null, got ? a.blurb : 'LOCKED — ' + a.hint);
+    });
+
+    // the completion line rides next to the button, not under the last row —
+    // seven rows at 82px reach y=666, which is where H-96 lands
+    if (un.length === SG.ACHIEVEMENTS.length)
+      d.text(g, 'Every last one. The Chanakya of Chanakyas.', W / 2 - 260, H - 48, { size: 13, align: 'right', fill: C.gold });
+    UI.button(g, W / 2 - 110, H - 68, 220, 40, '← BACK', { fn: () => (G.screen = G.awardsFrom || 'title') });
   }
 
   /* ------------------------------------------------------------------- diary
@@ -1439,6 +1575,7 @@
       case 'coalition': drawCoalition(); break;
       case 'end': drawEnd(); break;
       case 'diary': drawDiary(); break;
+      case 'awards': drawAwards(); break;
     }
 
     MM.fx.draw(g);

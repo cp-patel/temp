@@ -66,6 +66,9 @@
   UI.button = function (g, x, y, w, h, label, opt) {
     const o = opt || {};
     const over = UI.hit(x, y, w, h, o.fn, o.tip, o.disabled);
+    // record the label on the hit so tests can click by name rather than by
+    // hand-computed coordinates, which drift every time a layout moves
+    UI.hits[UI.hits.length - 1].label = label;
     const bg = o.disabled
       ? 'rgba(255,255,255,.05)'
       : over

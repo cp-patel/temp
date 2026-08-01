@@ -190,6 +190,12 @@
       arcFlags: {},      // choices made in earlier beats, read by later ones
       storyBeat: null,   // pending narrative beat, shown before the next planning turn
       usage: {},         // leaderId → times you actually used their ability
+      /* achievement bookkeeping — all cheap scalars, all serialisable */
+      everFractured: false, // sticky: did you ever crack the mahagathbandhan open
+      maxHeat: M.heat || 0, // high-water mark, so "never ran hot" is honest
+      maxApWasted: 0,       // most AP left unspent at any week-end
+      credHit100Week: 0,    // week you first maxed credibility (0 = never)
+      finalWeekBanked: false, // last week spent purely on cashing buzz out
       taunt: null,
       finished: false,
       result: null,
@@ -227,6 +233,10 @@
     // scenario head starts: the underdog chases, the incumbent defends baggage
     if (M.rivalHead) SG.REGIONS.forEach((def) => { addShare(st, def.id, 'A', M.rivalHead); addShare(st, def.id, 'B', M.rivalHead * 0.6); });
     if (M.playerHead) SG.REGIONS.forEach((def) => addShare(st, def.id, 'P', M.playerHead));
+
+    // week-1 share per region, so "not one region worse off" is checkable
+    st.startShareByRegion = {};
+    SG.REGIONS.forEach((def) => (st.startShareByRegion[def.id] = st.regions[def.id].share.P));
 
     SG.planAI(st);
     st.intel = SG.visibleIntel(st);
@@ -305,7 +315,9 @@
     let funds = a.funds || 0;
     if (a.id === 'scheme') funds = Math.round(funds * m.schemeCostMul);
     if (a.id === 'bijli') funds = Math.round(funds * m.freebieCostMul);
-    return { ap: a.ap || 1, funds, cadre: a.cadre || 0 };
+    // `a.ap || 1` would silently charge a point for a declared 0-AP action —
+    // which is exactly what BUDGET BONANZA is, and why it measured as worthless.
+    return { ap: a.ap === undefined ? 1 : a.ap, funds, cadre: a.cadre || 0 };
   };
 
   SG.canQueue = function (st, a, rid) {
@@ -444,6 +456,7 @@
           // the acrobat's real value: he can crack the mahagathbandhan open
           if (st.alliance) {
             st.allianceBroken = m.flipMul > 1 ? 3 : 2;
+            st.everFractured = true;
             if (log) log.push({ t: 'PALTI JI has fractured the MAHAGATHBANDHAN. Allies are not speaking.', good: true });
           }
         }
@@ -476,6 +489,7 @@
         if (!st.usage) st.usage = {};
         st.usage[owner.id] = (st.usage[owner.id] || 0) + 1;
       }
+      SG.markPeaks(st);
     }
 
     if (log) {
@@ -530,6 +544,13 @@
   /* ------------------------------------------------------------- end of week */
   SG.endWeek = function (st) {
     if (st.finished) return null;
+    // AP you never spent this week — an achievement rewards never wasting one
+    st.maxApWasted = Math.max(st.maxApWasted || 0, st.ap);
+    // did you spend the last week banking buzz instead of making more of it?
+    if (st.week === st.maxWeeks) {
+      const paid = st.queue.filter((q) => (q.cost ? q.cost.ap : 1) > 0);
+      st.finalWeekBanked = paid.length > 0 && paid.every((q) => q.actionId === 'ground' || q.actionId === 'booth');
+    }
     const log = [];
     const report = { week: st.week, log, events: [], seatsBefore: SG.seatTotals(st) };
 
@@ -628,6 +649,7 @@
     // 10. bookkeeping + consequences
     st.cred = clamp(st.cred, 0, 100);
     st.heat = clamp(st.heat, 0, 10);
+    SG.markPeaks(st);
     if (st.heat >= 8) {
       const ec = SG.EC_EVENTS[Math.floor(st.rng() * SG.EC_EVENTS.length)];
       report.events.push({ t: 'ELECTION COMMISSION: ' + ec, bad: true });
@@ -694,6 +716,14 @@
     return report;
   };
 
+  /* High-water marks. Heat and credibility can both spike and recover inside a
+     single week, so "you never once ran hot" has to be sampled where they move,
+     not only at week-end. Cheap, and it makes those checks honest. */
+  SG.markPeaks = function (st) {
+    st.maxHeat = Math.max(st.maxHeat || 0, st.heat);
+    if (st.cred >= 100 && !st.credHit100Week) st.credHit100Week = st.week;
+  };
+
   /* ------------------------------------------------------------- dilemmas */
   SG.applyFx = function (st, fx) {
     fx = fx || {};
@@ -729,6 +759,7 @@
     if (fx.regionShare) Object.entries(fx.regionShare).forEach(([rid, v]) => addShare(st, rid, 'P', v));
     st.cred = clamp(st.cred, 0, 100);
     st.heat = clamp(st.heat, 0, 10);
+    SG.markPeaks(st);
   };
 
   SG.resolveDilemma = function (st, optIndex) {
@@ -826,6 +857,17 @@
       seatTax: st.seatTax,
       cooldown: { ...st.cooldown },
       usage: { ...(st.usage || {}) },
+      /* Achievement bookkeeping. The clone is written to by applyAction and
+         markPeaks during SG.project(), which runs every frame — so every field
+         those touch must exist here or the preview corrupts (or throws inside
+         the render loop, which is how this file lost a frame loop once before). */
+      everFractured: st.everFractured,
+      maxHeat: st.maxHeat,
+      maxApWasted: st.maxApWasted,
+      credHit100Week: st.credHit100Week,
+      finalWeekBanked: st.finalWeekBanked,
+      startShareByRegion: { ...(st.startShareByRegion || {}) },
+      scenario: st.scenario,
       intel: (st.intel || []).map((i) => ({ ...i })),
       ap: st.ap,
       apMax: st.apMax,
@@ -878,6 +920,9 @@
       frac,
       ending,
       majority: seats.P >= SG.MAJORITY,
+      // frozen on counting day: applyCoalition rewrites seats.P and majority in
+      // place, so "272 on your own" has to be recorded before any deal is struck
+      outright: seats.P >= SG.MAJORITY,
       largest,
       coalitionPossible: seats.P < SG.MAJORITY && seats.P + seats.O >= SG.MAJORITY && largest === 'P',
       score: Math.round(seats.P * 100 + st.cred * 12 + st.funds * 2 - st.heat * 40),

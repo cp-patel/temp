@@ -698,5 +698,163 @@
     { min: 0, title: 'DEPOSIT FORFEITED', text: 'Historic. Statisticians will study this. Your workers have already left.' },
   ];
 
+  /* --------------------------------------------------------- achievements
+     Designed as a ladder, not a checklist: a wide bronze rung almost every
+     first campaign earns, silver rungs that each teach one mechanic the
+     efficient line skips, and golds that need a whole draft or several runs.
+
+     `ok(st, r, meta)` is pure — st is the finished state, r the result, and
+     meta carries the cross-run counters kept in localStorage. That purity is
+     what lets tools/achievements-test.js measure how often each one fires. */
+  const badPairs = (ids) => SG.SYNERGIES.filter((s) => !s.good && ids.includes(s.a) && ids.includes(s.b));
+
+  SG.ACHIEVEMENTS = [
+    {
+      id: 'numbers_hain',
+      name: 'NUMBERS HAIN HUMARE PAAS',
+      tier: 'bronze',
+      blurb: 'Short of 272, long on friends. Somewhere a resort is fully booked and nobody remembers whose idea it was.',
+      hint: 'Form a government from a hung house.',
+      ok: (st, r) => r.majority && ['ministries', 'cash', 'deputy'].includes(r.coalitionDone),
+    },
+    {
+      id: 'pehle_saakh',
+      name: 'PEHLE SAAKH',
+      tier: 'bronze',
+      blurb: 'Nobody has ever cheered for an ORG MEETING. The arithmetic cheers.',
+      hint: 'Reach 100 CREDIBILITY by the end of week 4, then finish as the largest bloc.',
+      ok: (st, r) => st.credHit100Week > 0 && st.credHit100Week <= 4 && r.largest === 'P',
+    },
+    {
+      id: 'aakhri_push',
+      name: 'AAKHRI PUSH',
+      tier: 'bronze',
+      blurb: 'The last rally is a photograph. The last ground push is a seat. Six weeks in, only one of those gets counted.',
+      hint: 'SNAP ELECTION: spend the whole final week banking buzz, and finish largest.',
+      ok: (st, r) => st.scenario === 'snap' && st.finalWeekBanked && r.largest === 'P',
+    },
+    {
+      id: 'saare_paanch',
+      name: 'SAARE PAANCH',
+      tier: 'bronze',
+      blurb: 'Five action points a week is the entire apology for being outnumbered seven to three. Spend the apology.',
+      hint: 'THE UNDERDOG: never end a week with an unspent action point, and finish largest.',
+      ok: (st, r) => st.scenario === 'underdog' && (st.maxApWasted || 0) === 0 && r.largest === 'P',
+    },
+    {
+      id: 'koi_bench_nahi',
+      name: 'KOI BENCH PAR NAHI',
+      tier: 'bronze',
+      blurb: 'Every campaigner sent out at least twice, and not one of them gave a single interview about internal democracy.',
+      hint: 'Win with every leader on your final roster used at least twice.',
+      ok: (st, r) => r.majority && st.leaders.P.length > 0 && st.leaders.P.every((id) => ((st.usage || {})[id] || 0) >= 2),
+    },
+    {
+      id: 'apne_dum_par',
+      name: 'APNE DUM PAR',
+      tier: 'silver',
+      blurb: '272 on your own. Not one 2 AM phone call, not one ministry promised to a man you have met twice.',
+      hint: 'Win an outright majority — no coalition.',
+      ok: (st, r) => !!r.outright,
+    },
+    {
+      id: 'vipaksh_mein',
+      name: 'VIPAKSH MEIN BAITHENGE',
+      tier: 'silver',
+      blurb: 'Fourteen short. Four offers on the table, including a Deputy PM chair for a post that does not exist yet. You went home instead.',
+      hint: 'Come within 20 seats of power in a hung house — and refuse to deal.',
+      ok: (st, r) => r.coalitionPossible && r.coalitionDone === 'principle' && SG.MAJORITY - r.seats.P <= 20,
+    },
+    {
+      id: 'saaf_suthra',
+      name: 'SAAF-SUTHRA ABHIYAAN',
+      tier: 'silver',
+      blurb: 'No meme cell, no midnight scheme, no cousin with a printing press. Your file at the Commission is one thank-you note.',
+      hint: 'Form a government having never let HEAT rise above zero.',
+      ok: (st, r) => (st.maxHeat || 0) === 0 && r.majority,
+    },
+    {
+      id: 'poori_tape',
+      name: 'POORI TAPE CHALAO',
+      tier: 'silver',
+      blurb: 'They ran forty seconds of your war room, so you released the other thirty-nine minutes. Then took every question.',
+      hint: 'THE TAPE: release the full tape, face the questions, and still win outright.',
+      ok: (st, r) => {
+        const f = (st.arcFlags || {}).tape || {};
+        return !!f.released && !!f.faced && !!r.outright;
+      },
+    },
+    {
+      id: 'sadak_par_baithe',
+      name: 'SADAK PAR BAITHE',
+      tier: 'silver',
+      blurb: 'Two planks, both about work. Forty thousand people walked to the capital, and you went and sat down on the road with them.',
+      hint: 'Run a FARMERS + JOBS manifesto, meet THE LONG MARCH, and win outright.',
+      ok: (st, r) =>
+        st.planks.length === 2 &&
+        st.planks.includes('FARMERS') &&
+        st.planks.includes('JOBS') &&
+        !!((st.arcFlags || {}).march || {}).met &&
+        !!r.outright,
+    },
+    {
+      id: 'dam_holds',
+      name: 'THE DAM HOLDS',
+      tier: 'silver',
+      blurb: 'Ten years in office and not one region worse off than the day you called the election. Suspicious. Impressive.',
+      hint: 'ANTI-INCUMBENCY: end with your share in all twelve regions at or above week 1.',
+      ok: (st) =>
+        st.scenario === 'heatwave' &&
+        !!st.startShareByRegion &&
+        SG.REGIONS.every((def) => st.regions[def.id].share.P >= (st.startShareByRegion[def.id] || 0) - 0.001),
+    },
+    {
+      id: 'gathbandhan_toot',
+      name: 'GATHBANDHAN TOOT GAYA',
+      tier: 'gold',
+      blurb: 'Nine leaders, one microphone, no agreed candidate — and one acrobat in your camp who has all nine phone numbers.',
+      hint: 'Fracture a mahagathbandhan with ALLIANCE FLIP, then win outright anyway.',
+      ok: (st, r) => !!st.everFractured && !!r.outright,
+    },
+    {
+      id: 'cold_war_cabinet',
+      name: 'COLD WAR CABINET',
+      tier: 'gold',
+      blurb: 'They refuse to share a stage. Fine — you will run two campaigns, pay for both, and win anyway.',
+      hint: 'Win outright with a cast carrying one of the three clashing pairs.',
+      ok: (st, r) => badPairs(st.leaders.P).length > 0 && !!r.outright,
+    },
+    {
+      id: 'har_haal_sarkar',
+      name: 'HAR HAAL MEIN SARKAR',
+      tier: 'gold',
+      blurb: 'Ten weeks, six weeks, outnumbered three to seven, or ten years of anti-incumbency. Same chair at the end of all four.',
+      hint: 'Form a government in all four scenarios (across campaigns).',
+      crossRun: true,
+      ok: (st, r, meta) => {
+        const won = new Set(meta.scenariosWon || []);
+        if (r.majority) won.add(st.scenario);
+        return SG.SCENARIOS.every((s) => won.has(s.id));
+      },
+    },
+  ];
+
+  SG.achievementById = (id) => SG.ACHIEVEMENTS.find((a) => a.id === id);
+
+  /* Which achievements does this finished campaign earn? Pure: hand it the
+     cross-run counters and it tells you, without touching storage. */
+  SG.checkAchievements = function (st, result, meta) {
+    result = result || st.result;
+    meta = meta || {};
+    if (!result) return [];
+    return SG.ACHIEVEMENTS.filter((a) => {
+      try {
+        return !!a.ok(st, result, meta);
+      } catch (e) {
+        return false;
+      }
+    }).map((a) => a.id);
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = SG;
 })(typeof window !== 'undefined' ? window : globalThis);
