@@ -2163,6 +2163,162 @@ async function main() {
     await pctx.close();
   }
 
+  /* ---------------- landing page pitch and nav grouping ---------------- */
+  /* Both are "does a stranger understand what this is" checks. The apparatus that
+     differentiates this from a course was invisible on the landing page for four
+     commits, and eleven flat nav entries stopped being scannable at about seven. */
+  section("pitch and navigation");
+  {
+    /* Its own context: the main `page` is closed part-way through the suite, and
+       this section runs after that point. */
+    const lctx = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      colorScheme: "dark",
+    });
+    const lp = await lctx.newPage();
+    lp.on("pageerror", (e) => errors.push(`pitch pageerror: ${e.message}`));
+    lp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`pitch console: ${m.text()}`);
+    });
+    const lgo = async (hash) => {
+      await visit(lp, BASE + hash);
+      await lp.evaluate(() => Store.skipOnboarding());
+      await lp.waitForTimeout(300);
+    };
+    await lgo("");
+    const pitch = await lp.evaluate(() => {
+      const text = document.body.innerText;
+      const cards = [...document.querySelectorAll(".acard")].map((c) => ({
+        title: (c.querySelector("h3") || {}).innerText || "",
+        href: (c.querySelector(".acard__go") || {}).getAttribute?.("href"),
+      }));
+      return {
+        cards,
+        drills: window.Curriculum.drills.length,
+        /* Each of the four surfaces has to be findable from the pitch, or a
+           stranger has no way to know it exists. */
+        mentionsReadiness: /readiness/i.test(text),
+        mentionsDrills: /drill|rehears/i.test(text),
+        mentionsPortfolio: /portfolio/i.test(text),
+        mentionsSession: /minutes/i.test(text),
+        drillCountShown: text.includes(String(window.Curriculum.drills.length)),
+      };
+    });
+    check(
+      "the landing page names all four getting-hired surfaces",
+      pitch.mentionsReadiness &&
+        pitch.mentionsDrills &&
+        pitch.mentionsPortfolio &&
+        pitch.mentionsSession,
+      JSON.stringify(pitch)
+    );
+    check(
+      "with a card each, every one linking to the real surface",
+      pitch.cards.length === 4 &&
+        pitch.cards.every((c) => c.title.length > 8) &&
+        new Set(pitch.cards.map((c) => c.href)).size === 4 &&
+        pitch.cards.every((c) =>
+          ["#/readiness", "#/dashboard", "#/interview", "#/projects"].includes(
+            c.href
+          )
+        ),
+      JSON.stringify(pitch.cards)
+    );
+
+    /* Every apparatus card must actually land somewhere real — a pitch that links
+       into nothing is worse than no pitch. */
+    for (const card of pitch.cards) {
+      await lgo("");
+      await lp.locator(`.acard__go[href="${card.href}"]`).click();
+      await lp.waitForTimeout(400);
+      const landed = await lp.evaluate(() => ({
+        hash: location.hash,
+        h1: !!document.querySelector("h1"),
+        len: document.body.innerText.length,
+      }));
+      check(
+        `"${card.title}" leads to a real page`,
+        landed.hash === card.href && landed.h1 && landed.len > 300,
+        JSON.stringify(landed)
+      );
+    }
+
+    await lgo("#/dashboard");
+    const nav = await lp.evaluate(() => {
+      const g = document.querySelector(".navgroup");
+      const kids = [...g.children];
+      const labels = kids
+        .filter((n) => n.classList.contains("navgroup__label"))
+        .map((n) => n.innerText.trim());
+      const links = kids.filter((n) => n.classList.contains("navlink"));
+      return {
+        labels,
+        links: links.length,
+        routes: App.routes().length,
+        /* No heading may be left dangling with nothing under it. */
+        emptyGroups: labels.filter((l, i) => {
+          const at = kids.findIndex(
+            (n) =>
+              n.classList.contains("navgroup__label") &&
+              n.innerText.trim() === l
+          );
+          const next = kids[at + 1];
+          return !next || !next.classList.contains("navlink");
+        }).length,
+        /* The trailing utility item is separated rather than absorbed into the
+           previous heading. */
+        seps: document.querySelectorAll(".navlink--sep").length,
+        lastIsSettings:
+          links[links.length - 1].getAttribute("href") === "#/settings" &&
+          links[links.length - 1].classList.contains("navlink--sep"),
+      };
+    });
+    check(
+      "the sidebar is grouped, with every heading followed by links",
+      nav.labels.length >= 3 && nav.emptyGroups === 0,
+      JSON.stringify(nav)
+    );
+    check(
+      "every route the app declares has a nav entry",
+      /* Landing is reached by the brand mark, not a nav link. */
+      nav.links === nav.routes - 1,
+      JSON.stringify({ links: nav.links, routes: nav.routes })
+    );
+    check(
+      "Settings is separated from the group above it",
+      nav.seps === 1 && nav.lastIsSettings,
+      JSON.stringify(nav)
+    );
+
+    /* The badge rule, which the drill count got wrong first: a nav badge means
+       something is waiting for you, not that content exists. */
+    const badges = await lp.evaluate(() => {
+      const fresh = document.querySelectorAll(".navlink__count").length;
+      const C = window.Curriculum;
+      Store.rateDrill(C.drills[0].id, 0);
+      Store.rateDrill(C.drills[1].id, 2);
+      return { fresh, weak: Store.drillStats("all").weak };
+    });
+    await lgo("#/dashboard");
+    const after = await lp.evaluate(() => {
+      const link = document.querySelector('[data-nav="#/interview"]');
+      const b = link.querySelector(".navlink__count");
+      return { text: b ? b.innerText.trim() : null };
+    });
+    check(
+      "a fresh account carries no nav badges at all",
+      badges.fresh === 0,
+      String(badges.fresh)
+    );
+    check(
+      "the interview badge counts fumbled drills, not untried ones",
+      after.text === String(badges.weak) && badges.weak === 1,
+      JSON.stringify({ ...after, weak: badges.weak })
+    );
+
+    await lctx.close();
+  }
+
   /* ---------------- interview drills ---------------- */
   /* The sequence is the feature: question, clock, then rubric. Showing the rubric
      alongside the question would turn the whole thing into a reading exercise,

@@ -110,18 +110,43 @@
      Sidebar
      ========================================================= */
 
+  /* Grouped, because eleven flat entries stopped being scannable.
+     
+     The items are genuinely different kinds of thing and the labels are the only
+     way to tell without clicking: "Roadmap", "Library" and "My plan" all sound
+     like the same object, and a newcomer had no way to know that one is the
+     ordered path, one is a filterable index and one is their personal schedule.
+     Three headings answer that at a glance and cost one line each. */
   var NAV = [
-    { href: "#/dashboard", icon: "home", label: "Dashboard" },
-    { href: "#/plan", icon: "compass", label: "My plan" },
-    { href: "#/roadmap", icon: "map", label: "Roadmap" },
-    { href: "#/readiness", icon: "gauge", label: "Readiness" },
-    { href: "#/library", icon: "grid", label: "Library" },
-    { href: "#/labs", icon: "beaker", label: "Labs" },
-    { href: "#/review", icon: "cards", label: "Review" },
-    { href: "#/interview", icon: "chat", label: "Interview" },
-    { href: "#/projects", icon: "hammer", label: "Projects" },
-    { href: "#/glossary", icon: "book", label: "Glossary" },
-    { href: "#/settings", icon: "settings", label: "Settings" },
+    {
+      group: "Where you are",
+      items: [
+        { href: "#/dashboard", icon: "home", label: "Dashboard" },
+        { href: "#/readiness", icon: "gauge", label: "Readiness" },
+        { href: "#/plan", icon: "compass", label: "My plan" },
+      ],
+    },
+    {
+      group: "The material",
+      items: [
+        { href: "#/roadmap", icon: "map", label: "Roadmap" },
+        { href: "#/library", icon: "grid", label: "Library" },
+        { href: "#/labs", icon: "beaker", label: "Labs" },
+        { href: "#/glossary", icon: "book", label: "Glossary" },
+      ],
+    },
+    {
+      group: "Practice",
+      items: [
+        { href: "#/review", icon: "cards", label: "Review" },
+        { href: "#/interview", icon: "chat", label: "Interview" },
+        { href: "#/projects", icon: "hammer", label: "Projects" },
+      ],
+    },
+    {
+      group: null,
+      items: [{ href: "#/settings", icon: "settings", label: "Settings" }],
+    },
   ];
 
   function buildSidebar() {
@@ -153,19 +178,41 @@
 
     var g1 = el("nav", "navgroup");
     g1.setAttribute("aria-label", "Main navigation");
-    NAV.forEach(function (n) {
-      var a = el("a", "navlink");
-      a.href = n.href;
-      a.dataset.nav = n.href;
-      var count = "";
-      if (n.href === "#/review") {
-        var st = Store.cardStats(Views.helpers.unlockedCardIds());
-        if (st.due)
-          count = '<span class="navlink__count">' + st.due + "</span>";
+    NAV.forEach(function (g, gi) {
+      if (g.group) {
+        g1.appendChild(el("div", "navgroup__label", esc(g.group)));
       }
-      a.innerHTML =
-        Icons.get(n.icon, 16) + "<span>" + esc(n.label) + "</span>" + count;
-      g1.appendChild(a);
+      g.items.forEach(function (n, ni) {
+        var a = el("a", "navlink");
+        /* An unlabelled group after the first needs a rule, or its items read as
+           the tail of the previous heading — Settings looked like part of
+           "Practice". A one-item group does not deserve a heading of its own. */
+        if (!g.group && gi > 0 && ni === 0) a.classList.add("navlink--sep");
+        a.href = n.href;
+        a.dataset.nav = n.href;
+        var count = "";
+        if (n.href === "#/review") {
+          var st = Store.cardStats(Views.helpers.unlockedCardIds());
+          if (st.due)
+            count = '<span class="navlink__count">' + st.due + "</span>";
+        }
+        if (n.href === "#/interview" && Store.drillStats) {
+          /* Drills you fumbled, not drills you have not tried.
+
+             Badging the 28 untried ones is technically accurate and exactly the
+             mistake the review deck already made: a fresh account was shown "167
+             cards due" before reading a word, which is a backlog nobody created.
+             A badge should mean something is waiting for you. A drill you graded
+             yourself down on is; a drill that merely exists is not. */
+          var ds = Store.drillStats("all");
+          if (ds.weak) {
+            count = '<span class="navlink__count">' + ds.weak + "</span>";
+          }
+        }
+        a.innerHTML =
+          Icons.get(n.icon, 16) + "<span>" + esc(n.label) + "</span>" + count;
+        g1.appendChild(a);
+      });
     });
     scroll.appendChild(g1);
 

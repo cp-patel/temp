@@ -11,6 +11,13 @@ It adapts to you. Tell it you're a backend engineer and it marks the nine chapte
 you can skim — each with a note on exactly what _is_ new in it — and builds a
 week-by-week schedule from your real available hours.
 
+It is also not only a course. Four surfaces exist because "I have read it all" and
+"I can do the job" are different claims, and only one of them is checkable: a
+**readiness diagnostic** that scores your work against the competencies an interview
+loop tests, a **session planner** that turns "I have 25 minutes" into an ordered
+plan, **interview drills** that make you answer out loud against a clock, and a
+**portfolio export** that assembles your project numbers into Markdown case studies.
+
 ---
 
 ## Run it

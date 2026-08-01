@@ -169,6 +169,20 @@ body.is-landing .topbar {
   color: var(--ink-3);
 }
 
+/* A heading that follows a link needs to separate from it. The first one in a
+   group does not — it already sits under the group's own top padding. */
+.navlink + .navgroup__label {
+  padding-top: var(--s-5);
+}
+
+/* A trailing utility item with no heading of its own. */
+.navlink--sep {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line-faint);
+  border-radius: 0;
+}
+
 .navlink {
   position: relative;
   display: flex;

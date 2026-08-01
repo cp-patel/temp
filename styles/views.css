@@ -3225,3 +3225,91 @@
 .rdrow__drill:hover svg {
   color: var(--accent);
 }
+
+/* ============================================================
+   Landing: the getting-hired apparatus
+
+   Two-up rather than the three-up feature grid above it. These four are not
+   bullet points — each is a surface with a claim to make and a link to prove it —
+   so they get room to make the claim.
+   ============================================================ */
+
+.agrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-5);
+  margin-top: var(--s-7);
+}
+
+@media (max-width: 840px) {
+  .agrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.acard {
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-6);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  transition: border-color var(--dur) var(--ease-out);
+}
+
+.acard:hover {
+  border-color: var(--accent-line);
+}
+
+.acard__top {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.acard__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 10px;
+  background: var(--surface-3);
+  color: var(--accent);
+}
+
+.acard__top h3 {
+  font-size: var(--t-md);
+  margin: 0;
+}
+
+.acard p {
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+  line-height: 1.65;
+  /* 0.525em per character: `ch` is the advance width of "0" and runs ~24% wide. */
+  max-width: 40em;
+  /* Pushes the link to the bottom so four cards of unequal prose still align. */
+  flex: 1;
+  margin-bottom: var(--s-5);
+}
+
+.acard__go {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  font-size: var(--t-xs);
+  font-weight: 640;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.acard__go svg {
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.acard:hover .acard__go svg {
+  transform: translateX(2px);
+}

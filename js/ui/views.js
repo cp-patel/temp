@@ -237,14 +237,18 @@
       C.chapters.length +
       " chapters · " +
       labCount +
-      " labs</div>" +
+      " labs · " +
+      C.drills.length +
+      " interview drills</div>" +
       "<h1>Become an <em>AI application engineer.</em><br>Properly.</h1>" +
       '<div class="hero__lede">A structured, opinionated path from “I can call an LLM API” ' +
       "to “I can ship an AI system and prove it works.” " +
       U.words(C.phases.length, true) +
       " phases, " +
-      "hands-on labs in every chapter, and the parts nobody teaches — " +
-      "evaluation, cost, and security.</div>" +
+      "hands-on labs in every chapter, the parts nobody teaches — " +
+      "evaluation, cost, security — and the apparatus for actually getting the " +
+      "job: a readiness diagnostic, interview rehearsal, and a portfolio it " +
+      "writes for you.</div>" +
       '<div class="hero__cta">' +
       '<a class="btn btn--primary btn--lg" href="#/roadmap">' +
       Icons.get("map", 16) +
@@ -258,7 +262,7 @@
       heroStat(C.chapters.length, "Chapters") +
       heroStat(labCount, "Interactive labs") +
       heroStat(C.projects.length, "Projects") +
-      heroStat(Math.round(totalMinutes() / 60), "Reading time", "h") +
+      heroStat(C.drills.length, "Drills") +
       "</div>" +
       pathRailHtml() +
       "</div>" +
@@ -303,9 +307,11 @@
         "Cost arithmetic in every relevant chapter, because a feature that costs more per use than it earns is a science project.",
       ],
       [
-        "graph",
-        "Progress that means something",
-        "Spaced-repetition flashcards, per-phase mastery, quizzes with real explanations, and notes that persist. All stored locally in your browser.",
+        "gauge",
+        "It tells you when you are ready",
+        "Not percent complete — a score against the " +
+          C.competencies.length +
+          " competencies an interview loop tests, weighted the way the loop weights them. Reading everything caps you at 60%, because the projects are the point.",
       ],
     ].forEach(function (f) {
       var c = el("div", "fcard");
@@ -321,6 +327,87 @@
       feats.appendChild(c);
     });
     why.appendChild(feats);
+
+    /* The apparatus, as its own section.
+
+       The page above this point describes a course, and a stranger reading it sees
+       one. What separates this from a course is everything that happens around the
+       content: it scores you against the loop, plans the twenty minutes you
+       actually have, rehearses you out loud, and writes the artefact. Those were
+       invisible here for four commits — the four most differentiated things in the
+       product, absent from the pitch. */
+    var appar = el("section", "lsection");
+    appar.innerHTML =
+      '<div class="lsection__head"><div class="u-eyebrow">Not just the material</div>' +
+      "<h2>The part that actually gets you hired</h2>" +
+      "<p>Finishing a course is not the goal and nobody will ask you whether you " +
+      "did. These four surfaces exist because “I have read it all” and “I can do " +
+      "the job” are different claims, and only one of them is checkable.</p></div>";
+    var ag = el("div", "agrid");
+    [
+      [
+        "gauge",
+        "Readiness, not progress",
+        "#/readiness",
+        "See the diagnostic",
+        "Your work scored against " +
+          C.competencies.length +
+          " weighted competencies, split into what you read, what you recalled, " +
+          "what you practised and what you built. It ranks the gaps by what they " +
+          "would cost you, and points at the cheapest way to close the widest one.",
+      ],
+      [
+        "clock",
+        "A plan for the time you have",
+        "#/dashboard",
+        "Plan a session",
+        "Say you have " +
+          C.sessionLengths[1] +
+          " minutes and get an ordered list that fits, not a menu of eight things " +
+          "you could do. Due cards first because they decay, then whatever the " +
+          "readiness gap says is worth most — and it never argues with the roadmap.",
+      ],
+      [
+        "chat",
+        "Rehearsal, out loud",
+        "#/interview",
+        "Try a drill",
+        C.drills.length +
+          " questions from real loops, against a clock, with the rubric hidden " +
+          "until you have answered. Named things a strong answer contains and " +
+          "named things a weak answer says — because recognising a model answer is " +
+          "not the same as having produced one.",
+      ],
+      [
+        "doc",
+        "A portfolio it writes for you",
+        "#/projects",
+        "See the export",
+        "Every project asks you for the numbers its own milestones tell you to " +
+          "collect, then assembles Markdown case studies you can paste into a " +
+          "README. It never invents a figure — an unrecorded measure gets no row, " +
+          "and the gaps are named.",
+      ],
+    ].forEach(function (a) {
+      var c = el("div", "acard");
+      c.innerHTML =
+        '<div class="acard__top"><span class="acard__icon">' +
+        Icons.get(a[0], 18) +
+        "</span><h3>" +
+        esc(a[1]) +
+        "</h3></div>" +
+        "<p>" +
+        esc(a[4]) +
+        "</p>" +
+        '<a class="acard__go" href="' +
+        a[2] +
+        '">' +
+        esc(a[3]) +
+        Icons.get("arrowRight", 13) +
+        "</a>";
+      ag.appendChild(c);
+    });
+    appar.appendChild(ag);
 
     var path = el("section", "lsection");
     path.innerHTML =
@@ -371,6 +458,7 @@
 
     root.appendChild(hero);
     root.appendChild(why);
+    root.appendChild(appar);
     root.appendChild(path);
     root.appendChild(cta);
     root.appendChild(foot);
