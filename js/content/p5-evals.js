@@ -582,7 +582,7 @@ report("faithfulness", 82, 100)  # faithfulness  82.0%  [73.3%, 88.3%]  n=100
       title: "Metrics: Deterministic, Model-Graded, Human",
       subtitle:
         "Never grade with a model what code can check. The discipline of pushing checks down to the cheapest reliable layer is most of what makes an eval harness trustworthy.",
-      minutes: 25,
+      minutes: 26,
       difficulty: "intermediate",
       tags: ["evals", "metrics"],
       lab: "evalscore",
@@ -735,6 +735,19 @@ def deterministic_checks(out, case) -> dict:
           text: "An answer can be **faithful but wrong** (accurately reflecting an outdated document) or **correct but unfaithful** (right from the model's training data, not from your sources). The second is more dangerous: your citations imply grounding that isn't there, and the next question on the same topic may be confidently wrong. Measure both.",
         },
 
+        {
+          t: "check",
+          key: "em-recall",
+          q: 'Your RAG system answers "The free tier allows 1,000 requests per day." The retrieved chunk says 1,000 per day. The documentation, updated last week, says 500. Faithfulness or correctness?',
+          options: [
+            "Both fail — the answer is wrong",
+            "Faithful but incorrect: it reported its context accurately, and its context is stale",
+            "Correct but unfaithful",
+            "Neither metric applies to a factual claim",
+          ],
+          answer: 1,
+          why: "These measure different components and conflating them sends you to debug the wrong one. Faithfulness asks whether the answer is supported by what was retrieved — here it is, perfectly. Correctness asks whether it matches reality — here it does not. A faithful-but-incorrect answer is an ingestion problem: your index is stale. An unfaithful-but-correct answer is a generation problem: the model got lucky from parametric knowledge and will not next time. Same wrong answer, two entirely different fixes.",
+        },
         { t: "h", text: "Agent metrics" },
         {
           t: "p",
@@ -1268,7 +1281,7 @@ if k < 0.6:
       title: "Agent & Trajectory Evaluation",
       subtitle:
         "Grading only the final answer misses almost everything that matters about an agent. This is the round that filters most candidates in agentic-AI interviews — and the one most teams skip.",
-      minutes: 30,
+      minutes: 33,
       difficulty: "advanced",
       tags: ["evals", "agents", "trajectories"],
       lab: "trajectory",
@@ -1313,6 +1326,19 @@ if k < 0.6:
           text: "The standard mistake is grading the trajectory as one blob at the end. The pattern that works is the inverse: score each step against what a competent operator would have done at that point, then roll those up. That gives you a per-step accuracy you can actually act on — 'tool selection is 94% but argument construction is 71%' is a work item; 'the agent is 68% good' is not.",
         },
 
+        {
+          t: "check",
+          key: "ae-recall3",
+          q: "Your agent answers a customer's question correctly, but the trace shows it guessed without calling the lookup tool at all. Outcome-only grading gives it a pass. Why is that a problem?",
+          options: [
+            "It is not — the customer got the right answer",
+            "It passed by luck, and the same behaviour will be wrong the next time the guess is unlucky",
+            "The lookup tool is probably too slow",
+            "Outcome grading is fine here; the trace is just for debugging",
+          ],
+          answer: 1,
+          why: "The right answer by the wrong route is a failure you have to catch, because the route is what generalises and the answer is what happened once. An agent that skipped the lookup got this one from parametric knowledge — plausible, unverifiable, and wrong as soon as the account details are anything unusual. Outcome-only grading marks it green and you ship a system whose correct answers are coincidences. Grade the trajectory: which tools, in a defensible order, within budget.",
+        },
         { t: "h", text: "Golden trajectories" },
         {
           t: "p",
@@ -1424,6 +1450,19 @@ def score_trajectory(golden, run) -> dict:
           text: "Look at that scorecard: tool recall, precision, ordering, forbidden calls, step count, spend, wall-clock, error count. Every one is a deterministic check over the trace. Teams reach for an LLM judge on agent evals far too early — grade the route in code, and reserve the judge for the one genuinely subjective question, which is whether the final answer was good.",
         },
 
+        {
+          t: "check",
+          key: "ae-recall1",
+          q: "You have 60 golden trajectories. What fraction of the scoring should need a judge model?",
+          options: [
+            "Most of it — trajectory quality is inherently subjective",
+            "Almost none: tool names, argument shapes, step counts, budgets and final state are all code-checkable",
+            "About half, with the judge handling the reasoning steps",
+            "All of it, for consistency",
+          ],
+          answer: 1,
+          why: "This is the most commonly missed point in the eval round. Did it call the right tools, in a defensible order, with well-formed arguments, inside budget, ending in the right state? Every one of those is an assertion, free and instant and unarguable. Judges are for the residue — whether an explanation was adequate, whether a summary was fair — and every case you hand to a judge costs money and adds variance. Reach for the judge last, not first.",
+        },
         { t: "h", text: "The metric set" },
         {
           t: "p",
@@ -1526,6 +1565,19 @@ async def eval_recovery(golden, fault_name, fault):
           text: "The most common and most damaging response to a failed tool is not giving up — it's **quietly answering anyway** from whatever the model already believed, with no indication that the lookup failed. That produces a confident, plausible, unsourced answer, and it is invisible unless you injected the fault yourself. `disclosed_failure` is the field worth watching.",
         },
 
+        {
+          t: "check",
+          key: "ae-recall2",
+          q: "Your agent scores 94% on the golden trajectories. In production it fails constantly. What is the eval suite most likely missing?",
+          options: [
+            "More cases — 60 is not enough for 94% to mean anything",
+            "Deliberate failure injection: every case assumes tools return successfully",
+            "A judge model to catch subtler quality problems",
+            "Cost tracking per run",
+          ],
+          answer: 1,
+          why: "Golden trajectories measure the happy path, and production is not the happy path: APIs time out, a tool returns malformed JSON, a search comes back empty, a rate limit hits mid-run. Recovery is the property that most separates a robust agent from a demo, and a suite where every tool succeeds never tests it once. Inject faults deliberately and score the recovery — that is where the 94% and the reality diverge.",
+        },
         { t: "h", text: "Running these affordably" },
         {
           t: "p",

@@ -4,7 +4,7 @@ An interactive, opinionated curriculum for becoming an **AI application
 engineer**: the person who ships products on top of models someone else trained,
 and can prove the result works.
 
-**44 chapters · 8 phases · 17 interactive labs · 6 projects · 167 flashcards · 79 knowledge checks ·
+**44 chapters · 8 phases · 17 interactive labs · 6 projects · 167 flashcards · 93 knowledge checks ·
 28 interview drills · ~73,000 words · zero dependencies**
 
 It adapts to you. Tell it you're a backend engineer and it marks the nine chapters
@@ -88,7 +88,7 @@ recomputes. Estimated durations:
 | 10           | **15 weeks**     | 16 weeks       |
 | 20           | 8 weeks          | 8 weeks        |
 
-Those include project hours, which dominate: 29h of chapters and labs against
+Those include project hours, which dominate: 30h of chapters and labs against
 118h of building. Reading-only estimates are how you get an "it takes two weeks"
 number that nobody should believe.
 

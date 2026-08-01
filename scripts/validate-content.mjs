@@ -336,8 +336,13 @@ C.chapters.forEach((ch, i) => {
   }
 
   // 2. Enough connective prose to carry the reader between the artefacts.
-  const proseWords = countWords(bodyBlocks.filter((b) => b.t === "p"));
-  const bodyWords = countWords(bodyBlocks);
+  /* Interaction is excluded from both sides of this ratio. A check is not a table
+     or a callout the reader has to connect up — it is a deliberate pause — and
+     counting its words as non-prose meant that *adding* a recall question made this
+     rule complain that the chapter had less connective tissue than before. */
+  const readable = bodyBlocks.filter((b) => b.t !== "check" && b.t !== "lab");
+  const proseWords = countWords(readable.filter((b) => b.t === "p"));
+  const bodyWords = countWords(readable);
   const prosePct = bodyWords ? Math.round((proseWords / bodyWords) * 100) : 0;
   if (prosePct < 22) {
     warn(
@@ -349,29 +354,66 @@ C.chapters.forEach((ch, i) => {
   /* 3a. Retrieval practice has to be spread through the chapter, not parked at
    *     the end.
    *
-   * Every chapter had exactly one inline check, and in the 31 chapters without
-   * an embedded lab it sat at 94–96% of the way through — twenty minutes of
-   * reading with nothing to do, then one question. The testing effect is one of
-   * the most replicated findings in learning research, and the guidance is
-   * consistent: low-stakes recall belongs *inside* each chunk, not after all of
-   * them. A chapter whose only interaction is the last block is a document.
+   * Every chapter had exactly one inline check, and in the 31 chapters without an
+   * embedded lab it sat at 94-96% of the way through — twenty minutes of reading
+   * with nothing to do, then one question. The testing effect is one of the most
+   * replicated findings in learning research, and the guidance is consistent:
+   * low-stakes recall belongs *inside* each chunk, not after all of them.
    *
-   * So: something interactive (a lab or a check) must arrive in the first half,
-   * and a chapter of any length needs more than one.
+   * The first version of this rule counted **block indexes**, and that let the
+   * problem straight back in. A lab at block 2 of 25 and a check at block 24
+   * satisfies both "arrives in the first half" and "more than one", while leaving
+   * everything between them as a single unbroken run — and blocks are wildly
+   * unequal, so index position says almost nothing about how far the reader
+   * actually scrolls. Measured in the browser, one chapter had 4,890px between its
+   * two interactive moments and another 6,212px: five to six screens of continuous
+   * reading, in a curriculum whose own argument is that this does not work.
+   *
+   * Measured in reading minutes rather than blocks, twelve of the forty-four
+   * chapters had a run over six minutes, and the worst was 12.9 minutes with two
+   * interactions in a thirty-minute chapter.
    */
   {
     const isInteractive = (b) => b.t === "lab" || b.t === "check";
-    const firstIx = bodyBlocks.findIndex(isInteractive);
     const interactions = bodyBlocks.filter(isInteractive).length;
 
-    if (firstIx >= 0 && bodyBlocks.length > 8) {
-      const at = Math.round((firstIx / bodyBlocks.length) * 100);
-      if (at > 55) {
-        warn(
-          w,
-          `first interactive block is ${at}% through — the reader gets nothing to do until the end`
-        );
+    /* One block's reading cost in minutes, on the same model the `minutes` check
+       above uses: prose at 170 wpm, code far slower per line. */
+    const blockCost = (b) =>
+      b.t === "code"
+        ? ((b.code || "").split("\n").length * 4) / 60
+        : countWords(b) / 170;
+
+    let run = 0;
+    let longest = 0;
+    let firstAt = null;
+    let acc = 0;
+    for (const b of bodyBlocks) {
+      if (isInteractive(b)) {
+        if (firstAt === null) firstAt = acc;
+        if (run > longest) longest = run;
+        run = 0;
+      } else {
+        run += blockCost(b);
       }
+      acc += blockCost(b);
+    }
+    if (run > longest) longest = run;
+
+    /* About two screens of dense technical reading. Past this the reader has been
+       passive long enough that the next thing they do is scroll faster. */
+    const MAX_RUN = 6.5;
+    if (longest > MAX_RUN) {
+      warn(
+        w,
+        `${longest.toFixed(1)} min of unbroken reading — its longest stretch with nothing to do. Put a check inside it (limit ${MAX_RUN})`
+      );
+    }
+    if (firstAt !== null && firstAt > MAX_RUN) {
+      warn(
+        w,
+        `first interactive block is ${firstAt.toFixed(1)} min in — nothing to do until then`
+      );
     }
     if (bodyBlocks.length >= 12 && interactions < 2) {
       warn(
@@ -382,11 +424,14 @@ C.chapters.forEach((ch, i) => {
   }
 
   // 3. No long unbroken stretch of structured blocks. Headings don't count:
-  //    a heading announces a section, it doesn't explain anything.
+  //    a heading announces a section, it doesn't explain anything. Interaction
+  //    resets the run rather than extending it — a check between two tables is
+  //    exactly the thing this rule wants to see, and counting it as more structure
+  //    meant adding one could make the warning appear.
   let run = 0;
   let worstRun = 0;
   for (const b of bodyBlocks) {
-    if (b.t === "p") run = 0;
+    if (b.t === "p" || b.t === "check" || b.t === "lab") run = 0;
     else if (b.t === "h" || b.t === "h3") continue;
     else worstRun = Math.max(worstRun, ++run);
   }

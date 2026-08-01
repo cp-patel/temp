@@ -413,3 +413,117 @@ describe("tracks and overlap data", () => {
     assert.ok(C.deltaCount(BACKEND) > 5);
   });
 });
+
+describe("interactive spacing", () => {
+  /* The rule this pins used to count block indexes, and a lab at block 2 with a
+     check at block 24 satisfied it while leaving five to six screens of unbroken
+     reading between them. Measured in the browser, the worst chapter had 6,212px
+     with nothing to do — in a curriculum whose own argument is that this does not
+     work. Blocks are wildly unequal, so index position says almost nothing about
+     how far the reader scrolls. */
+  const words = (v, out = []) => {
+    if (typeof v === "string") out.push(v);
+    else if (Array.isArray(v)) v.forEach((x) => words(x, out));
+    else if (v && typeof v === "object")
+      for (const k of Object.keys(v))
+        if (!["t", "lang", "id", "key", "code", "url"].includes(k))
+          words(v[k], out);
+    return out;
+  };
+  /* The same reading model the validator and the `minutes` check both use. */
+  const cost = (b) =>
+    b.t === "code"
+      ? ((b.code || "").split("\n").length * 4) / 60
+      : words(b).join(" ").split(/\s+/).filter(Boolean).length / 170;
+
+  const isInteractive = (b) => b.t === "lab" || b.t === "check";
+
+  function spacing(ch) {
+    let run = 0;
+    let longest = 0;
+    let firstAt = null;
+    let acc = 0;
+    for (const b of ch.body || []) {
+      if (isInteractive(b)) {
+        if (firstAt === null) firstAt = acc;
+        longest = Math.max(longest, run);
+        run = 0;
+      } else run += cost(b);
+      acc += cost(b);
+    }
+    return { longest: Math.max(longest, run), firstAt, total: acc };
+  }
+
+  const MAX_RUN = 6.5;
+
+  test("no chapter has a long stretch with nothing to do", () => {
+    /* Joined into a string rather than compared as arrays: the curriculum comes
+       from a vm sandbox, so an array derived from it has a different
+       Array.prototype and deepStrictEqual rejects it as cross-realm even when both
+       sides are empty. */
+    const bad = C.chapters
+      .map((ch) => ({ id: ch.id, ...spacing(ch) }))
+      .filter((r) => r.longest > MAX_RUN)
+      .map((r) => `${r.id} ${r.longest.toFixed(1)}m`)
+      .join(", ");
+    assert.equal(
+      bad,
+      "",
+      `these chapters read too long without a question: ${bad}`
+    );
+  });
+
+  test("every chapter has at least two interactive moments", () => {
+    for (const ch of C.chapters) {
+      const n = (ch.body || []).filter(isInteractive).length;
+      assert.ok(n >= 2, `${ch.id} has ${n}`);
+    }
+  });
+
+  test("something interactive arrives before the reader is bored", () => {
+    for (const ch of C.chapters) {
+      const { firstAt } = spacing(ch);
+      assert.ok(firstAt !== null, `${ch.id} has nothing interactive`);
+      assert.ok(
+        firstAt <= MAX_RUN,
+        `${ch.id}: first interaction is ${firstAt.toFixed(1)} min in`
+      );
+    }
+  });
+
+  /* `minutes` drives every week of every learner's plan, and adding fourteen
+     questions added real time to eleven chapters. If the authored figure drifts
+     below the modelled one everywhere, the whole schedule is optimistic. */
+  test("authored minutes still track the content, including its interactions", () => {
+    const off = [];
+    for (const ch of C.chapters) {
+      const codeLines = (ch.body || [])
+        .filter((b) => b.t === "code")
+        .reduce((a, b) => a + b.code.split("\n").length, 0);
+      const prose = (ch.body || []).reduce(
+        (a, b) =>
+          a +
+          (b.t === "code"
+            ? 0
+            : words(b).join(" ").split(/\s+/).filter(Boolean).length),
+        0
+      );
+      const hasLab = (ch.body || []).some((b) => b.t === "lab");
+      const modelled =
+        1.314 *
+        (prose / 170 +
+          (codeLines * 4) / 60 +
+          (hasLab ? 5 : 0) +
+          (ch.quiz || []).length * 0.9 +
+          2);
+      const ratio = ch.minutes / modelled;
+      if (ratio < 0.65 || ratio > 1.45)
+        off.push(`${ch.id} ${ratio.toFixed(2)}`);
+    }
+    assert.equal(
+      off.join(", "),
+      "",
+      `authored minutes have drifted from the content: ${off.join(", ")}`
+    );
+  });
+});

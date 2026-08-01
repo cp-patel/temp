@@ -282,7 +282,7 @@ def embed_query_cached(q: str) -> tuple:
       title: "Chunking Strategies That Work",
       subtitle:
         "The most under-appreciated decision in RAG. Chunking determines the ceiling on your retrieval quality, and no amount of reranking recovers information a bad split destroyed.",
-      minutes: 24,
+      minutes: 25,
       difficulty: "intermediate",
       tags: ["chunking", "ingestion"],
       lab: "chunking",
@@ -404,6 +404,19 @@ def embed_query_cached(q: str) -> tuple:
         {
           t: "p",
           text: "Notice the shape of both tables: every good option is one that respects the document's own structure, and every bad one imposes a structure the document doesn't have. That is the whole principle — chunk along the seams the author already put there.",
+        },
+        {
+          t: "check",
+          key: "chk-recall",
+          q: "You are chunking a Python codebase and settle on 400 characters with 15% overlap, because that worked well for the technical docs corpus. What is wrong with this?",
+          options: [
+            "400 characters is too small for any corpus",
+            "Overlap should be 25% for code",
+            "Character counts cut through function bodies — code should split on structural boundaries, not length",
+            "Nothing, those are reasonable defaults",
+          ],
+          answer: 2,
+          why: "Both sizing tables have the same shape: every good option respects a boundary the content already has. Prose has paragraphs and headings; code has functions, classes and imports. A 400-character window lands mid-function roughly every time, so the retrieved chunk is a fragment with no signature and no context — which is exactly the case a reader or a model cannot interpret. Split on the AST, then worry about size.",
         },
         { t: "h", text: "Contextual enrichment: the highest-impact upgrade" },
         {
@@ -1279,7 +1292,7 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
       title: "RAG End to End",
       subtitle:
         "The full pipeline assembled: ingestion, retrieval, generation, and citation — plus the design decisions at each stage that determine whether it works.",
-      minutes: 26,
+      minutes: 27,
       difficulty: "intermediate",
       tags: ["rag", "architecture"],
       lab: "ragpipeline",
@@ -1393,6 +1406,19 @@ async def hybrid_search(query: str, tenant: str, n: int = 50):
     return result`,
         },
 
+        {
+          t: "check",
+          key: "ra-recall",
+          q: "Your ingestion pipeline takes 40 minutes for a full re-index and your query path answers in 900ms. Which one deserves the reliability engineering?",
+          options: [
+            "The query path — it is user-visible, so it is what matters",
+            "Ingestion — it is forgiving of slowness but unforgiving of silent failure",
+            "Both equally; latency is latency",
+            "Neither; re-index nightly and move on",
+          ],
+          answer: 1,
+          why: "The two paths have opposite tolerances, and that is the organising idea. Ingestion runs offline, so 40 minutes costs nothing — but a document that silently fails to index is invisible until a user asks about it and gets a confident wrong answer, which can be weeks later. The query path is the reverse: every millisecond shows, and a failure is immediately obvious and immediately reported. Slowness you can see is a much smaller problem than correctness you cannot.",
+        },
         { t: "h", text: "The generation prompt" },
         {
           t: "p",

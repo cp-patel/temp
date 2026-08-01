@@ -352,7 +352,7 @@ class LLM:
       title: "Streaming & Perceived Latency",
       subtitle:
         "Streaming makes nothing faster and changes everything. Time-to-first-token is the number users feel; total generation time is the number they tolerate.",
-      minutes: 23,
+      minutes: 24,
       difficulty: "intermediate",
       tags: ["streaming", "latency", "ux"],
       lab: "latency",
@@ -434,6 +434,19 @@ class LLM:
         {
           t: "p",
           text: "Look at where the model actually sits in that budget. In a RAG request it is frequently a minority of the wall clock, which means the first place to look for latency is rarely the model — it is retrieval, reranking, or a serial chain of calls that could have run concurrently.",
+        },
+        {
+          t: "check",
+          key: "st-recall",
+          q: "You profile a RAG request at 3.2s total and find retrieval takes 180ms, reranking 240ms, and the model 2.6s. Where is the largest win available?",
+          options: [
+            "Cut retrieval — 180ms is too slow for a vector lookup",
+            "Drop the reranker, it costs a fifth of a second",
+            "Stream, so the user sees the first token in ~400ms instead of waiting 3.2s",
+            "Cache the whole response",
+          ],
+          answer: 2,
+          why: "Nothing in that breakdown is broken — the model is 80% of the time and generation is inherently slow. But the number the user experiences is time-to-first-token, not total time, and streaming changes it from 3.2s to roughly the time before generation starts. That is a several-fold improvement in the felt number without making anything actually faster. Optimise the perceived metric before the real one; the reranker at 240ms is not what anybody is complaining about.",
         },
         { t: "h", text: "Server-sent events, done properly" },
         {

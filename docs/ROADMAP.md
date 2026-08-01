@@ -11,8 +11,8 @@ Written so the next change doesn't have to rediscover the reasoning.
 
 | Area            | State                                                                 |
 | --------------- | --------------------------------------------------------------------- |
-| Curriculum      | 44 chapters, 8 phases, 72,528 words of prose, 73 code blocks          |
-| Interactive     | 17 labs, 79 inline knowledge checks, 165 quiz questions               |
+| Curriculum      | 44 chapters, 8 phases, 75,186 words of prose, 73 code blocks          |
+| Interactive     | 17 labs, 93 inline knowledge checks, 165 quiz questions               |
 | Practice        | 6 projects with 43 verifiable milestones, 167 spaced-repetition cards |
 | Personalisation | 5 tracks, 14 claimable skills, 17 per-chapter delta notes             |
 | Diagnostic      | 7 weighted competencies, 4-part scoring, ranked next actions          |

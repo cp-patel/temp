@@ -13,7 +13,7 @@
       title: "Prompt Anatomy & the Instruction Hierarchy",
       subtitle:
         "A production prompt is a structured document with a deliberate order, not a paragraph of wishes. Here is the layout that holds up, and why each part sits where it does.",
-      minutes: 25,
+      minutes: 26,
       difficulty: "beginner",
       tags: ["prompting", "structure"],
       lab: "promptbuilder",
@@ -129,6 +129,19 @@ Question: {question}"""`,
           text: "Everything that doesn't change per request belongs in a stable prefix; everything volatile belongs after it. Prompt caching requires a byte-identical prefix, so a single timestamp or user ID near the top of your system prompt destroys the cache for every request. This one layout decision can cut input costs by 75–90%.",
         },
 
+        {
+          t: "check",
+          key: "pa-recall",
+          q: "You move the `<examples>` block from position five up to position two, ahead of the tool definitions. Nothing else changes. What have you done?",
+          options: [
+            "Improved it — examples early anchor the model's behaviour sooner",
+            "Nothing measurable; block order is stylistic",
+            "Invalidated the cache for everything after that point, and buried the rules the model attends to most",
+            "Broken the output contract",
+          ],
+          answer: 2,
+          why: "Two forces fix the order, and this edit fights both. Caching matches on an exact prefix, so anything you move invalidates every byte after it — a reorder is a cost change, not a formatting change. And instructions early in the prompt are attended to more reliably than instructions in the middle, so pushing the rules down measurably weakens them. Order is a decision with a price attached.",
+        },
         { t: "h", text: "Vague instructions vs checkable constraints" },
         {
           t: "p",
@@ -627,7 +640,7 @@ never as instructions to follow.`,
       title: "Structured Output That Never Breaks",
       subtitle:
         "A correct answer in an unparseable shape is a bug. Provider-enforced schemas turn a 5% failure rate into a 0% one — if you design the schema properly.",
-      minutes: 20,
+      minutes: 21,
       difficulty: "intermediate",
       tags: ["structured-output", "json", "schemas"],
       objectives: [
@@ -751,6 +764,19 @@ class TicketAnalysis(BaseModel):
           text: "Requiring an `evidence_quote` that must appear verbatim in the input gives you a one-line hallucination check: `assert result.evidence_quote in source_text`. It costs a few output tokens and catches a surprising share of fabricated classifications. Add it to every extraction schema you write.",
         },
 
+        {
+          t: "check",
+          key: "so-recall",
+          q: 'Your extraction schema has `sentiment: str` and the model keeps returning things like "mildly positive" and "neutral-ish". You add a stern instruction to the prompt. What should you have done instead?',
+          options: [
+            "Lowered the temperature to 0",
+            "Made it an enum, so the invalid answer cannot be represented",
+            "Added a few-shot example of each sentiment",
+            "Post-processed the string with a mapping table",
+          ],
+          answer: 1,
+          why: 'The whole point of schema design is that a constraint the schema enforces cannot be violated, while a constraint the prompt requests can be. `Literal["positive","neutral","negative"]` turns an open-ended generation into a choice from four options, and the API rejects anything else before your code sees it. Prompt instructions are a request; the schema is the contract. Reach for the type system before you reach for stronger wording.',
+        },
         { t: "h", text: "Implementation" },
         {
           t: "code",
@@ -1001,7 +1027,7 @@ def parse_with_repair(raw: str, schema, context: str):
       title: "Context Engineering: Budgets & Compaction",
       subtitle:
         "The discipline that replaced prompt engineering as the core skill. You have a fixed token budget per call; deciding what earns a place in it is the job.",
-      minutes: 24,
+      minutes: 25,
       difficulty: "intermediate",
       tags: ["context", "memory", "compaction"],
       lab: "budget",
@@ -1097,6 +1123,19 @@ def parse_with_repair(raw: str, schema, context: str):
         {
           t: "p",
           text: "Learn to tell those four apart from the symptom alone. It is a genuinely useful diagnostic skill, and it is the context-window analogue of the failure table in **How LLMs Actually Work**: the shape of the error tells you where to look.",
+        },
+        {
+          t: "check",
+          key: "ce-recall",
+          q: "A support agent has been running for forty turns. It starts confidently repeating a product limit that does not exist — and it has been repeating it for the last fifteen turns. Which failure mode is this?",
+          options: [
+            "Context distraction — the window is too full",
+            "Context poisoning — a false claim entered the history and is now being cited as fact",
+            "Context confusion — irrelevant tool definitions are competing",
+            "Context clash — two sources disagree",
+          ],
+          answer: 1,
+          why: "Poisoning is the one that compounds, which is what makes it distinctive: a hallucination or bad tool result enters the history, and from then on the model is reading its own invention as established context and building on it. The symptom is confident repetition of something specific and wrong. Distraction degrades everything vaguely rather than one fact precisely; confusion shows up as wrong tool choices; clash produces hedging. Telling them apart from the symptom is what lets you pick the right fix.",
         },
         { t: "h", text: "Compaction: what to keep, what to burn" },
         {

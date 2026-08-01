@@ -335,7 +335,7 @@ if settings.capture_payloads:
       title: "Prompt Injection & the Lethal Trifecta",
       subtitle:
         "The defining unsolved security problem of AI applications. You cannot fix it in the prompt — you fix it in the architecture, by removing capability.",
-      minutes: 26,
+      minutes: 27,
       difficulty: "advanced",
       tags: ["security", "injection"],
       lab: "injection",
@@ -455,6 +455,19 @@ component in the chain.`,
           text: "It's easy to miss because it feels like display, not networking. If your UI renders markdown images from model output, the model can make arbitrary outbound GET requests with data in the query string. The same applies to link previews, iframes, and CSS `url()`. Restrict image and link hosts to an allow-list, or strip them from model output entirely.",
         },
 
+        {
+          t: "check",
+          key: "pi-recall",
+          q: "An agent reads incoming email and can query your customer database. It has no tools that send anything — no email, no HTTP, no webhooks. How exposed are you?",
+          options: [
+            "Fully — untrusted input plus private data is the whole attack",
+            "Much less: two legs of the trifecta without the third has no exfiltration path",
+            "Not at all; without a send tool injection is impossible",
+            "It depends entirely on the prompt's delimiters",
+          ],
+          answer: 1,
+          why: "Any two legs are usually survivable; all three enable exfiltration. Untrusted content plus private data means an injection can make the agent *read* something it should not, which is bad — but it needs a channel out to become a breach. That is why removing a leg beats hardening one: it changes what a successful injection can accomplish rather than trying to prevent it. Watch the channels you did not think of, though. Rendered Markdown images are an exfiltration path, and so is any tool that writes somewhere a third party can read.",
+        },
         { t: "h", text: "Mitigations, ranked by how well they actually hold" },
         {
           t: "p",

@@ -281,6 +281,39 @@ Three rules exist because the first version broke them:
 is why the drift warning on it matters more than it looks: a chapter that grows 40%
 without its estimate changing makes every session plan quietly optimistic.
 
+## Interactive spacing
+
+`minutes` is not the only thing the content model is used for. The validator also
+measures the **longest stretch of a chapter with nothing to do**, in reading
+minutes, and warns past 6.5 — roughly two screens of dense technical material.
+
+The first version of that rule counted block _indexes_, and it was wrong in a way
+worth remembering. A lab at block 2 of 25 and a check at block 24 satisfies both
+"something interactive arrives in the first half" and "more than one interaction",
+so every chapter passed. But blocks are wildly unequal — a code block renders 519px
+and a paragraph 120px — so index position says almost nothing about how far the
+reader actually scrolls. Measured in a browser, one chapter had **4,890px** between
+its two interactive moments and another **6,212px**: five to six screens of
+continuous reading, in a curriculum whose own argument is that this does not work.
+
+Re-measured in reading minutes, twelve of the forty-four chapters had a run over six
+minutes and the worst was 12.9 minutes with two interactions in a thirty-minute
+chapter. Fourteen checks closed them; no chapter now exceeds 6.5 and the median
+longest run is 4.8.
+
+Two adjacent rules had the same blind spot in reverse, and _adding_ the checks made
+them complain: the prose-ratio rule counted a check's words as non-prose, and the
+structured-run rule counted a check as another undifferentiated block. Both now treat
+interaction as what it is — a deliberate pause, not something the reader has to
+connect up.
+
+The knock-on is that fourteen questions is real time, so eleven chapters gained a
+minute each (three for the worst). That flows straight into the plan engine, and
+`npm run check:docs` caught all four documented figures it moved: the check count in
+two files, the prose word count, and the README's reading-hours figure.
+
+## The plan engine
+
 ## The plan engine
 
 `js/content/tracks.js` is the personalisation layer, and it's worth

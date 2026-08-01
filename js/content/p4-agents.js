@@ -13,7 +13,7 @@
       title: "Tool Use & Function Calling",
       subtitle:
         "The mechanism that lets a model act on the world. Simple to wire up, and the tool descriptions you write determine whether it works.",
-      minutes: 20,
+      minutes: 21,
       difficulty: "intermediate",
       tags: ["tools", "function-calling"],
       objectives: [
@@ -189,6 +189,19 @@ async def run_with_tools(messages: list, tools: list) -> str:
           text: "Most tool-selection errors come from overlapping tools. Explicitly naming the alternative — 'use get_order for a single order' — converts an ambiguous choice into a clear one. If you fix one thing about your tool definitions, fix this. It's also self-documenting for your teammates.",
         },
 
+        {
+          t: "check",
+          key: "tu-recall",
+          q: 'Your agent has a `search_database` tool whose description is the docstring from your internal API: "Executes a parameterised query against the primary datastore. See wiki for schema." What is the most valuable thing to add?',
+          options: [
+            "The full table schema, so the model knows the columns",
+            "When *not* to use it, and what it returns",
+            "Example queries as few-shot cases",
+            "Type annotations on every argument",
+          ],
+          answer: 1,
+          why: 'A tool description is a prompt, not documentation — it is read by a model deciding between options, at the moment of choosing. "See wiki" is worthless to something that cannot browse, and a schema dump tells it how to call the tool but not whether to. The two sentences that change behaviour most are what the tool returns and in what shape, and an explicit "do NOT use this to…" naming the neighbouring tool it keeps getting confused with. Selection accuracy is a description problem far more often than a model problem.',
+        },
         { t: "h", text: "How many tools is too many" },
         {
           t: "p",
@@ -357,7 +370,7 @@ async def run_with_tools(messages: list, tools: list) -> str:
       title: "The Agent Loop",
       subtitle:
         "An agent is a model in a loop with tools, where the model chooses what happens next. That last clause is the whole distinction — and the whole risk.",
-      minutes: 27,
+      minutes: 29,
       difficulty: "advanced",
       tags: ["agents", "architecture"],
       lab: "agenttrace",
@@ -453,6 +466,19 @@ async def run_with_tools(messages: list, tools: list) -> str:
           ],
         },
 
+        {
+          t: "check",
+          key: "al-recall2",
+          q: "A support workflow does: classify the ticket, look up the account, draft a reply, check it against policy. Same four steps, every time. Should it be an agent?",
+          options: [
+            "Yes — an agent handles the edge cases more gracefully",
+            "No: the steps are known, so it is a workflow, and a workflow is cheaper, faster and testable",
+            "Yes, if you cap the steps at four",
+            "Only if the classification step is unreliable",
+          ],
+          answer: 1,
+          why: "The honest test is whether you can enumerate the steps in advance. Here you just did, so handing control flow to a model buys nothing and costs plenty: unpredictable cost and latency, and four chances to take a wrong turn instead of zero. Reliability compounds too — four steps at 97% each is 88%, not 97%. Agents earn their keep when the path genuinely is not knowable up front: an unknown-length search, real branching on what it finds. A fixed pipeline dressed as an agent is the most common expensive mistake in this phase.",
+        },
         { t: "h", text: "A loop with budgets on every axis" },
         {
           t: "p",
@@ -535,6 +561,19 @@ async def run_agent(task: str, tools: list, budget=Budget()) -> AgentResult:
           text: "A step limit alone doesn't protect you: twelve steps that each retrieve 40k tokens is a very expensive run. Cap steps, tokens, wall-clock, spend, and consecutive tool errors. And halt *gracefully* — ask for the best available answer rather than returning nothing after burning the whole budget.",
         },
 
+        {
+          t: "check",
+          key: "al-recall",
+          q: "Your agent has a hard cap of 20 steps. A single run still costs £38. What did the cap miss?",
+          options: [
+            "Nothing — 20 steps is too generous, lower it",
+            "Tokens, wall-clock and spend: one step can retrieve a 200k-token document",
+            "The model was too expensive for the task",
+            "Steps should be capped per tool, not per run",
+          ],
+          answer: 1,
+          why: "A step cap bounds how many times the loop turns, and nothing else. One step that pulls a large document into context, or a single call to an expensive model, walks straight past it — the axes are independent and you need a bound on each: max steps, max tokens, max wall-clock, max spend. Instrument cost per run and quote the p95, because the median hides exactly this: the £38 run is not the typical one, it is the one that matters.",
+        },
         { t: "h", text: "The four failure modes" },
         {
           t: "p",
