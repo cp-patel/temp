@@ -3453,22 +3453,24 @@
     var resetRow = el("div", "setrow");
     resetRow.innerHTML =
       '<div><div class="setrow__t">Reset everything</div>' +
-      '<div class="setrow__d">Clears completions, quiz scores, flashcard schedules, notes, and XP. This cannot be undone.</div></div>';
+      /* Derived, both here and in the dialog below. Two hand-written copies of this
+         list went stale the moment portfolio evidence and drill history existed, and
+         the one that mattered was promising to clear five things while also
+         destroying every write-up the learner had typed. */
+      '<div class="setrow__d">' +
+      esc(Store.resetWarning()) +
+      "</div></div>";
     var resetBtn = el("button", "btn btn--outline btn--sm");
     resetBtn.style.color = "var(--rose)";
     resetBtn.style.borderColor =
       "color-mix(in oklab, var(--rose) 34%, transparent)";
     resetBtn.innerHTML = Icons.get("trash", 14) + " Reset";
     resetBtn.onclick = function () {
-      App.confirm(
-        "Reset all progress?",
-        "This clears every completion, quiz score, flashcard schedule, note, and your XP. It cannot be undone — export first if you might want it back.",
-        function () {
-          Store.reset();
-          Toast.show("Progress reset", "Starting fresh", "", "reset");
-          App.go("#/dashboard", true);
-        }
-      );
+      App.confirm("Reset all progress?", Store.resetWarning(), function () {
+        Store.reset();
+        Toast.show("Progress reset", "Starting fresh", "", "reset");
+        App.go("#/dashboard", true);
+      });
     };
     resetRow.appendChild(resetBtn);
     card.appendChild(resetRow);

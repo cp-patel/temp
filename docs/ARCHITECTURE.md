@@ -119,6 +119,36 @@ scores them), for the same reason the plan is derived — a stored score would g
 stale the moment a weight was retuned or a chapter added, and nothing would look
 broken.
 
+### What the app admits it stores
+
+`Store.dataKinds` describes the state above in human terms, and `Store.resetWarning()`
+assembles the destructive-action copy from it. Both the Settings row and the confirm
+dialog read from that one place.
+
+This exists because two hand-written prose lists described the same state and both
+went stale the moment `evidence` and `drills` were added: the reset dialog was
+promising to clear "every completion, quiz score, flashcard schedule, note, and your
+XP" while also silently destroying every portfolio write-up the learner had typed —
+the only thing in here nobody can reconstruct. A unit test asserts that every key in
+`DEFAULTS` appears in exactly one `dataKinds` entry, so adding state without
+describing it fails the build instead of quietly mis-warning someone. The two prose
+kinds are ordered first in the warning, because a tick can be re-ticked from memory
+and a measured number with the paragraph explaining it cannot.
+
+### Damaged state
+
+Every write path assumes a shape, and Settings offers JSON import, so a hand-edited
+file is a supported way in rather than a hypothetical. `sane()` rejects a value whose
+_type_ differs from its default; `saneState()` repairs the nested shapes the rest of
+the file dereferences without asking.
+
+Each key was hardened as its own bug was found, which left a gap worth naming: the
+tests checked one damaged key at a time, and `cards` had been missed entirely. A
+stored `{"role:0": "nope"}` is truthy, so `S.card()` handed the string straight back
+and `c.seen++` threw on the first review. It was a **combined**-damage test — every
+key wrong at once, then every write path and every derived report exercised — that
+found it. Per-key coverage is not coverage.
+
 ## The readiness scorer
 
 `js/content/competencies.js` maps the curriculum onto the seven competencies an

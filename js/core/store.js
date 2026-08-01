@@ -123,6 +123,25 @@
       });
       if (typeof rec.notes !== "string") rec.notes = "";
     });
+    /* Cards got missed when progress, evidence and drills were hardened, and it is
+       the same bug: a stored string is truthy, so S.card handed it straight back and
+       `c.seen++` threw "cannot create property 'seen' on string 'nope'" the first
+       time anything was reviewed. Found by a combined-damage test — every key had
+       been checked alone. */
+    Object.keys(out.cards).forEach(function (id) {
+      var rec = out.cards[id];
+      if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
+        delete out.cards[id];
+        return;
+      }
+      ["box", "due", "seen", "right"].forEach(function (f) {
+        if (typeof rec[f] !== "number" || !isFinite(rec[f]) || rec[f] < 0) {
+          rec[f] = 0;
+        }
+      });
+      if (rec.box > 5) rec.box = 5;
+    });
+
     Object.keys(out.drills).forEach(function (id) {
       var rec = out.drills[id];
       if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
@@ -467,9 +486,13 @@
   var BOX_GAP = [0, 1, 2, 4, 8, 16];
 
   S.card = function (id) {
-    if (!state.cards[id])
-      state.cards[id] = { box: 0, due: 0, seen: 0, right: 0 };
-    return state.cards[id];
+    var rec = state.cards[id];
+    /* Replaced, not written onto — the same guard S.chapter needs, for the same
+       reason: a wrong-typed record from a hand-edited import is truthy. */
+    if (!rec || typeof rec !== "object" || Array.isArray(rec)) {
+      rec = state.cards[id] = { box: 0, due: 0, seen: 0, right: 0 };
+    }
+    return rec;
   };
 
   S.reviewCard = function (id, got) {
@@ -639,6 +662,107 @@
   };
 
   /* ---- reset ---- */
+
+  /* ---- what is actually in here ----
+     
+     Declared once because two surfaces describe it in prose — the reset warning and
+     the Settings row above it — and both were hand-written lists that went stale the
+     moment `evidence` and `drills` were added. The reset dialog was still promising
+     to clear "every completion, quiz score, flashcard schedule, note, and your XP"
+     while also silently destroying every portfolio write-up the learner had typed,
+     which is the one thing here nobody can reconstruct.
+
+     A unit test asserts every key in DEFAULTS appears in exactly one entry, so
+     adding state without describing it fails the build rather than quietly
+     mis-warning someone. */
+  S.dataKinds = [
+    /* Prose first: it leads the warning because it is what someone would actually
+       regret losing. A tick can be re-ticked from memory; a measured number and the
+       paragraph explaining it cannot. */
+    {
+      keys: ["evidence"],
+      label: "your portfolio measurements and write-ups",
+      cleared: true,
+      prose: true,
+    },
+    {
+      keys: ["notes"],
+      label: "your chapter notes",
+      cleared: true,
+      prose: true,
+    },
+    {
+      keys: ["progress"],
+      label: "chapter completions, quiz scores and inline checks",
+      cleared: true,
+    },
+    {
+      keys: ["projects"],
+      label: "project milestones",
+      cleared: true,
+    },
+    {
+      keys: ["drills"],
+      label: "interview drill history",
+      cleared: true,
+    },
+    {
+      keys: ["cards"],
+      label: "flashcard schedules",
+      cleared: true,
+    },
+    {
+      keys: ["labs"],
+      label: "which labs you have opened",
+      cleared: true,
+    },
+    {
+      keys: ["xp", "days", "streak"],
+      label: "XP, streak and activity history",
+      cleared: true,
+    },
+    {
+      keys: ["profile", "onboarded"],
+      label: "your personalisation profile",
+      cleared: true,
+    },
+    /* Survives a reset on purpose — see S.reset. */
+    {
+      keys: ["theme", "dense"],
+      label: "display preferences",
+      cleared: false,
+    },
+    /* Bookkeeping nobody needs warned about, listed so the coverage test can tell
+       "deliberately unnamed" from "forgotten". */
+    { keys: ["v", "started", "recent", "open"], label: null, cleared: true },
+  ];
+
+  /* The reset warning, assembled rather than written. */
+  S.resetWarning = function () {
+    var lost = S.dataKinds
+      .filter(function (k) {
+        return k.cleared && k.label;
+      })
+      .map(function (k) {
+        return k.label;
+      });
+    var kept = S.dataKinds
+      .filter(function (k) {
+        return !k.cleared && k.label;
+      })
+      .map(function (k) {
+        return k.label;
+      });
+    return (
+      "This clears " +
+      lost.slice(0, -1).join(", ") +
+      " and " +
+      lost[lost.length - 1] +
+      "." +
+      (kept.length ? " Only your " + kept.join(" and ") + " survive." : "") +
+      " It cannot be undone, so export first if there is any chance you want it back."
+    );
+  };
 
   S.reset = function () {
     var theme = state.theme;

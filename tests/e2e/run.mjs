@@ -2323,6 +2323,100 @@ async function main() {
   /* The sequence is the feature: question, clock, then rubric. Showing the rubric
      alongside the question would turn the whole thing into a reading exercise,
      which is precisely the failure it exists to prevent. */
+  /* ---------------- what reset actually destroys ---------------- */
+  /* The warning was a hand-written list in two places and went stale the moment
+     portfolio evidence existed: it promised to clear five things while also
+     destroying every write-up the learner had typed. Both surfaces derive it now. */
+  section("reset warning");
+  {
+    const wctx = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      colorScheme: "dark",
+    });
+    const wp = await wctx.newPage();
+    wp.on("pageerror", (e) => errors.push(`reset pageerror: ${e.message}`));
+    wp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`reset console: ${m.text()}`);
+    });
+    await visit(wp, BASE + "#/settings");
+    await wp.evaluate(() => Store.skipOnboarding());
+    await wp.waitForTimeout(400);
+
+    const copy = await wp.evaluate(() => {
+      const rows = [...document.querySelectorAll(".setrow")];
+      const row = rows.filter((r) => /Reset everything/.test(r.innerText))[0];
+      const kinds = Store.dataKinds.filter((k) => k.cleared && k.label);
+      return {
+        shown: row ? row.innerText : "",
+        derived: Store.resetWarning(),
+        missing: kinds
+          .filter((k) => !(row ? row.innerText : "").includes(k.label))
+          .map((k) => k.label),
+      };
+    });
+    check(
+      "the Settings row names every category a reset destroys",
+      copy.missing.length === 0 && copy.shown.includes(copy.derived),
+      JSON.stringify(copy)
+    );
+    check(
+      "including the portfolio write-ups, which are the only prose here",
+      /portfolio/i.test(copy.shown) && /write-up/i.test(copy.shown),
+      copy.shown
+    );
+
+    /* And the dialog, which is the last thing anyone reads before losing it. */
+    await wp.locator('.setrow:has-text("Reset everything") button').click();
+    await wp.waitForTimeout(300);
+    const dialog = await wp.evaluate(() => {
+      const box = document.querySelector(".modal__box");
+      return {
+        text: box ? box.innerText : "",
+        derived: Store.resetWarning(),
+        role: box ? box.getAttribute("role") : null,
+      };
+    });
+    check(
+      "the confirm dialog shows the same derived warning",
+      dialog.text.includes(dialog.derived) && dialog.role === "dialog",
+      JSON.stringify({ role: dialog.role, len: dialog.text.length })
+    );
+    await wp.keyboard.press("Escape");
+    await wp.waitForTimeout(300);
+
+    /* Reset really does clear the new state, and really does keep the theme. */
+    const cleared = await wp.evaluate(() => {
+      Store.setTheme("light");
+      Store.setMetric("p-rag", "recallAfter", "0.82");
+      Store.setEvidenceNotes("p-rag", "prose that would hurt to lose");
+      Store.rateDrill(window.Curriculum.drills[0].id, 0);
+      const before = {
+        evidence: Object.keys(Store.state().evidence).length,
+        drills: Object.keys(Store.state().drills).length,
+      };
+      Store.reset();
+      return {
+        before,
+        after: {
+          evidence: Object.keys(Store.state().evidence).length,
+          drills: Object.keys(Store.state().drills).length,
+        },
+        theme: Store.state().theme,
+      };
+    });
+    check(
+      "reset clears portfolio evidence and drill history but keeps the theme",
+      cleared.before.evidence === 1 &&
+        cleared.before.drills === 1 &&
+        cleared.after.evidence === 0 &&
+        cleared.after.drills === 0 &&
+        cleared.theme === "light",
+      JSON.stringify(cleared)
+    );
+
+    await wctx.close();
+  }
+
   section("interview drills");
   {
     const ictx = await browser.newContext({

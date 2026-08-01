@@ -1,19 +1,26 @@
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import {
+  loadCurriculum,
   loadModule,
   makeMemoryStorage,
 } from "../../scripts/lib/load-curriculum.mjs";
 
-/** Fresh store over a fresh in-memory localStorage for each test. */
-function freshStore(seed) {
+const C = loadCurriculum();
+
+/** Fresh store over a fresh in-memory localStorage for each test.
+ *
+ * The curriculum is injected because the store's derived reports — readiness,
+ * session, portfolio, drill stats — return null without it, so assertions about
+ * them were passing vacuously on a store that could not compute them. */
+function freshStore(seed, opts) {
   const util = loadModule("js/core/util.js");
   const storage = makeMemoryStorage();
   if (seed !== undefined) storage.setItem("forge.ai.v1", seed);
-  const sandbox = loadModule("js/core/store.js", {
-    U: util.U,
-    localStorage: storage,
-  });
+  const globals = { U: util.U, localStorage: storage };
+  /* One test deliberately checks the no-curriculum degradation path. */
+  if (!opts || opts.curriculum !== false) globals.Curriculum = C;
+  const sandbox = loadModule("js/core/store.js", globals);
   return { Store: sandbox.Store, storage };
 }
 
@@ -356,9 +363,21 @@ describe("profile and plan", () => {
     assert.equal(Store.profile(), null);
   });
 
-  test("plan is null without a curriculum present", () => {
-    Store.setProfile({ track: "backend", skills: [], hoursPerWeek: 5 });
-    assert.equal(Store.plan(), null);
+  /* Every derived report degrades to null rather than throwing when the content
+     layer is absent — a deployment that dropped a content file must not take the
+     whole store down with it. */
+  test("derived reports are null without a curriculum present", () => {
+    const { Store: bare } = freshStore(undefined, { curriculum: false });
+    bare.setProfile({ track: "backend", skills: [], hoursPerWeek: 5 });
+    assert.equal(bare.plan(), null);
+    assert.equal(bare.readiness(), null);
+    assert.equal(bare.session(25, 0), null);
+    assert.equal(bare.portfolio(), null);
+    assert.equal(bare.drillStats("all"), null);
+    /* But the plain state accessors keep working, so the rest of the app can. */
+    assert.doesNotThrow(() => bare.signals());
+    assert.doesNotThrow(() => bare.resetWarning());
+    assert.doesNotThrow(() => bare.complete("role"));
   });
 });
 
@@ -422,5 +441,203 @@ describe("persistence", () => {
   test("import rejects a non-object payload", () => {
     const { Store } = freshStore();
     assert.throws(() => Store.import('"a string"'));
+  });
+});
+
+describe("what the app admits it stores", () => {
+  /* The check that makes the reset warning un-driftable.
+
+     Two hand-written prose lists described this state, and both went stale the
+     moment `evidence` and `drills` were added — the reset dialog was promising to
+     clear five things while also destroying every portfolio write-up the learner
+     had typed, which is the one thing in here nobody can reconstruct. Adding state
+     without describing it now fails here. */
+  test("every stored key is described exactly once", () => {
+    const { Store } = freshStore();
+    const stored = Object.keys(Store.state());
+    const seen = new Map();
+    for (const kind of Store.dataKinds) {
+      assert.ok(Array.isArray(kind.keys) && kind.keys.length, "empty kind");
+      assert.equal(typeof kind.cleared, "boolean", JSON.stringify(kind.keys));
+      for (const k of kind.keys) {
+        assert.ok(
+          !seen.has(k),
+          `"${k}" is described twice: ${seen.get(k)} and ${kind.label}`
+        );
+        seen.set(k, kind.label);
+      }
+    }
+    for (const k of stored) {
+      assert.ok(seen.has(k), `state key "${k}" is stored but never described`);
+    }
+    for (const k of seen.keys()) {
+      assert.ok(stored.includes(k), `"${k}" is described but is not state`);
+    }
+  });
+
+  test("the reset warning names everything it will destroy", () => {
+    const { Store } = freshStore();
+    const warning = Store.resetWarning();
+    for (const kind of Store.dataKinds) {
+      if (!kind.cleared || !kind.label) continue;
+      assert.ok(
+        warning.includes(kind.label),
+        `the warning does not mention "${kind.label}"`
+      );
+    }
+    /* And says what survives, so "reset" does not read as "uninstall". */
+    for (const kind of Store.dataKinds) {
+      if (kind.cleared || !kind.label) continue;
+      assert.ok(
+        warning.includes(kind.label),
+        `"${kind.label}" is not named as kept`
+      );
+    }
+    assert.match(warning, /cannot be undone/i);
+    assert.match(warning, /export first/i);
+  });
+
+  /* The two prose kinds lead, because they are what someone would actually regret.
+     A tick can be re-ticked from memory; a measured number and the paragraph
+     explaining it cannot. */
+  test("the prose you typed is named before the ticks", () => {
+    const { Store } = freshStore();
+    const warning = Store.resetWarning();
+    const prose = Store.dataKinds.filter((k) => k.prose && k.label);
+    assert.ok(prose.length >= 2, "expected notes and portfolio evidence");
+    const ticks = Store.dataKinds.filter(
+      (k) => k.cleared && k.label && !k.prose
+    );
+    const lastProse = Math.max(...prose.map((k) => warning.indexOf(k.label)));
+    const firstTick = Math.min(...ticks.map((k) => warning.indexOf(k.label)));
+    assert.ok(
+      lastProse < firstTick,
+      `"${warning}" buries the prose behind the ticks`
+    );
+  });
+
+  test("reset clears everything it claims to, and keeps what it claims to keep", () => {
+    const { Store } = freshStore();
+    Store.setTheme("light");
+    Store.complete("role");
+    Store.saveQuiz("role", 1, 2);
+    Store.note("role", "a note");
+    Store.projTask("p-rag", 0);
+    Store.labTouched("tokenizer");
+    Store.setMetric("p-rag", "recallAfter", "0.82");
+    Store.setEvidenceNotes("p-rag", "the reranker won");
+    Store.rateDrill("cost-arithmetic", 1);
+    Store.setProfile({
+      track: "backend",
+      skills: [],
+      goal: "job",
+      hoursPerWeek: 10,
+    });
+    assert.ok(Store.state().xp > 0, "fixture earned no XP");
+
+    const { Store: untouched } = freshStore();
+    const pristine = JSON.parse(JSON.stringify(untouched.state()));
+
+    Store.reset();
+    const after = Store.state();
+    for (const kind of Store.dataKinds) {
+      for (const key of kind.keys) {
+        if (key === "v" || key === "started") continue;
+        /* Compared against a never-touched store rather than guessing at what
+           "empty" looks like: streak resets to {n:0,last:null,best:0}, which is an
+           object with keys and is entirely correct. */
+        if (kind.cleared) {
+          assert.deepEqual(
+            JSON.parse(JSON.stringify(after[key])),
+            JSON.parse(JSON.stringify(pristine[key])),
+            `"${key}" survived a reset: ${JSON.stringify(after[key])}`
+          );
+        }
+      }
+    }
+    /* Theme is deliberately preserved — resetting your progress should not put you
+       back on the wrong colour scheme. */
+    assert.equal(after.theme, "light");
+  });
+
+  /* Several keys damaged at once, which is what a hand-edited file actually looks
+     like. Each was covered alone; the combination is what the app has to survive. */
+  test("a payload with every key damaged at once still yields a usable app", () => {
+    const { Store } = freshStore();
+    const junk = JSON.stringify({
+      progress: { role: 7, tokens: [], sampling: { done: true } },
+      notes: "not an object",
+      cards: { "role:0": "nope" },
+      projects: "nope",
+      labs: 12,
+      evidence: { "p-rag": { metrics: { recallAfter: 0.82 }, notes: 9 } },
+      drills: { "cost-arithmetic": { seen: -1, rating: 99, at: "yesterday" } },
+      xp: "lots",
+      days: [],
+      streak: "on fire",
+      recent: { 0: "role" },
+      open: null,
+      profile: "backend",
+      onboarded: "yes",
+      theme: 7,
+      started: 12,
+      v: "one",
+    });
+    assert.doesNotThrow(() => Store.import(junk));
+
+    /* Every write path the UI can reach, on the repaired state. */
+    assert.doesNotThrow(() => Store.complete("role"));
+    assert.doesNotThrow(() => Store.saveQuiz("role", 2, 2));
+    assert.doesNotThrow(() => Store.saveCheck("role", "k", true));
+    assert.doesNotThrow(() => Store.note("role", "x"));
+    assert.doesNotThrow(() => Store.reviewCard("role:0", true));
+    assert.doesNotThrow(() => Store.projTask("p-rag", 1));
+    assert.doesNotThrow(() => Store.labTouched("tokenizer"));
+    assert.doesNotThrow(() => Store.setMetric("p-rag", "recallAfter", "0.9"));
+    assert.doesNotThrow(() => Store.setEvidenceNotes("p-rag", "hi"));
+    assert.doesNotThrow(() => Store.rateDrill("cost-arithmetic", 2));
+    assert.doesNotThrow(() => Store.level());
+    assert.doesNotThrow(() => Store.heat(30));
+
+    /* And every derived report, which is what the pages actually render. These
+       return null without a curriculum, so a bare doesNotThrow would pass on a
+       store that cannot compute them — assert the shape too. */
+    assert.doesNotThrow(() => Store.signals());
+    assert.ok(Store.readiness(), "readiness is unavailable");
+    assert.ok(Store.session(25, 3), "session planner is unavailable");
+    assert.ok(Store.portfolio(), "portfolio is unavailable");
+    assert.ok(Store.drillStats("all"), "drill stats are unavailable");
+    assert.ok(Store.resetWarning().length > 40);
+
+    /* Arithmetic must be arithmetic: "lots" + 50 was a real bug. */
+    assert.equal(typeof Store.state().xp, "number");
+    assert.ok(isFinite(Store.state().xp) && Store.state().xp > 0);
+    assert.equal(typeof Store.readiness().overall, "number");
+    assert.ok(Store.session(25, 3).used <= 25);
+  });
+
+  test("a round trip through export and import is lossless", () => {
+    const { Store } = freshStore();
+    Store.complete("role");
+    Store.note("role", "kept");
+    Store.setMetric("p-rag", "recallAfter", "0.82");
+    Store.setEvidenceNotes("p-rag", "kept too");
+    Store.rateDrill("cost-arithmetic", 0);
+    Store.projTask("p-rag", 0);
+    const before = Store.export();
+
+    const { Store: Fresh } = freshStore();
+    Fresh.import(before);
+    /* Compared key by key rather than string-wise: the sanitiser is allowed to
+       normalise, but it must not lose anything. */
+    const a = JSON.parse(before);
+    const b = Fresh.state();
+    for (const k of Object.keys(a)) {
+      assert.deepEqual(
+        JSON.parse(JSON.stringify(b[k])),
+        JSON.parse(JSON.stringify(a[k])),
+        `"${k}" changed across a round trip`
+      );
+    }
   });
 });
