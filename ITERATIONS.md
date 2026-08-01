@@ -45,19 +45,29 @@ An adversarial review workflow (3 lenses × verified findings) then confirmed
   (now cached + invalidated), the save was deleted before the coalition decision
   locked in (now cleared only in finishUp), and G.advice survived a resume.
 
+**v4 — scenario starts** (this iteration)
+Four openings on one board, each balance-measured against classic (median seats,
+smart play, 250 games): 🗳️ GENERAL ELECTION (282) · ⚡ SNAP ELECTION, 6 weeks
+(223) · 🥊 THE UNDERDOG, 3 campaigners vs 7, rivals ahead, 5 AP/week (218) ·
+🔥 ANTI-INCUMBENCY, heat 5, cred 38, **share erodes every week** (259).
+Scenario picker screen with the changed numbers as chips; draft respects the
+cast size; HUD badge + erosion warning; scenario named on the result screen and
+the result card; resume carries the scenario (verified across a reload).
+The harness gained scenario assertions (challenge modes must be harder than
+classic; heatwave within a band; zero invalid states), which also caught the
+urban draft slipping below the viability bar — DELHI DUO buffed (freebies −30%,
++2 cred/wk, urban conversion ×1.65), restoring 184 vs random 153.
+
 ## Backlog (ranked)
 
-1. **Scenario starts** — "snap election" (6 weeks), "underdog" (3 leaders,
-   rivals lead), "anti-incumbency" (start with heat 5). One data structure,
-   big replay value.
-2. **Achievements** for strategy mode (arcade already has cards): win without
+1. **Achievements** for strategy mode (arcade already has cards): win without
    memes, win after the tape arc, fracture the mahagathbandhan, all-clean sweep.
-3. **Leader mood/loyalty** — extends usage tracking into a visible morale stat
+2. **Leader mood/loyalty** — extends usage tracking into a visible morale stat
    with small buffs/maluses; BENCHED STAR arc already reads the same signal.
-4. **Board juice** — animate seat swings on the map after each week; region
+3. **Board juice** — animate seat swings on the map after each week; region
    tiles pulse when they change hands.
-5. **Daily challenge** — fixed seed of the day + shareable score string.
-6. **Mobile layout** for the strategy game (arcade already has it) — biggest
+4. **Daily challenge** — pairs perfectly with scenarios (scenario-of-the-day) — fixed seed of the day + shareable score string.
+5. **Mobile layout** for the strategy game (arcade already has it) — biggest
    effort, listed last deliberately.
 
 ## Verification checklist per iteration

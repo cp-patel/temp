@@ -45,6 +45,7 @@
     t: 0,
     draft: [],
     planks: [],
+    scenario: 'classic',
     difficulty: 1,
     menu: 0,
     report: null,
@@ -144,7 +145,7 @@
 
   /* ------------------------------------------------------------------ start */
   function beginCampaign() {
-    G.st = SG.newGame({ leaders: G.draft.slice(), planks: G.planks.slice(), difficulty: G.difficulty });
+    G.st = SG.newGame({ leaders: G.draft.slice(), planks: G.planks.slice(), difficulty: G.difficulty, scenario: G.scenario });
     G.sel = null;
     G.screen = 'play';
     G.log = [];
@@ -178,7 +179,7 @@
     const saved = savedCampaign();
     if (saved) items.push([`▶ RESUME CAMPAIGN (week ${saved.week} of ${saved.maxWeeks})`, resumeCampaign]);
     items.push(
-      ['NEW CAMPAIGN', () => (G.screen = 'draft')],
+      ['NEW CAMPAIGN', () => (G.screen = 'scenario')],
       ['HOW TO PLAY', () => (G.screen = 'howto')],
       ['ARCADE MODE (the old microgames)', () => (location.href = 'arcade.html')],
       [`SOUND: ${store.data.muted ? 'OFF' : 'ON'}`, () => {
@@ -210,10 +211,61 @@
     );
   }
 
+  /* ----------------------------------------------------------- screen: scenario */
+  function drawScenario() {
+    bg();
+    d.text(g, 'CHOOSE YOUR ELECTION', W / 2, 46, { size: 30, fill: C.saffron });
+    d.text(g, 'Same board, different shape of trouble.', W / 2, 74, { size: 14, fill: C.dim });
+
+    SG.SCENARIOS.forEach((sc, i) => {
+      const cw = 560;
+      const ch = 190;
+      const cx = W / 2 - cw - 12 + (i % 2) * (cw + 24);
+      const cy = 104 + Math.floor(i / 2) * (ch + 20);
+      const picked = G.scenario === sc.id;
+      const over = UI.hit(cx, cy, cw, ch, () => {
+        G.scenario = sc.id;
+        MM.audio.sfx('ui');
+      });
+      d.fillRR(g, cx, cy, cw, ch, 14, picked ? 'rgba(255,153,51,.20)' : 'rgba(255,255,255,.07)');
+      d.strokeRR(g, cx, cy, cw, ch, 14, picked ? C.saffron : over ? '#fff' : C.line, picked ? 3 : 1.4);
+      d.text(g, sc.icon, cx + 46, cy + 52, { size: 40, fill: C.text });
+      d.text(g, sc.name, cx + 88, cy + 38, { size: 22, align: 'left', fill: '#fff' });
+      d.text(g, sc.tag, cx + 88, cy + 62, { size: 13, weight: 700, align: 'left', fill: C.gold });
+      wrapClipRet(g, sc.blurb, cx + 24, cy + 96, cw - 48, 14, 19, C.dim, 3);
+      // the numbers that actually change
+      const m = sc.mods || {};
+      const chips = [];
+      chips.push((m.weeks || 10) + ' WEEKS');
+      chips.push((m.maxLeaders || 4) + ' CAMPAIGNERS');
+      chips.push((m.apMax || 4) + ' AP/WEEK');
+      if (m.rivalHead) chips.push('RIVALS AHEAD');
+      if (m.erosion) chips.push('SHARE ERODES');
+      if (m.heat) chips.push('HEAT ' + m.heat);
+      let chx = cx + 24;
+      chips.forEach((c2) => {
+        const cw2 = d.measure(g, c2, 10.5, 800) + 16;
+        d.fillRR(g, chx, cy + ch - 34, cw2, 20, 10, 'rgba(0,0,0,.4)');
+        d.text(g, c2, chx + cw2 / 2, cy + ch - 24, { size: 10.5, fill: picked ? C.gold : C.dim });
+        chx += cw2 + 8;
+      });
+    });
+
+    UI.button(g, W / 2 - 250, H - 56, 160, 40, '← BACK', { fn: () => (G.screen = 'title') });
+    UI.button(g, W / 2 + 60, H - 56, 260, 40, 'NEXT: PICK YOUR CAST ▶', {
+      fn: () => {
+        G.draft = [];
+        G.screen = 'draft';
+      },
+      hoverBg: C.green,
+    });
+  }
+
   /* -------------------------------------------------------------- screen: draft */
   function drawDraft() {
     bg();
-    d.text(g, 'PICK YOUR FOUR STAR CAMPAIGNERS', W / 2, 40, { size: 30, fill: C.saffron });
+    const castN = (SG.scenarioById(G.scenario).mods || {}).maxLeaders || 4;
+    d.text(g, `PICK YOUR ${castN === 3 ? 'THREE' : 'FOUR'} STAR CAMPAIGNERS`, W / 2, 40, { size: 30, fill: C.saffron });
     d.text(g, 'Everyone you leave behind joins the opposition. Choose the board, not just the cards.', W / 2, 68, {
       size: 14,
       fill: C.dim,
@@ -227,11 +279,11 @@
       const cx = gx + (i % cols) * (cw + 14);
       const cy = 92 + Math.floor(i / cols) * (ch + 14);
       const picked = G.draft.includes(L.id);
-      const full = G.draft.length >= 4 && !picked;
+      const full = G.draft.length >= castN && !picked;
       const over = UI.hit(cx, cy, cw, ch, () => {
         if (picked) G.draft = G.draft.filter((x) => x !== L.id);
-        else if (G.draft.length < 4) G.draft.push(L.id);
-        else toast('Only four campaigners — drop one first.', C.red);
+        else if (G.draft.length < castN) G.draft.push(L.id);
+        else toast(`Only ${castN} campaigners in this scenario — drop one first.`, C.red);
       });
 
       d.fillRR(g, cx, cy, cw, ch, 12, picked ? 'rgba(255,153,51,.20)' : full ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.08)');
@@ -273,13 +325,13 @@
       });
     }
 
-    UI.button(g, W / 2 - 250, H - 56, 160, 40, '← BACK', { fn: () => (G.screen = 'title') });
-    UI.button(g, W / 2 + 90, H - 56, 220, 40, `NEXT: MANIFESTO (${G.draft.length}/4)`, {
+    UI.button(g, W / 2 - 250, H - 56, 160, 40, '← BACK', { fn: () => (G.screen = 'scenario') });
+    UI.button(g, W / 2 + 90, H - 56, 220, 40, `NEXT: MANIFESTO (${G.draft.length}/${castN})`, {
       fn: () => {
-        if (G.draft.length === 4) G.screen = 'planks';
-        else toast('Pick exactly four campaigners.', C.red);
+        if (G.draft.length === castN) G.screen = 'planks';
+        else toast(`Pick exactly ${castN} campaigners.`, C.red);
       },
-      disabled: G.draft.length !== 4,
+      disabled: G.draft.length !== castN,
       hoverBg: C.green,
     });
   }
@@ -370,7 +422,10 @@
 
     // header
     d.text(g, 'CHUNAV CHANAKYA', 24, 30, { size: 20, align: 'left', fill: C.saffron });
-    d.text(g, `${SG.TOTAL_SEATS} seats · majority ${SG.MAJORITY}`, 24, 52, { size: 12, align: 'left', fill: C.dim2 });
+    const scen = SG.scenarioById(st.scenario);
+    d.text(g, `${scen.icon} ${scen.name} · majority ${SG.MAJORITY}`, 24, 52, { size: 12, align: 'left', fill: scen.id === 'classic' ? C.dim2 : C.gold });
+    if ((scen.mods || {}).erosion)
+      d.text(g, '⚠ anti-incumbency: your share erodes weekly', 24, 66, { size: 10.5, weight: 800, align: 'left', fill: C.heat });
     const proj = UI.resourceStrip(g, st, 300, 8, 700);
     UI.button(g, W - 128, 14, 104, 34, '⏸ MENU', { fn: () => (G.screen = 'title'), size: 12 });
 
@@ -993,6 +1048,8 @@
     const r = st.result;
     bg(true);
     UI.panel(g, W / 2 - 460, 60, 920, H - 140, 'RESULT');
+    const scEnd = SG.scenarioById(st.scenario);
+    if (scEnd.id !== 'classic') d.text(g, scEnd.icon + ' ' + scEnd.name, W / 2, 96, { size: 15, fill: C.gold });
     d.text(g, r.ending.title, W / 2, 132, { size: 46, fill: C.gold, stroke: '#12060a', lw: 9 });
     wrapCentre(g, r.ending.text, W / 2, 176, 780, 17, 22, C.text);
 
@@ -1033,7 +1090,7 @@
       fn: () => {
         G.draft = [];
         G.planks = [];
-        G.screen = 'draft';
+        G.screen = 'scenario';
       },
       hoverBg: C.green,
       size: 13,
@@ -1155,7 +1212,8 @@
     q.fillStyle = gr;
     q.fillRect(0, 0, 1000, 560);
     MM.d.sunburst(q, 500, 180, 700, 22, 0.2, 'rgba(255,153,51,.10)', 'rgba(255,255,255,.03)');
-    MM.d.text(q, 'CHUNAV CHANAKYA', 500, 52, { size: 30, fill: C.saffron, stroke: '#12060a', lw: 6 });
+    const scCard = SG.scenarioById(st.scenario);
+    MM.d.text(q, 'CHUNAV CHANAKYA' + (scCard.id !== 'classic' ? '  ·  ' + scCard.name : ''), 500, 52, { size: 28, fill: C.saffron, stroke: '#12060a', lw: 6 });
     MM.d.text(q, r.ending.title, 500, 130, { size: 58, fill: C.gold, stroke: '#12060a', lw: 10 });
     MM.d.text(q, `${r.seats.P} of ${SG.TOTAL_SEATS} seats`, 500, 186, { size: 26, fill: '#fff' });
     // seat bar
@@ -1367,6 +1425,7 @@
     switch (G.screen) {
       case 'title': drawTitle(); break;
       case 'howto': drawHowto(); break;
+      case 'scenario': drawScenario(); break;
       case 'draft': drawDraft(); break;
       case 'planks': drawPlanks(); break;
       case 'play':

@@ -30,7 +30,12 @@ in Safari/Firefox, which block `localStorage` on `file://`.
 **Mouse drives everything.** `ENTER` ends the week · `ESC` backs out · `1-3` answers a
 dilemma · `M` mutes.
 
-New in the latest build: **autosave + resume** (close the tab mid-campaign, pick it up
+**Four ways to play** — 🗳️ the full GENERAL ELECTION · ⚡ SNAP ELECTION (6 weeks,
+cash out or die) · 🥊 THE UNDERDOG (3 campaigners against 7, rivals ahead, but 5 AP
+a week) · 🔥 ANTI-INCUMBENCY (you're the government: rich, ahead, and your share
+erodes every single week). Each is balance-measured, not just reskinned.
+
+Also in the latest builds: **autosave + resume** (close the tab mid-campaign, pick it up
 from the title screen), a **💡 ADVISOR** that suggests a full week with reasons (the
 same bot the balance harness plays — accept any of it or none), a one-time **Week 1
 briefing** instead of a tutorial maze, a **campaign diary** that retells your run

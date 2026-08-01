@@ -63,6 +63,45 @@
   SG.TOTAL_SEATS = SG.REGIONS.reduce((s, r) => s + r.seats, 0);
   SG.MAJORITY = Math.floor(SG.TOTAL_SEATS / 2) + 1;
 
+  /* -------------------------------------------------------------- scenarios
+     Different openings, same board — each one bends the campaign's shape:
+     time pressure, a handicap, or baggage to manage. Balance-tested. */
+  SG.SCENARIOS = [
+    {
+      id: 'classic',
+      name: 'GENERAL ELECTION',
+      tag: 'the full campaign',
+      blurb: '10 weeks, 4 campaigners, a level field. The way democracy intended (roughly).',
+      icon: '🗳️',
+      mods: {},
+    },
+    {
+      id: 'snap',
+      name: 'SNAP ELECTION',
+      tag: 'no time to think — think faster',
+      blurb: 'The government fell over a Tuesday. 6 weeks to polling day. Buzz you don\'t cash out is buzz you never had.',
+      icon: '⚡',
+      mods: { weeks: 6, funds: 150, cadre: 62 },
+    },
+    {
+      id: 'underdog',
+      name: 'THE UNDERDOG',
+      tag: 'three of you against all of them',
+      blurb: 'Only 3 campaigners — seven sit opposite. The rivals start ahead everywhere. You start hungrier: 5 AP a week.',
+      icon: '🥊',
+      mods: { maxLeaders: 3, apMax: 5, funds: 92, rivalHead: 4 },
+    },
+    {
+      id: 'heatwave',
+      name: 'ANTI-INCUMBENCY',
+      tag: 'you are the government. sorry.',
+      blurb: 'Ten years in power: you start ahead, rich — and bleeding. Anti-incumbency erodes your share EVERY week. Hold the dam.',
+      icon: '🔥',
+      mods: { heat: 5, cred: 38, funds: 145, playerHead: 6, erosion: 0.55 },
+    },
+  ];
+  SG.scenarioById = (id) => SG.SCENARIOS.find((x) => x.id === id) || SG.SCENARIOS[0];
+
   /* ----------------------------------------------------------------- parties */
   SG.PARTIES = {
     P: { id: 'P', name: 'YOUR FRONT', short: 'YOU', color: '#ff9933' },
@@ -134,7 +173,7 @@
       nick: 'MUFFLER MAN',
       tag: 'The Freebie Fakir',
       face: 'muffler',
-      passive: 'Schemes cost 25% less, and city-leaning regions convert 50% better for you.',
+      passive: 'Schemes cost 25% less, and city-leaning regions convert 65% better for you.',
       passiveKey: 'schemeDiscount',
       action: {
         id: 'bijli',
@@ -269,7 +308,7 @@
   SG.SYNERGIES = [
     { a: 'chief', b: 'chanakya', name: 'JODI No. 1', good: true, text: 'Conversion +15% on top of everything.' },
     { a: 'chief', b: 'maharaj', name: 'DOUBLE ENGINE', good: true, text: 'Fortresses trigger at 30% instead of 38%.' },
-    { a: 'muffler', b: 'suit', name: 'DELHI DUO', good: true, text: 'Freebies cost 20% less.' },
+    { a: 'muffler', b: 'suit', name: 'DELHI DUO', good: true, text: 'Freebies cost 30% less, +2 CREDIBILITY a week.' },
     { a: 'thesaurus', b: 'suit', name: 'PRIME TIME PANEL', good: true, text: 'Debates also chip 1.5% share off the rival.' },
     { a: 'didi', b: 'palti', name: 'REGIONAL FRONT', good: true, text: '+20 FUNDS a week from state units.' },
     { a: 'chanakya', b: 'palti', name: 'OPERATION MATHEMATICS', good: true, text: 'Alliance Flip is 60% stronger (+1 HEAT).' },

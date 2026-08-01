@@ -121,6 +121,34 @@ const plankMeds = [];
 const plankSpread = Math.max(...plankMeds) - Math.min(...plankMeds);
 console.log(`  → spread ${plankSpread} seats (small spread = coverage and running cost cancel out, no dominant manifesto)`);
 
+console.log('\nscenarios (smart play):');
+const problemsScen = [];
+const scenMeds = {};
+[['classic', DRAFTS.meta.ids], ['snap', DRAFTS.meta.ids], ['underdog', ['chief', 'chanakya', 'khata']], ['heatwave', DRAFTS.meta.ids]].forEach(([sc, draft]) => {
+  const seats = [];
+  let bad = 0;
+  for (let i = 0; i < Math.min(N, 100); i++) {
+    const st = SG.newGame({ leaders: draft, planks: planksFor(), seed: 6000 + i, scenario: sc });
+    let guard = 0;
+    while (!st.finished && guard++ < 60) {
+      SG.bots.smart(st);
+      SG.endWeek(st);
+      if (st.storyBeat) SG.resolveStoryBeat(st, 0);
+    }
+    if (!st.finished) SG.finish(st);
+    const t = st.result.seats.P + st.result.seats.A + st.result.seats.B + st.result.seats.O;
+    if (t !== SG.TOTAL_SEATS || !isFinite(st.result.seats.P)) bad++;
+    seats.push(st.result.seats.P);
+  }
+  scenMeds[sc] = stats(seats).med;
+  console.log(`  ${sc.padEnd(10)} median ${stats(seats).med}${bad ? '  ** ' + bad + ' INVALID **' : ''}`);
+  if (bad) problemsScen.push(sc + ' produced invalid states');
+});
+if (!(scenMeds.snap < scenMeds.classic && scenMeds.underdog < scenMeds.classic))
+  problemsScen.push('challenge scenarios are not harder than classic');
+if (Math.abs(scenMeds.heatwave - (scenMeds.classic + scenMeds.snap) / 2) > 70)
+  problemsScen.push('heatwave difficulty drifted out of band');
+
 console.log('\nendings spread (smart, meta draft):');
 Object.entries(smart.endings)
   .sort((a, b) => b[1] - a[1])
@@ -133,7 +161,7 @@ const viable = [smart.s.med, smartUrban.s.med, smartFort.s.med, smartTalky.s.med
 const drafts = viable.concat([smartChaos.s.med]);
 console.log(`draft spread across 4 casts: ${Math.min(...drafts)}–${Math.max(...drafts)} median seats`);
 
-const problems = [];
+const problems = problemsScen || [];
 const pathToPower = (smart.wins.majority + smart.wins.coalition) / N;
 console.log(`path to power (majority or coalition shot), smart+meta: ${(pathToPower * 100).toFixed(0)}%`);
 if (rnd.bad || smart.bad) problems.push('invalid states produced');

@@ -149,7 +149,10 @@
     opts = opts || {};
     const seed = opts.seed === undefined ? Math.floor(Math.random() * 1e9) : opts.seed;
     const rng = mulberry32(seed);
-    const myLeaders = (opts.leaders || ['chief', 'chanakya', 'yuvraj', 'suit']).slice(0, 4);
+    const scen = SG.scenarioById(opts.scenario);
+    const M = scen.mods || {};
+    const maxLeaders = M.maxLeaders || 4;
+    const myLeaders = (opts.leaders || ['chief', 'chanakya', 'yuvraj', 'suit']).slice(0, maxLeaders);
     const rest = SG.LEADERS.map((l) => l.id).filter((id) => !myLeaders.includes(id));
     // whoever you passed on lines up against you, split across two rival fronts
     const A = [];
@@ -160,15 +163,17 @@
       seed,
       rng,
       week: 1,
-      maxWeeks: opts.weeks || 10,
+      scenario: scen.id,
+      maxLeaders,
+      maxWeeks: opts.weeks || M.weeks || 10,
       difficulty: opts.difficulty === undefined ? 1 : opts.difficulty,
-      apMax: 4,
-      ap: 4,
+      apMax: M.apMax || 4,
+      ap: M.apMax || 4,
       apNextBonus: 0,
-      funds: 108,
-      cadre: 45,
-      cred: 55,
-      heat: 0,
+      funds: M.funds || 108,
+      cadre: M.cadre || 45,
+      cred: M.cred === undefined ? 55 : M.cred,
+      heat: M.heat || 0,
       seatTax: 0,
       planks: (opts.planks || ['JOBS', 'FAITH']).slice(0, 2),
       leaders: { P: myLeaders, A, B },
@@ -219,6 +224,10 @@
       st.regions[rid].cadre[p] = 62;
     });
 
+    // scenario head starts: the underdog chases, the incumbent defends baggage
+    if (M.rivalHead) SG.REGIONS.forEach((def) => { addShare(st, def.id, 'A', M.rivalHead); addShare(st, def.id, 'B', M.rivalHead * 0.6); });
+    if (M.playerHead) SG.REGIONS.forEach((def) => addShare(st, def.id, 'P', M.playerHead));
+
     SG.planAI(st);
     st.intel = SG.visibleIntel(st);
     st.news = SG.HEADLINES[Math.floor(rng() * SG.HEADLINES.length)];
@@ -255,7 +264,7 @@
     if (has('yuvraj')) m.cadreIncome += 14;
     if (has('didi')) m.cadreIncome += 8;
     if (has('maharaj')) m.cadreIncome += 6;
-    if (has('muffler')) ((m.schemeCostMul *= 0.75), (m.urbanConv = 1.5));
+    if (has('muffler')) ((m.schemeCostMul *= 0.75), (m.urbanConv = 1.65));
     if (has('suit')) m.credIncome += 4;
     if (has('thesaurus')) ((m.intel += 1), (m.credIncome += 2));
     if (has('palti')) m.fundsIncome += 14;
@@ -263,7 +272,7 @@
 
     if (syn('chief', 'chanakya')) (m.convMul *= 1.1), m.names.push('JODI No. 1');
     if (syn('chief', 'maharaj')) ((m.fortressAt = 28), m.names.push('DOUBLE ENGINE'));
-    if (syn('muffler', 'suit')) ((m.freebieCostMul = 0.8), m.names.push('DELHI DUO'));
+    if (syn('muffler', 'suit')) ((m.freebieCostMul = 0.7), (m.credIncome += 2), m.names.push('DELHI DUO'));
     if (syn('thesaurus', 'suit')) ((m.debateShare = 1.5), m.names.push('PRIME TIME PANEL'));
     if (syn('didi', 'palti')) ((m.fundsIncome += 20), m.names.push('REGIONAL FRONT'));
     if (syn('chanakya', 'palti')) ((m.flipMul = 1.6), m.names.push('OPERATION MATHEMATICS'));
@@ -581,7 +590,12 @@
       });
     });
 
-    // 6. votes move
+    // 6. anti-incumbency erosion (scenario): the incumbent bleeds a little
+    //    share in every region, every week — the wave you must out-campaign
+    const scenMods = SG.scenarioById(st.scenario).mods || {};
+    if (scenMods.erosion) SG.REGIONS.forEach((def) => addShare(st, def.id, 'P', -scenMods.erosion));
+
+    // 7. votes move
     convertBuzz(st);
 
     // 7. Didi holds the fort

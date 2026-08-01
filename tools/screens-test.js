@@ -21,7 +21,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
     SG.finish(st);
     st.result.coalitionPossible=true; st.result.majority=false;
   });
-  const screens=['title','howto','draft','planks','play','story','dilemma','resolve','election','coalition','end','diary'];
+  const screens=['title','howto','scenario','draft','planks','play','story','dilemma','resolve','election','coalition','end','diary'];
   let bad=[];
   for(const sc of screens){
     await p.evaluate(x=>{SG.G.screen=x;},sc);
