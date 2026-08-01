@@ -891,11 +891,22 @@
 
 /* ================= DASHBOARD ================= */
 
+/* Exactly six tiles, so the track count is fixed rather than auto-fit: at a
+   desktop width auto-fit resolved to four across and left a visible hole on the
+   second row. Three-up gives two clean rows, and the media queries below take it
+   to two-up and then keep it there — a six-number strip should never become a
+   1700px column. */
 .dgrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--s-4);
   margin-bottom: var(--s-8);
+}
+
+@media (max-width: 1080px) {
+  .dgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* On a phone the 210px track resolves to a single column, which turned six

@@ -1376,6 +1376,31 @@
       });
 
     var stats = el("div", "dgrid");
+    /* Six numbers, and every one of them something you would act on or feel.
+       
+       Three tiles were dropped in an editorial pass: "Cards learned" said 0/56 to a
+       learner fifteen chapters in and duplicated the review card lower down the same
+       page; "Notes written" was a whole tile spent on a zero; and "Reading done" was
+       the least actionable of the six now that the session planner answers the
+       planning question properly.
+       
+       What replaced them was already conspicuous by its absence: labs, milestones
+       and drills are three of the four things the readiness score weights, and none
+       of them had a number anywhere on the dashboard. */
+    var labsUsed = C.chapters.filter(function (c) {
+      return c.lab && s.labs[c.lab];
+    }).length;
+    var labsTotal = C.chapters.filter(function (c) {
+      return !!c.lab;
+    }).length;
+    var msDone = 0;
+    var msTotal = 0;
+    C.projects.forEach(function (pr) {
+      msTotal += pr.tasks.length;
+      msDone += Store.projDone(pr.id);
+    });
+    var dr = Store.drillStats ? Store.drillStats("all") : null;
+
     [
       [
         "Chapters complete",
@@ -1384,10 +1409,14 @@
         Math.round(o.pct) + "% of the curriculum",
       ],
       [
-        "Current streak",
-        s.streak.n + "<small>d</small>",
-        "flame",
-        "Best: " + U.plural(s.streak.best || 0, "day"),
+        "Project milestones",
+        msDone + "<small>/" + msTotal + "</small>",
+        "hammer",
+        /* Named as evidence because that is what it is: the part of the readiness
+           score you cannot reach by reading. */
+        msDone
+          ? "The evidence half of readiness"
+          : "Where the readiness score is won",
       ],
       [
         "Quiz accuracy",
@@ -1402,30 +1431,28 @@
           : "No quizzes taken yet",
       ],
       [
-        "Cards learned",
-        cards.total
-          ? cards.learned + "<small>/" + cards.total + "</small>"
+        "Labs opened",
+        labsUsed + "<small>/" + labsTotal + "</small>",
+        "beaker",
+        labsUsed === labsTotal
+          ? "Every lab explored"
+          : "The cheapest points on the board",
+      ],
+      [
+        "Drills rehearsed",
+        dr && dr.attempted
+          ? dr.attempted + "<small>/" + dr.total + "</small>"
           : '<span class="stat__none">—</span>',
-        "cards",
-        cards.total
-          ? cards.due + " due for review"
-          : "Complete a chapter to unlock cards",
+        "chat",
+        dr && dr.attempted
+          ? dr.clean + " clean" + (dr.weak ? ", " + dr.weak + " to redo" : "")
+          : "Answering out loud is a separate skill",
       ],
       [
-        "Reading done",
-        U.hours(minsDone),
-        "clock",
-        /* Say what this number is. Read alone it looks like the whole course
-           fits in 15 hours, which contradicts the plan's 15 weeks and is the
-           exact "it only takes two weeks" figure this curriculum argues against:
-           labs, quizzes and projects are where the hours actually go. */
-        U.hours(totalMinutes() - minsDone) + " of reading left, labs aside",
-      ],
-      [
-        "Notes written",
-        String(Store.noteCount()),
-        "doc",
-        "Across all chapters",
+        "Current streak",
+        s.streak.n + "<small>d</small>",
+        "flame",
+        "Best: " + U.plural(s.streak.best || 0, "day"),
       ],
     ].forEach(function (x) {
       var c = el("div", "stat");
@@ -1680,7 +1707,32 @@
       rcol.appendChild(rdCard);
     }
 
-    /* badges */
+    /* review CTA */
+    if (cards.due > 0) {
+      var rev = el("div", "card card--pad");
+      rev.style.marginTop = "var(--s-5)";
+      rev.innerHTML =
+        '<div class="u-eyebrow">Spaced repetition</div>' +
+        '<div style="font-size:var(--t-md);font-weight:640;color:var(--ink);margin:var(--s-2) 0">' +
+        cards.due +
+        " cards due</div>" +
+        '<p class="u-dim" style="font-size:var(--t-sm);margin-bottom:var(--s-4)">' +
+        "Reviewing on schedule is how this content stops being something you read " +
+        "and becomes something you know.</p>" +
+        '<a class="btn btn--accent-soft btn--block" href="#/review">' +
+        Icons.get("cards", 15) +
+        " Start review</a>";
+      rcol.appendChild(rev);
+    }
+
+    /* badges — in the left column, which is 1.6fr wide.
+
+       Two problems, one fix. The right column had grown to four cards against the
+       left's three, leaving roughly 630px of dead whitespace beside it at a realistic
+       mid-course state. And this was the tallest block on the page — about 700px for
+       fourteen badges, the least actionable thing here — because a narrow column
+       resolved its auto-fill grid to three across. Moving it wider balances the
+       columns and shortens the block at the same time. */
     var badges = el("div", "card card--pad");
     badges.style.marginTop = "var(--s-5)";
     badges.innerHTML =
@@ -1719,26 +1771,7 @@
       bg.appendChild(n);
     });
     badges.appendChild(bg);
-    rcol.appendChild(badges);
-
-    /* review CTA */
-    if (cards.due > 0) {
-      var rev = el("div", "card card--pad");
-      rev.style.marginTop = "var(--s-5)";
-      rev.innerHTML =
-        '<div class="u-eyebrow">Spaced repetition</div>' +
-        '<div style="font-size:var(--t-md);font-weight:640;color:var(--ink);margin:var(--s-2) 0">' +
-        cards.due +
-        " cards due</div>" +
-        '<p class="u-dim" style="font-size:var(--t-sm);margin-bottom:var(--s-4)">' +
-        "Reviewing on schedule is how this content stops being something you read " +
-        "and becomes something you know.</p>" +
-        '<a class="btn btn--accent-soft btn--block" href="#/review">' +
-        Icons.get("cards", 15) +
-        " Start review</a>";
-      rcol.appendChild(rev);
-    }
-
+    lcol.appendChild(badges);
     cols.appendChild(lcol);
     cols.appendChild(rcol);
 

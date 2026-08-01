@@ -2327,6 +2327,136 @@ async function main() {
   /* The warning was a hand-written list in two places and went stale the moment
      portfolio evidence existed: it promised to clear five things while also
      destroying every write-up the learner had typed. Both surfaces derive it now. */
+  /* ---------------- dashboard economy ---------------- */
+  /* The dashboard grew to nine blocks over five commits with nobody reviewing it as
+     a whole. This is the editorial pass, pinned: no tile spending itself on a zero,
+     no metric duplicated by a card lower down, and the two columns roughly balanced
+     rather than one running 630px past the other. */
+  section("dashboard economy");
+  {
+    const dctx = await browser.newContext({
+      viewport: { width: 1440, height: 1000 },
+      colorScheme: "dark",
+    });
+    const dp = await dctx.newPage();
+    dp.on("pageerror", (e) => errors.push(`dash pageerror: ${e.message}`));
+    dp.on("console", (m) => {
+      if (m.type() === "error") errors.push(`dash console: ${m.text()}`);
+    });
+    await visit(dp, BASE + "#/dashboard");
+    await dp.evaluate(() => {
+      Store.skipOnboarding();
+      const C = window.Curriculum;
+      /* A realistic mid-course account: three phases read, some quizzes imperfect,
+         a project underway, two drills attempted. */
+      C.chapters
+        .filter((c) =>
+          ["foundations", "prompting", "building"].includes(c.phase)
+        )
+        .forEach((c) => {
+          Store.complete(c.id);
+          if ((c.quiz || []).length)
+            Store.saveQuiz(c.id, Math.max(1, c.quiz.length - 1), c.quiz.length);
+          if (c.lab) Store.labTouched(c.lab);
+        });
+      [0, 1, 2].forEach((i) => Store.projTask("p-classifier", i));
+      Store.rateDrill(C.drills[0].id, 0);
+      Store.rateDrill(C.drills[1].id, 2);
+    });
+    await visit(dp, BASE + "#/dashboard");
+    await dp.waitForTimeout(600);
+
+    const tiles = await dp.evaluate(() =>
+      [...document.querySelectorAll(".dgrid .stat")].map((t) => ({
+        label: (t.querySelector(".stat__lbl") || {}).innerText || "",
+        n: (t.querySelector(".stat__n") || {}).innerText || "",
+        sub: (t.querySelector(".stat__sub") || {}).innerText || "",
+        top: Math.round(t.getBoundingClientRect().top),
+      }))
+    );
+    check(
+      "six stat tiles in clean rows, no ragged gap",
+      tiles.length === 6 && new Set(tiles.map((t) => t.top)).size === 2,
+      JSON.stringify(tiles.map((t) => [t.label, t.top]))
+    );
+    /* The editorial rule: a tile earns its space by carrying a number the learner
+       would act on. Three used to spend themselves on a zero or on a figure the
+       review card already gave. */
+    check(
+      "no tile is showing a bare zero at a realistic mid-course state",
+      tiles.every((t) => t.n.trim() !== "0" && !/^0\D*$/.test(t.n.trim())),
+      JSON.stringify(tiles.map((t) => [t.label, t.n]))
+    );
+    check(
+      "the tiles cover all four things readiness weights, plus habit",
+      [
+        "Chapters",
+        "Project milestones",
+        "Quiz",
+        "Labs",
+        "Drills",
+        "streak",
+      ].every((want) =>
+        tiles.some((t) => t.label.toLowerCase().includes(want.toLowerCase()))
+      ),
+      JSON.stringify(tiles.map((t) => t.label))
+    );
+    /* "Cards learned 0/56" sat above a "56 cards due" card on the same page. */
+    check(
+      "no tile duplicates the spaced-repetition card below it",
+      !tiles.some((t) => /cards/i.test(t.label)),
+      JSON.stringify(tiles.map((t) => t.label))
+    );
+
+    const cols = await dp.evaluate(() => {
+      const [l, r] = document.querySelectorAll(".dcols > div");
+      const h = (n) => Math.round(n.getBoundingClientRect().height);
+      return {
+        left: h(l),
+        right: h(r),
+        leftCards: l.children.length,
+        rightCards: r.children.length,
+        page: document.body.scrollHeight,
+      };
+    });
+    check(
+      "the two dashboard columns are roughly balanced",
+      Math.abs(cols.left - cols.right) < Math.max(cols.left, cols.right) * 0.35,
+      JSON.stringify(cols)
+    );
+    check(
+      "and the badge grid is in the wide column, so it is not the tallest block",
+      cols.leftCards === 4 && cols.rightCards === 3,
+      JSON.stringify(cols)
+    );
+
+    /* The tile strip must never become a column of six. */
+    for (const w of [1440, 1100, 900, 640, 390]) {
+      await dp.setViewportSize({ width: w, height: 900 });
+      await dp.waitForTimeout(200);
+      const shape = await dp.evaluate(() => {
+        const tops = new Set(
+          [...document.querySelectorAll(".dgrid .stat")].map((t) =>
+            Math.round(t.getBoundingClientRect().top)
+          )
+        );
+        return {
+          rows: tops.size,
+          overflow:
+            document.documentElement.scrollWidth -
+            document.documentElement.clientWidth,
+        };
+      });
+      check(
+        `stat tiles stay a strip at ${w}px (${shape.rows} rows)`,
+        shape.rows <= 3 && shape.overflow <= 2,
+        JSON.stringify(shape)
+      );
+    }
+
+    await dctx.close();
+  }
+
   section("reset warning");
   {
     const wctx = await browser.newContext({
