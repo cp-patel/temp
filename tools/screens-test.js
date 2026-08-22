@@ -1,12 +1,12 @@
 /* Guard test (run: node tools/screens-test.js): every screen must render at least one WORKING exit control.
    A screen that draws but registers no clickable target is a dead end. */
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium, launchOpts } = require('./pw');
 (async()=>{
-  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+  const b=await chromium.launch(launchOpts);
   const p=await b.newPage({viewport:{width:1400,height:880}});
   const errs=[]; p.on('pageerror',e=>errs.push('PAGEERROR: '+e.message));
   p.on('console',m=>{if(m.type()==='error')errs.push('CONSOLE: '+m.text());});
-  await p.goto('file:///home/user/temp/index.html'); await p.waitForTimeout(700);
+  await p.goto('file://' + require('path').join(__dirname, '..', 'index.html')); await p.waitForTimeout(700);
   await p.evaluate(()=>{SG.store.data.coached=true;});
 
   // build a mid-campaign state that has a story beat, a dilemma and a report ready

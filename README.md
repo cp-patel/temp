@@ -18,8 +18,8 @@ side mode.
 ## ▶ Play
 
 ```bash
-git clone -b claude/modi-meme-game-7g05m8 https://github.com/cp-patel/temp.git chunav
-cd chunav
+git clone https://github.com/cp-patel/achhe-din-simulator.git
+cd achhe-din-simulator
 open index.html          # macOS   ·   xdg-open (Linux)   ·   start (Windows)
 ```
 

@@ -2,12 +2,12 @@
    Regression for the modal-briefing finding: with the overlay up, map clicks,
    END WEEK clicks and the ENTER shortcut must all be inert; the CHALO button
    must still work; afterwards everything must work again. */
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium, launchOpts } = require('./pw');
 (async()=>{
-  const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+  const b=await chromium.launch(launchOpts);
   const p=await b.newPage({viewport:{width:1400,height:880}});
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
-  await p.goto('file:///home/user/temp/index.html'); await p.waitForTimeout(700);
+  await p.goto('file://' + require('path').join(__dirname, '..', 'index.html')); await p.waitForTimeout(700);
   await p.evaluate(()=>{
     localStorage.clear(); SG.store.data.coached=false;
     SG.G.draft=['chief','chanakya','khata','maharaj']; SG.G.planks=['WELFARE','FAITH'];

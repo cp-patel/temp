@@ -1,9 +1,9 @@
 /* Iteration 5 verification: achievements unlock, render, persist, and are
    reachable through REAL canvas clicks (not just by calling functions). */
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+const { chromium, launchOpts } = require('./pw');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
+  const b = await chromium.launch(launchOpts);
   const p = await b.newPage({ viewport: { width: 1400, height: 880 } });
   const errs = [];
   p.on('pageerror', (e) => errs.push('PAGEERROR: ' + e.message));
@@ -12,7 +12,7 @@ const { chromium } = require('/opt/node22/lib/node_modules/playwright');
   const fail = [];
   const ok = (cond, msg) => { console.log((cond ? '  ok   ' : '  FAIL ') + msg); if (!cond) fail.push(msg); };
 
-  await p.goto('file:///home/user/temp/index.html');
+  await p.goto('file://' + require('path').join(__dirname, '..', 'index.html'));
   await p.waitForTimeout(700);
 
   // canvas → page coordinate mapping, so we click where the player clicks

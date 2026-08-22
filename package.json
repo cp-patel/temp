@@ -1,0 +1,13 @@
+{
+  "name": "achhe-din-simulator",
+  "private": true,
+  "description": "Political-satire game project: vanilla JS + canvas, zero runtime dependencies, no build step.",
+  "scripts": {
+    "balance": "node tools/balance.js 250",
+    "achievements": "node tools/achievements-test.js",
+    "screens": "node tools/screens-test.js",
+    "modal": "node tools/modal-test.js",
+    "achievements-ui": "node tools/achievements-ui-test.js",
+    "test": "npm run balance && npm run achievements && npm run screens && npm run modal && npm run achievements-ui"
+  }
+}
