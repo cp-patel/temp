@@ -95,38 +95,104 @@ Three endings: **400 PAAR** (fantasy — near-impossible), **COALITION JENGA**
 At no point is there more than **15 words on screen**. Everything else is
 motion, sound, and numbers reacting.
 
-## 6. The juice mandate (the non-negotiables)
+## 6. The living screen — nothing waits, nothing sits still
+
+The game is not turn-based and no screen is a static card. **The world
+simulates whether you act or not**:
+
+- **The backdrop is a running diorama.** The petrol-price board ticks up digit
+  by digit. The ATM queue grows person by person. TV chyrons rotate. Crowds
+  wander, cluster, and react. The ticker literally never stops.
+- **State drives the scenery.** REALITY low → queues longer, streetlights
+  dimmer, more autorickshaws honking. IMAGE high → bigger cutouts, more
+  garlands, a camera drone circling. You *read the meters in the world* before
+  you read them in the HUD.
+- **The idle rule:** at any moment, at least **3 things are in motion** on
+  screen. And if the player does nothing for ~3 seconds, the world escalates —
+  an ambient event fires. Idleness is punished by the fiction, never by a popup.
+- **Ambient event pool.** Every episode carries 6–10 scripted micro-surprises
+  on independent timers — a wedding party of 40 arrives at the ATM with one
+  pink note; an anchor goes live outside; a cow walks into the frame — and only
+  2–3 fire per run, picked at random. No two runs of the same episode are
+  identical.
+
+## 7. The anticipation engine — think → commit → held breath → payoff
+
+The player must "get a chance to think about what they are going to see."
+That's a four-beat loop, and **every meaningful action in the game runs it**:
+
+1. **TELEGRAPH (the think).** Before committing you see the stakes and the
+   odds: the virality wheel's wedge composition, a rival's declared intent
+   ("the anchor is preparing a queue exposé — 5s"), the incoming event icon.
+   You are always betting with the odds on the table, never guessing blind.
+2. **COMMIT.** The input.
+3. **THE HELD BREATH.** 300–900 ms where the outcome is visibly being decided:
+   the needle swings, the wheel slows, the crowd hushes, the music ducks.
+   Tap-skippable for pace — never skipped for information.
+4. **PAYOFF.** The outcome lands with juice proportional to its rarity.
+   **Crits exist**: a meme can go INTERNATIONAL (3× effect, gold flash,
+   fireworks). **Funny failures exist**: a meme can be EXPOSED — the
+   opposition mints a counter-meme *from your own template*. Failure is a
+   punchline, never a lecture.
+
+The concrete systems built on this loop:
+
+- **THE VIRALITY WHEEL.** Minting a meme spins a visible wheel — FLOP / LOCAL /
+  TRENDING / NATIONAL / INTERNATIONAL INCIDENT. Before spinning you can *load*
+  the wheel (spend IMAGE or funds to widen the good wedges) — informed
+  gambling, odds always visible. This is the game's signature moment.
+- **TELEGRAPHED COUNTERS.** Rivals and anchors announce intent seconds ahead.
+  You counter, brace, or eat it — the strategy game's best mechanic, kept.
+- **NEAR-MISS CHOREOGRAPHY.** Thresholds wobble on purpose. The finale's seat
+  counter stalls at 269… 270… 271… before it resolves. Meters overshoot and
+  settle.
+- **BANK OR RIDE.** Streak mechanics ask the oldest good question: cash out
+  the flashbulb combo now, or double it and risk the drop.
+
+## 8. The juice mandate (the non-negotiables)
 
 1. **Every input reacts within 100 ms** — motion + sound + a number moving.
    A click that changes nothing visible is a bug.
 2. **≤15 words on screen** at any moment during play. Jokes land through play,
    not prose.
-3. **The world is alive**: crowds are particles, tickers scroll, meters lurch
-   with overshoot, meme counters pop. Nothing sits still.
-4. **Every episode teaches by doing** — the first 5 seconds demonstrate the
+3. **The world is alive** — the idle rule above: ≥3 things in motion, always;
+   nothing waits for input.
+4. **Every meaningful action runs the anticipation loop** — telegraph, commit,
+   held breath, payoff.
+5. **Every episode teaches by doing** — the first 5 seconds demonstrate the
    verb; there is no "how to play" text, ever.
-5. **Every payoff is shareable** — the meme card PNG is the score screen.
+6. **Every payoff is shareable** — the meme card PNG is the score screen.
 
-## 7. Meta & replay
+## 9. Meta & replay
 
 - **Meme card grades** per episode — *Certified WhatsApp Forward* (bronze) →
   *National Trend* (silver) → *International Incident* (gold). Runs on the
   existing achievements/store tech.
 - **The collection album** is the meta-game: 12 moments × 3 grades.
+- Ambient event pools + the virality wheel make every replay different.
 - A full run is **~35 minutes**; any episode replays in ~3.
 
-## 8. What we reuse
+## 10. Toolchain — what we build on
 
-- `fx.js` (particles, shake, confetti), `audio.js` (synth stings), the canvas
-  kit, the caricature face system — the arcade mode proved the juice engine.
-- `buildResultCard` PNG tech → the meme card minting.
-- Achievements/store → grades and the album.
-- The headless-bot harness idea survives as **per-episode tuning**: bots
-  auto-play each set-piece so fail/win rates are measured, not guessed.
-- The strategy game stays in the repo as-is (it's finished work) but leaves the
-  front door.
+The current engine (canvas kit + `fx.js` particles/shake + WebAudio synth) was
+enough for the arcade, but the living screen + anticipation loop need real
+**timeline choreography, scene management, and camera work**. Options, with a
+recommendation:
 
-## 9. Tone & guardrails
+| Need | Tool | Notes |
+| --- | --- | --- |
+| Scenes, tweens, particles, camera shake/flash/zoom, timers | **Phaser 3** ⭐ recommended | The standard 2D web-game framework. One vendored `.min.js`, no build step, works from `file://`. Each episode = one Phaser Scene. Buys the most development speed for exactly the juice we've specced. |
+| Timeline/easing choreography only (stay on our engine) | **GSAP** | The minimal-change option: keep our canvas kit, add world-class tween timelines for the held-breath beats. |
+| Crowd-scale rendering (hundreds of animated entities, shaders) | **PixiJS** | Adopt only if canvas 2D hits limits. Phaser uses WebGL already, so likely moot. |
+| Audio | **keep our WebAudio synth** | It's the game's sonic identity. `jsfxr` optionally for quick retro SFX variants. |
+| Playtest distribution | **itch.io** (private page) | Shareable builds for "is it fun" feedback without hosting anything. |
+
+All libraries are MIT and get **vendored into the repo** — this trades the
+"zero-dependency" purity for "no build, no network, works offline," which is
+the part that actually matters. Nothing here needs an account, API key, or
+integration from you today (itch.io only when we want outside playtesters).
+
+## 11. Tone & guardrails
 
 Satire aims **up**: public policies, public statements, public spectacle. We
 keep the parody-name convention (the Leader is unmistakable, never named) while
@@ -135,11 +201,13 @@ crisis, oxygen shortage) and communal flashpoints — not funny, not our lane.
 The fun of every episode is the absurdity of power, never the suffering of the
 queue.
 
-## 10. Next step — your three calls
+## 12. Next step — your four calls
 
 1. **Name**: ACHHE DIN SIMULATOR / MITRON! / JUMLA RAJ / other?
 2. **Spice level**: gentle ribbing ↔ properly savage. Where on the dial?
-3. **Pick the vertical slice**: I build ONE episode fully juiced as the proof —
-   recommend **MITRON O'CLOCK** (iconic + shows off chaos) or **THALI
-   ORCHESTRA** (shows off the rhythm/audio engine). You play it, then we decide
+3. **Engine**: Phaser 3 (recommended — fastest route to the juice mandate) or
+   stay vanilla + GSAP (smallest change)?
+4. **Pick the vertical slice**: I build ONE episode fully juiced as the proof —
+   recommend **MITRON O'CLOCK** (iconic + chaos + the lever) or **THALI
+   ORCHESTRA** (rhythm + the audio engine). You play it, then we decide
    whether the whole season gets made.
