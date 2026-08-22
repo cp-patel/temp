@@ -1,3 +1,5 @@
+> **📦 MOVED:** this project now lives at [github.com/cp-patel/achhe-din-simulator](https://github.com/cp-patel/achhe-din-simulator). This branch is a frozen snapshot.
+
 # 🗳️ CHUNAV CHANAKYA
 
 **A turn-based meme election strategy game.** Draft four star campaigners from a cast of
